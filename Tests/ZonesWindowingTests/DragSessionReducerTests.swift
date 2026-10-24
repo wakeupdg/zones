@@ -389,4 +389,68 @@ import ZonesWindowing
     let armedOther = F.run(Array(script(other).dropLast()))
     #expect(F.isArmed(armedOwn.state) && F.isArmed(armedOther.state))
   }
+
+  static var everyEvent: [DragEvent] {
+    [
+      F.mouseDown(), F.dragged(), F.dragged(F.center(3)), .mouseUp(point: F.center(3), flags: .shift),
+      .mouseUp(point: F.center(3), flags: []), .flagsChanged([]), .flagsChanged(.shift), .flagsChanged(.option),
+      F.moved(), F.unmoved(), .frameSample([F.window.id: .timedOut]), .frameSample([F.window.id: .gone]),
+      .armContext(F.context), .windowGone, .topologyChanged(F.context), .spaceChanged, .wake,
+    ]
+  }
+
+  @Test func noSamplesAfterMovingCore() {
+    let (armed, _) = Self.armedOverZone2()
+    let (pressed, _) = DragSessionReducer.reduce(.idle, F.mouseDown(flags: .shift))
+    let (moving, _) = DragSessionReducer.reduce(
+      DragSessionReducer.reduce(pressed, F.dragged()).0, F.moved())
+    #expect(F.isMoving(moving))
+    for state in [moving, armed] {
+      for event in Self.everyEvent {
+        let (_, fx) = DragSessionReducer.reduce(state, event)
+        #expect(!fx.contains(where: F.isRequestSample), "\(event)")
+      }
+    }
+  }
+
+  @Test func configReadAtMouseDownOnly() {
+    let option = ModifierConfig(activation: .option, span: .control)
+
+    // Config says Option: Shift never arms.
+    let shift = F.run([F.mouseDown(flags: .shift, config: option), F.dragged(), F.moved()])
+    #expect(F.isMoving(shift.state))
+    #expect(!shift.effects.contains(where: F.isShowOverlay))
+    let shiftLate = F.run(
+      [F.mouseDown(config: option), F.dragged(), F.moved(), .flagsChanged(.shift)])
+    #expect(F.isMoving(shiftLate.state))
+    #expect(!shiftLate.effects.contains(where: F.isShowOverlay))
+
+    // Option arms, both orders.
+    let first = F.run([F.mouseDown(flags: .option, config: option), F.dragged(), F.moved()])
+    #expect(F.isArmed(first.state))
+    let late = F.run([F.mouseDown(config: option), F.dragged(), F.moved(), .flagsChanged(.option)])
+    #expect(F.isArmed(late.state))
+
+    // The snap test also uses the stored config, not a default.
+    let drop = F.run([
+      F.mouseDown(flags: .option, config: option), F.dragged(), F.moved(),
+      .mouseUp(point: F.center(3), flags: .shift),
+    ])
+    #expect(!drop.effects.contains(where: F.isSnap))
+  }
+
+  @Test func topologyAndWakeAreInertCore() {
+    let (armed, _) = Self.armedOverZone2()
+    let (pressed, _) = DragSessionReducer.reduce(.idle, F.mouseDown(flags: .shift))
+    let (moving, _) = DragSessionReducer.reduce(
+      DragSessionReducer.reduce(pressed, F.dragged()).0, F.moved())
+    let inert: [DragEvent] = [.topologyChanged(F.context), .spaceChanged, .wake]
+    for state in [DragState.idle, pressed, moving, armed] {
+      for event in inert {
+        let (next, fx) = DragSessionReducer.reduce(state, event)
+        #expect(next == state, "\(event)")
+        #expect(fx.isEmpty, "\(event)")
+      }
+    }
+  }
 }

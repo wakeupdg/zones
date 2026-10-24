@@ -12,3 +12,4 @@
 - slice 11: DragSessionReducerTests.hideOverlayPrecedesSnap green — passed on first run, slice 10 emits hideOverlay first
 - slice 12: DragSessionReducerTests.windowGoneHidesOverlay green — armed windowGone hides and returns to idle with no snap
 - slice 13: DragSessionReducerTests.backgroundWindowArms green — passed on first run, the reducer input has no focus flag so pid never matters
+- slice 14: noSamplesAfterMovingCore, configReadAtMouseDownOnly, topologyAndWakeAreInertCore green — supporting tests; EXTENSION markers and known-gap doc comment added

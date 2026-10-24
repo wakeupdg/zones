@@ -6,6 +6,13 @@ import ZonesLayout
 /// The pure Drag Session state machine (ADR-0006, ADR-0007): idle, pressed, moving, armed.
 public enum DragSessionReducer {
   /// One step: no I/O, no time source, no actor. One switch per state.
+  ///
+  /// Known gap: no state holds a live cursor point outside armed. The driver re-sends its last `dragged` right
+  /// after answering `requestArmContext`, which sets the first highlight; mouse-up always recomputes its hit from
+  /// its own point, so a drop never uses a stale hit.
+  ///
+  /// EXTENSION(T22): `topologyChanged`, `spaceChanged` and `wake` are inert in every state for now; the Display
+  /// change, Space change and wake handling lands with the cross-Display ticket.
   public static func reduce(_ s: DragState, _ e: DragEvent) -> (DragState, [DragEffect]) {
     switch s {
     case .idle: return idle(s, e)
