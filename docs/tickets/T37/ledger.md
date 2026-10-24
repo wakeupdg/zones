@@ -1,0 +1,1 @@
+- slice 1: Generator.dragEventsAreSeededAndTotal green — Generator.dragEvents (seeded, exact count, all 10 kinds, mouseDown first); drag fixtures added to Fixtures
