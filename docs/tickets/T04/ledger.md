@@ -1,1 +1,2 @@
 - slice 1: probe-skeleton builds and runs (build-and-run check) — Package.swift, TapConfig single definition, AX preflight print, tap stubbed
+- slice 2: tap-delivers green — tapCreate non-nil with AX only on host (macOS 27.0.1); synthetic Shift emits flagsChanged x2; CGEvent.timestamp observed in ns not mach ticks
