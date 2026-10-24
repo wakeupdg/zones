@@ -47,11 +47,26 @@ if selftestShift {
 }
 
 let start = Date()
+var all = [Sample]()
+var tapLines = [String]()
+var lastTapList = Date()
+@MainActor func pump() {
+  for sample in recorder.drain() {
+    all.append(sample)
+    print(format(sample))
+  }
+}
 while !stopFlag.withLock({ $0 }) {
   if let seconds, Date().timeIntervalSince(start) >= seconds { break }
   RunLoop.current.run(until: Date().addingTimeInterval(0.05))
-  for sample in recorder.drain() { print(format(sample)) }
+  pump()
+  if Date().timeIntervalSince(lastTapList) >= 1 {
+    lastTapList = Date()
+    if let line = Stats.ownTapLine() { tapLines.append(line); print(line) }
+  }
 }
-for sample in recorder.drain() { print(format(sample)) }
+pump()
+if let line = Stats.ownTapLine() { tapLines.append(line); print(line) }
 runner.stop()
+for line in Stats.summary(all, tapLines: tapLines, seconds: Date().timeIntervalSince(start)) { print(line) }
 print("DONE tapDisabledEvents=\(recorder.disabledEvents)")
