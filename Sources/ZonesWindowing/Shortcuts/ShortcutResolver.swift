@@ -27,13 +27,34 @@ public enum ShortcutResolver {
     _ a: ShortcutAction, focused: FocusedWindow?, verdict: Verdict, topology: TopologySnapshot,
     layouts: [DisplayKey: ResolvedLayout], registry: OriginalFrameRegistry
   ) -> CommandPlan {
-    guard let focused, case .allow(let mode) = verdict else { return .noOp(.windowAbsent) }
+    // The dispatcher keeps openEditor and openSettings out of here; answering windowAbsent without a log keeps the
+    // function total.
+    guard a.isWindowAction else { return .noOp(.windowAbsent) }
+    // Gates, first hit wins, one log line each: no window, then the verdict, then the facts (belt and braces).
+    guard let focused else { return noOp(.windowAbsent, "\(describe(a)): no focused window", nil) }
+    let mode: SnapMode
+    switch verdict {
+    case .skip(let reason):
+      Log.skip(reason, focused.record.ref, category: .shortcuts)
+      switch reason {
+      case .fullScreen: return .noOp(.fullScreen)
+      case .positionNotSettable: return .noOp(.positionNotSettable)
+      default: return .noOp(.excluded)
+      }
+    case .allow(let allowed): mode = allowed
+    }
+    if focused.facts.isFullScreen { return noOp(.fullScreen, "\(describe(a)): window is full-screen", focused) }
+    if !focused.facts.positionSettable {
+      return noOp(.positionNotSettable, "\(describe(a)): position is not settable", focused)
+    }
     switch a {
     case .sendToZone(let n):
       guard let layout = layout(for: focused, topology: topology, layouts: layouts) else {
-        return .noOp(.zoneAbsent)
+        return noOp(.zoneAbsent, "\(describe(a)): no Zones on this Display", focused)
       }
-      guard (1...layout.zones.count).contains(n) else { return .noOp(.zoneAbsent) }
+      guard (1...layout.zones.count).contains(n) else {
+        return noOp(.zoneAbsent, "\(describe(a)): Layout has \(layout.zones.count) Zones", focused)
+      }
       return .snap(snapPlan(zone: n, layout: layout, focused: focused, mode: mode))
     default:
       return .noOp(.windowAbsent)
@@ -53,5 +74,26 @@ public enum ShortcutResolver {
     SnapPlan(
       window: focused.record.ref, display: layout.display, zones: [n], target: layout.zones[n - 1].frame, mode: mode,
       via: .keyboard, originalFrame: focused.frame)
+  }
+
+  static func describe(_ a: ShortcutAction) -> String {
+    switch a {
+    case .sendToZone(let n): "sendToZone(\(n))"
+    case .cycleRight: "cycleRight"
+    case .cycleLeft: "cycleLeft"
+    case .restore: "restore"
+    case .openEditor: "openEditor"
+    case .openSettings: "openSettings"
+    }
+  }
+
+  /// The one log line of a no-op. The message names the action and a count, never a window title (LI-003).
+  static func noOp(_ reason: NoOpReason, _ message: String, _ focused: FocusedWindow?) -> CommandPlan {
+    let ref = focused?.record.ref
+    Log.shared.event(
+      LogEvent(
+        time: ProcessInfo.processInfo.systemUptime, category: .shortcuts, level: .info,
+        message: "noOp \(reason.rawValue): " + message, bundleID: ref?.bundleID, pid: ref?.pid))
+    return .noOp(reason)
   }
 }

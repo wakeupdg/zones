@@ -3,3 +3,5 @@
 - slice 3: CycleResolverTests.table (tableMaxIntersection, tableTie, tableNoIntersection) green — max-intersection fallback, ties to lower, nil when no overlap
 - slice 4: CycleResolverTests.wrapProperty green — 200 seeded cases: in range, Right x count returns, Left inverts Right (passed at once, next already complete)
 - slice 5: ShortcutResolverTests.sendToZoneUsesOccupiedDisplay green — send to Zone N on the max-overlap Display's own Layout, keyboard SnapPlan with read-back original frame
+- slice 6: ShortcutResolverTests.absentZoneIsNoOp green — Zone 7/0/-1 is noOp(zoneAbsent), one .shortcuts log line, registry unchanged
+- slice 7: ShortcutResolverTests.gateTable green — gate order nil/verdict/facts, 3 actions x 14 cases, one log line each; non-window actions (openEditor/openSettings) answer noOp(windowAbsent) with no log (dispatcher never routes them)
