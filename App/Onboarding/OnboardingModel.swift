@@ -23,6 +23,10 @@ final class OnboardingModel {
     self.quitAndReopen = quitAndReopen
   }
 
+  /// Back applies only past page 1; Next only before the last page. The view disables, never dims.
+  var canGoBack: Bool { page != .accessibility }
+  var canGoNext: Bool { page != .cheatSheet }
+
   var viewState: OnboardingViewState {
     OnboardingViewState.derive(permission, relaunchOffered: relaunchOffered)
   }

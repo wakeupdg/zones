@@ -1,0 +1,1 @@
+- slice 1: OnboardingViewTests.inapplicableNavIsDisabled green — model canGoBack/canGoNext drive .disabled, opacity removed
