@@ -1,0 +1,1 @@
+- slice 1: disconnectedDisplayUsesStoredGeometry green — EditorState/Event/Effect types, EditorModel.open with shared geometry resolver, labels helper
