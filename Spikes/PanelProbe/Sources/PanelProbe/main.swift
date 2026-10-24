@@ -950,6 +950,22 @@ enum WitnessVariant: String, CaseIterable {
   }
 }
 
+/// AXFullScreen of the focused window of the focused app: public API fallback for full-screen Space detection.
+@MainActor func axFocusedFullScreen() -> Bool? {
+  guard AXIsProcessTrusted() else { return nil }
+  var app: CFTypeRef?
+  guard AXUIElementCopyAttributeValue(AXUIElementCreateSystemWide(), kAXFocusedApplicationAttribute as CFString, &app) == .success,
+    let app, CFGetTypeID(app) == AXUIElementGetTypeID()
+  else { return nil }
+  var win: CFTypeRef?
+  guard AXUIElementCopyAttributeValue(app as! AXUIElement, kAXFocusedWindowAttribute as CFString, &win) == .success,
+    let win, CFGetTypeID(win) == AXUIElementGetTypeID()
+  else { return nil }
+  var fs: CFTypeRef?
+  guard AXUIElementCopyAttributeValue(win as! AXUIElement, "AXFullScreen" as CFString, &fs) == .success else { return nil }
+  return fs as? Bool
+}
+
 func displayUUID(_ screen: NSScreen) -> String {
   guard let num = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber,
     let u = CGDisplayCreateUUIDFromDisplayID(num.uint32Value)?.takeRetainedValue(),
@@ -975,14 +991,15 @@ func displayUUID(_ screen: NSScreen) -> String {
   func key(_ v: WitnessVariant, _ uuid: String) -> String { "\(v.rawValue)|\(uuid)" }
 
   @discardableResult
-  func createWitnesses(for screen: NSScreen) -> [Witness] {
-    let uuid = displayUUID(screen)
-    return WitnessVariant.allCases.map { v in
-      let w = Witness(id: nextID, variant: v, screen: screen, displayUUID: uuid)
-      nextID += 1
-      witnesses.append(w)
-      return w
-    }
+  func createWitness(_ v: WitnessVariant, for screen: NSScreen) -> Witness {
+    let w = Witness(id: nextID, variant: v, screen: screen, displayUUID: displayUUID(screen))
+    nextID += 1
+    witnesses.append(w)
+    return w
+  }
+
+  func createWitnesses(for screen: NSScreen) {
+    for v in WitnessVariant.allCases { createWitness(v, for: screen) }
   }
 
   func trueSet(_ v: WitnessVariant, uuid: String) -> Set<Int> {
@@ -1048,19 +1065,29 @@ func displayUUID(_ screen: NSScreen) -> String {
       let uuid = displayUUID(screen)
       let cg = screenCGFrame(screen)
       let wins = windowList(all: false).filter { $0.pid != ProcessInfo.processInfo.processIdentifier }
-      let fs = fullScreenGuess(screenCG: cg, windows: wins) || !menuBarPresent(screenCG: cg, windows: wins)
+      let coverGuess = fullScreenGuess(screenCG: cg, windows: wins)
+      let ax = axFocusedFullScreen()
+      let bar = menuBarPresent(screenCG: cg, windows: wins)
+      // Detector: a layer-0 window covers the display, or the focused window reports AXFullScreen. No private API.
+      let fs = coverGuess || ax == true
+      // Judge both variants against what is true NOW, before any new witness is created.
+      var seen: [WitnessVariant: (Set<Int>, WitnessBook.Verdict)] = [:]
+      for v in WitnessVariant.allCases {
+        let t = trueSet(v, uuid: uuid)
+        seen[v] = (t, (books[key(v, uuid)] ?? WitnessBook()).evaluate(expected: entry.label, trueIDs: t, fullScreen: fs))
+      }
       var cells: [String] = []
       for v in WitnessVariant.allCases {
         let k = key(v, uuid)
         var book = books[k] ?? WitnessBook()
-        let t = trueSet(v, uuid: uuid)
-        var verdict = book.evaluate(expected: entry.label, trueIDs: t, fullScreen: fs)
-        if verdict == .created, let w = createWitnesses(for: screen).first(where: { $0.variant == v }) {
+        let (t, verdict) = seen[v]!
+        if verdict == .created {
+          let w = createWitness(v, for: screen)
           book.bind(entry.label, id: w.id)
-          verdict = .created
-          cells.append("created W\(w.id)")
+          cells.append("none, created W\(w.id)")
         } else {
-          cells.append(t.sorted().map { "W\($0)" }.joined(separator: ",").isEmpty ? "none" : t.sorted().map { "W\($0)" }.joined(separator: ","))
+          let names = t.sorted().map { "W\($0)" }.joined(separator: ",")
+          cells.append(names.isEmpty ? "none" : names)
         }
         books[k] = book
         cells.append("\(verdict)")
@@ -1071,7 +1098,7 @@ func displayUUID(_ screen: NSScreen) -> String {
           tally[v] = cur
         }
       }
-      rows.append(["\(n)", isSwitch ? "switch" : "start", "\(entry.display)", entry.label, fs ? "yes" : "no"] + cells)
+      rows.append(["\(n)", isSwitch ? "switch" : "start", "\(entry.display)", entry.label, fs ? "yes" : "no", "cover=\(coverGuess) ax=\(ax.map(String.init) ?? "n/a") bar=\(bar)"] + cells)
       report.emit("- observation \(n) (\(isSwitch ? "switch" : "start")) at \(ptTime()): \(entry.label) -> A: \(cells[1]), B: \(cells[3])")
       finishIfDone()
     }
@@ -1081,7 +1108,7 @@ func displayUUID(_ screen: NSScreen) -> String {
     guard step >= plan.count, rows.count >= plan.count else { return }
     report.table(
       "Witness switches (step 0 is the starting Space)",
-      header: ["step", "kind", "display", "expected label", "full-screen detected", "A true witnesses", "A verdict", "B true witnesses", "B verdict"],
+      header: ["step", "kind", "display", "expected label", "full-screen detected", "detector inputs", "A true witnesses", "A verdict", "B true witnesses", "B verdict"],
       rows: rows)
     var summary: [[String]] = []
     for v in WitnessVariant.allCases {
