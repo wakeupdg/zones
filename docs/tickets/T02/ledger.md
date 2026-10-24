@@ -10,3 +10,4 @@ T02 started
 - slice 9: FakeContractTests.permissionProbe green — FakePermissionProbe (isTrusted queue then last answer holds, settable launchedAtLogin, openAccessibilitySettings logged)
 - slice 10: FakeContractTests.fileSystem green — FakeFileSystem (in-memory, atomic writeAtomic, failAfterBytes diskFull, scripted .error, notFound, init defaults its own FakeClock)
 - slice 11: FakeContractTests.arrayLogSink green — ArrayLogSink (lock-guarded events, enqueue preload, calls; Log.shared.install(sink:) does not exist yet so that sub-case is skipped)
+- review fix AC-165: failureMessageNamesSeed was a free @Test so 'swift test --filter GeneratorTests.failureMessageNamesSeed' ran 0 tests (vacuous pass); wrapped in @Suite struct GeneratorTests, filter now runs 1 test
