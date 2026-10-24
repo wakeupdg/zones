@@ -1,1 +1,2 @@
 - slice 1: hygieneCleanTreePrintsThreeZeroLines and 6 sibling hygiene tests green — scripts/hygiene-gate.sh counts unsafe-ops, ax-imports, cgwindowlist-uses in App/ (AC-162)
+- slice 2: lintPassesOnCompleteFixture and 4 sibling lint tests green — scripts/ticket-lint.sh (AC-167); live graph.json result: tickets: 39, missing-fields: 39 (orchestrator has not added the fields yet; not edited)

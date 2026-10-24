@@ -128,4 +128,79 @@ func write(_ text: String, to url: URL) throws {
     #expect(result.stdout == Self.zeroLines)
     #expect(result.status == 0)
   }
+  // MARK: slice 2, ticket-lint (AC-167)
+
+  static func ticket(
+    _ id: String, protocol proto: String? = "none", fake: String? = "none",
+    tests: String? = "FooTests"
+  ) -> String {
+    var fields = ["\"id\": \"\(id)\""]
+    if let proto { fields.append("\"protocol\": \"\(proto)\"") }
+    if let fake { fields.append("\"fake\": \"\(fake)\"") }
+    if let tests { fields.append("\"tests\": \"\(tests)\"") }
+    return "{" + fields.joined(separator: ", ") + "}"
+  }
+
+  func lint(_ tickets: [String]) throws -> ScriptResult {
+    let dir = try makeScratchDir()
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let file = dir.appendingPathComponent("graph.json")
+    try write("[" + tickets.joined(separator: ",") + "]", to: file)
+    return try runScript("scripts/ticket-lint.sh", [file.path])
+  }
+
+  @Test func lintPassesOnCompleteFixture() throws {
+    let result = try lint([
+      Self.ticket("T01", protocol: "none", fake: "none"),
+      Self.ticket("T02", protocol: "WindowServer", fake: "FakeWindowServer"),
+      Self.ticket("T03"),
+    ])
+    #expect(result.stdout == "tickets: 3, missing-fields: 0\n")
+    #expect(result.status == 0)
+  }
+
+  @Test func lintNamesFirstTicketMissingFake() throws {
+    let result = try lint([
+      Self.ticket("T01"), Self.ticket("T02", fake: nil), Self.ticket("T03", fake: nil),
+    ])
+    let lines = result.stdout.split(separator: "\n").map(String.init)
+    #expect(lines.first == "tickets: 3, missing-fields: 2")
+    #expect(lines.dropFirst().first == "FAIL T02: fake")
+    #expect(lines.count == 3)
+    #expect(result.status == 1)
+  }
+
+  @Test func lintRejectsNoneTests() throws {
+    let result = try lint([Self.ticket("T01", tests: " None ")])
+    #expect(result.stdout.contains("FAIL T01: tests"))
+    #expect(result.status == 1)
+  }
+
+  @Test func lintRejectsEmptyAndNonString() throws {
+    let dir = try makeScratchDir()
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let file = dir.appendingPathComponent("graph.json")
+    try write(
+      """
+      [{"id":"A","protocol":"  ","fake":"none","tests":"X"},
+       {"id":"B","protocol":"none","fake":7,"tests":"X"},
+       {"id":"C","protocol":"none","fake":"none","tests":null}]
+      """, to: file)
+    let result = try runScript("scripts/ticket-lint.sh", [file.path])
+    let lines = result.stdout.split(separator: "\n").map(String.init)
+    #expect(lines == ["tickets: 3, missing-fields: 3", "FAIL A: protocol", "FAIL B: fake", "FAIL C: tests"])
+    #expect(result.status == 1)
+  }
+
+  @Test func lintMissingFileExitsTwo() throws {
+    let missing = FileManager.default.temporaryDirectory.appendingPathComponent("nope-\(UUID().uuidString).json")
+    let result = try runScript("scripts/ticket-lint.sh", [missing.path])
+    #expect(result.status == 2)
+    #expect(!result.stderr.isEmpty)
+    let dir = try makeScratchDir()
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let notArray = dir.appendingPathComponent("g.json")
+    try write("{\"id\":\"T01\"}", to: notArray)
+    #expect(try runScript("scripts/ticket-lint.sh", [notArray.path]).status == 2)
+  }
 }
