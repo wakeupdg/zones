@@ -1601,5 +1601,170 @@
     "qa_findings": [
       "QA-1.10"
     ]
+  },
+  {
+    "id": "T47",
+    "title": "QA fix: Settings tab bar visible at default width; Cmd-W, Delete and Clear labels on the Shortcuts recorder",
+    "kind": "fix",
+    "delivers": "At the default and the minimum Settings window size, every pane tab (General, Layouts, Shortcuts, Appearance, Exclusions, About) is visible in the toolbar, none in the overflow (`>>`). Raise the default and minimum content width as needed (and SettingsView `.frame(minWidth:)`), or shorten labels; keep the window placement on the cursor Display (AC-021).; Cmd-W closes Settings when a shortcut recorder is first responder but not recording; while recording, Cmd-W is still captured as a chord candidate as today. Expose `isRecording` on `KeyCapturing` and check it in `SettingsWindow.performKeyEquiv",
+    "acceptance_ids": [
+      "AC-021",
+      "AC-103"
+    ],
+    "blocked_by": [
+      "T42",
+      "T34",
+      "T32"
+    ],
+    "files_expected": [
+      "App/Settings/*.swift",
+      "Sources/ZonesWindowing/Settings/RecorderKeyMap.swift",
+      "Tests/ZonesWindowingTests/RecorderKeyMapTests.swift",
+      "AppTests/SettingsWindowTests.swift",
+      "AppTests/ShortcutsAccessibilityTests.swift"
+    ],
+    "est_tokens": 80000,
+    "brief_path": "docs/tickets/T47.md",
+    "state": "todo",
+    "tokens_spent": 0,
+    "branch": "",
+    "last_report": "",
+    "protocol": "SettingsWindow, KeyCapturing, RecorderKeyMap (edit)",
+    "fake": "none needed (AppKit view tests)",
+    "tests": "AppTests/SettingsWindowTests.swift, AppTests/ShortcutsAccessibilityTests.swift, Tests/ZonesWindowingTests/RecorderKeyMapTests.swift",
+    "qa_findings": [
+      "QA-2.0",
+      "QA-2.2",
+      "QA-2.3",
+      "QA-2.5"
+    ]
+  },
+  {
+    "id": "T48",
+    "title": "QA fix: one owner for Layouts and Assignments; editor and Settings writes reach the running app (AC-134, AC-139)",
+    "kind": "fix",
+    "delivers": "`AppState` (App/Composition) is the single in-memory owner of Layouts and Assignments. Add `upsertLayout(_:)`, `deleteLayout(_:)` and `replaceDocument(_:)` (or `reload()` from the DocumentStore) and make every writer go through it: EditorLauncher's `upsertLive`/`documentChanged`, EditorEffectRouter writes, Settings LayoutsFlow import/replace/delete/rename/duplicate, and TopologyDriver `persistAssignment`.; After any write, the next drag arm, Send to Zone shortcut and the status menu see the new Layouts and Assignments without relaunch.; `AppState.setAssignment` never persists a stale dictionar",
+    "acceptance_ids": [
+      "AC-134",
+      "AC-139"
+    ],
+    "blocked_by": [
+      "T36",
+      "T35",
+      "T34"
+    ],
+    "files_expected": [
+      "App/Composition/AppState.swift",
+      "App/Composition/TopologyDriver.swift",
+      "App/Editor/EditorLauncher.swift",
+      "App/Editor/EditorEffectRouter.swift",
+      "App/Settings",
+      "App/AppDelegate.swift",
+      "AppTests/AppStateOwnershipTests.swift"
+    ],
+    "est_tokens": 110000,
+    "brief_path": "docs/tickets/T48.md",
+    "state": "todo",
+    "tokens_spent": 0,
+    "branch": "",
+    "last_report": "",
+    "protocol": "AppState (edit)",
+    "fake": "FakeFileSystem, FakeClock",
+    "tests": "AppTests/AppStateOwnershipTests.swift",
+    "qa_findings": [
+      "QA-2.7",
+      "QA-2.8"
+    ]
+  },
+  {
+    "id": "T49",
+    "title": "QA fix: editor messages are announced to VoiceOver (AC-139)",
+    "kind": "fix",
+    "delivers": "`EditorToolbar.show(message:)` posts `NSAccessibility.post(element:notification: .announcementRequested, userInfo: [.announcement: message, .priority: high])` when the message is non-empty, so an invalid command (for example Merge on a one-Zone Layout) is spoken.",
+    "acceptance_ids": [
+      "AC-139"
+    ],
+    "blocked_by": [
+      "T43"
+    ],
+    "files_expected": [
+      "App/Editor/EditorToolbar.swift",
+      "AppTests/EditorAccessibilityTests.swift"
+    ],
+    "est_tokens": 30000,
+    "brief_path": "docs/tickets/T49.md",
+    "state": "todo",
+    "tokens_spent": 0,
+    "branch": "",
+    "last_report": "",
+    "protocol": "EditorToolbar (edit)",
+    "fake": "closure seam for NSAccessibility.post",
+    "tests": "AppTests/EditorAccessibilityTests.swift",
+    "qa_findings": [
+      "QA-2.4"
+    ]
+  },
+  {
+    "id": "T50",
+    "title": "QA fix: overlay panels pre-build their layers so the first arm fits one 120 Hz frame (AC-040)",
+    "kind": "fix",
+    "delivers": "`PanelOverlayPresenter.resize(to:)` (or a launch warm-up while panels are ordered out) builds every fill and label layer, so the first `show(scene)` only sets opacity, contents and order.; The first show + `CATransaction.flush()` on a 3-Display snapshot takes under 8.33 ms in a Debug test build on this Mac (QA measured 9.6 to 26.7 ms); later shows stay as fast as today.; No change to what the overlay draws (OverlayPanelTests stay green).",
+    "acceptance_ids": [
+      "AC-040"
+    ],
+    "blocked_by": [
+      "T31",
+      "T36"
+    ],
+    "files_expected": [
+      "App/Overlay/PanelOverlayPresenter.swift",
+      "App/Overlay/ZoneLayerView.swift",
+      "AppTests/OverlayPerformanceTests.swift"
+    ],
+    "est_tokens": 50000,
+    "brief_path": "docs/tickets/T50.md",
+    "state": "todo",
+    "tokens_spent": 0,
+    "branch": "",
+    "last_report": "",
+    "protocol": "PanelOverlayPresenter (edit)",
+    "fake": "none needed (AppKit view tests)",
+    "tests": "AppTests/OverlayPerformanceTests.swift",
+    "qa_findings": [
+      "QA-2.6"
+    ]
+  },
+  {
+    "id": "T51",
+    "title": "QA fix: AX import confined to Adapters with a Sources gate (AC-162); dev-cert keychain hardening",
+    "kind": "fix",
+    "delivers": "`import ApplicationServices` appears only under Sources/ZonesWindowing/Adapters. Make `WindowHandle` opaque in Seams (store the element as `AnyObject`/a box type declared in Adapters, or move the AX-typed part into Adapters) so Seams has no ApplicationServices import. Keep the one `@unchecked Sendable` budget (SeamTests.uncheckedBoxCountIsOne).; Extend `scripts/hygiene-gate.sh` (or add a second check it calls) so an `import ApplicationServices` in Sources outside Adapters/ fails the gate; keep its three output lines and add one `sources-ax-imports: N` line; update GateScriptTests.; `scripts/de",
+    "acceptance_ids": [
+      "AC-162"
+    ],
+    "blocked_by": [
+      "T38",
+      "T13"
+    ],
+    "files_expected": [
+      "Sources/ZonesWindowing/Seams/WindowHandle.swift",
+      "Sources/ZonesWindowing/Adapters/*.swift",
+      "scripts/hygiene-gate.sh",
+      "Tests/ZonesCoreTests/GateScriptTests.swift",
+      "scripts/dev-cert.sh"
+    ],
+    "est_tokens": 60000,
+    "brief_path": "docs/tickets/T51.md",
+    "state": "todo",
+    "tokens_spent": 0,
+    "branch": "",
+    "last_report": "",
+    "protocol": "WindowHandle (edit)",
+    "fake": "none needed",
+    "tests": "Tests/ZonesCoreTests/GateScriptTests.swift, Tests/ZonesWindowingTests/SeamTests.swift",
+    "qa_findings": [
+      "QA-2.9",
+      "QA-2.1"
+    ]
   }
 ]

@@ -23,3 +23,11 @@ What I ran (ow | Observation is factual but the requirement is not. (1) Observat
    - AXRaw.copy (AXWindowSys | I refuted it on four separate points:
 1. Wrong citation. AC-039 (LOCKED-SPEC.md:369-372) is about hot-path budgets: zero allocations in hitTest/spanRect/resolve | The core finding holds. The ~6 s / 25-cal
 
+## Round 2 (2026-10-24)
+- [onboarding/minor] Launching without Accessibility starts the macOS system Accessibility prompt flow (universalAccessAuthWarn) alongside the onboarding window, although the probe is documented 'Never prompts' — outvoted: 1/3 verifiers kept it; What holds up:
+- The log events are real. I re-read them with /usr/bin/log show at 07:54:34. Pid 61532 (com.dganesh.zones.qaonboard) made two TCCAccessRequest c | The spec does not require what this finding says is broken, and its own logs do not prove a prompt was shown.
+
+1. The "never prompts" rule is met.
+   - The rule | I re-read the unified log myself with /us
+- Not run: QA round 3. Reason: the hook metric reached ~9.4M of the 12M run ceiling after round 2; the brief's 10M rule sends the run to Phase 5 after the in-flight fix run (T47-T51). Loop-until-dry was therefore not reached (round 2 found 10 new confirmed findings).
+
