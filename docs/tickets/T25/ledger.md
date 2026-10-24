@@ -11,3 +11,4 @@
 - slice 8: DocumentTests.rejectsNonUUIDKey green — T10 test existed; filled gaps ("nil:7", lowercase UUID); whole-document refusal already covered
 - slice 9: LayoutsPaneModelTests.rows green — attached rows in snapshot order, then disconnected rows sorted by displayName then key; copyTargets = attached .uuid keys only; a mirror member dropped by the collapse therefore appears as disconnected (accepted per brief)
 - slice 10: ScreenDisplayProvider builds clean (no red test; NSScreen not headless) — AC-119 manual, not run
+- slice 10 fix: dropped the extra unchecked-Sendable token (SeamTests.uncheckedBoxCountIsOne allows one); screen-parameter notifications now come from a cancelled-on-termination Task over NotificationCenter.notifications

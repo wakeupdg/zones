@@ -20,14 +20,17 @@ public final class ScreenDisplayProvider: DisplayProvider, Sendable {
       let box = ChangeBox(continuation)
       let info = Unmanaged.passRetained(box).toOpaque()
       CGDisplayRegisterReconfigurationCallback(displayReconfigured, info)
-      let observer = ObserverToken(
-        NotificationCenter.default.addObserver(
-          forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: nil
-        ) { _ in continuation.yield(.screenParameters) })
+      let parameters = Task {
+        for await _ in NotificationCenter.default.notifications(
+          named: NSApplication.didChangeScreenParametersNotification)
+        {
+          continuation.yield(.screenParameters)
+        }
+      }
       continuation.onTermination = { _ in
+        parameters.cancel()
         CGDisplayRemoveReconfigurationCallback(displayReconfigured, Unmanaged.passUnretained(box).toOpaque())
         Unmanaged.passUnretained(box).release()
-        NotificationCenter.default.removeObserver(observer.token)
       }
     }
   }
@@ -85,12 +88,6 @@ public final class ScreenDisplayProvider: DisplayProvider, Sendable {
 private final class ChangeBox: Sendable {
   let continuation: AsyncStream<RawDisplayChange>.Continuation
   init(_ continuation: AsyncStream<RawDisplayChange>.Continuation) { self.continuation = continuation }
-}
-
-/// Only `removeObserver` is ever called on the token, and NotificationCenter allows that from any thread.
-private final class ObserverToken: @unchecked Sendable {
-  let token: any NSObjectProtocol
-  init(_ token: any NSObjectProtocol) { self.token = token }
 }
 
 /// CoreGraphics calls this twice per change: once with `beginConfigurationFlag` (ignored, and nothing may
