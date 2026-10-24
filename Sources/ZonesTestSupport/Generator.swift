@@ -61,17 +61,9 @@ public struct Generator: Sendable {
     return CGRect(x: x, y: y, width: width, height: height)
   }
 
-  /// Contains `seed=<int>` and a compact description of the layout, so a failure replays from the message.
+  /// Contains `seed=<int>` (plain decimal) and the layout's full description, so a failure replays from the message.
   public static func failureMessage(seed: UInt64, layout: Layout, note: String) -> String {
-    "seed=\(seed) layout=\(layout.name) id=\(layout.id.rawValue) root=\(describe(layout.root)) \(note)"
-  }
-
-  private static func describe(_ node: SplitNode) -> String {
-    switch node {
-    case .leaf: "L"
-    case .split(let axis, let ratio, let first, let second):
-      "\(axis == .horizontal ? "H" : "V")(\(ratio),\(describe(first)),\(describe(second)))"
-    }
+    "seed=\(seed) layout=\(String(describing: layout)) note=\(note)"
   }
 
   private static func uuidBytes(high: UInt64, low: UInt64) -> uuid_t {
