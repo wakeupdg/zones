@@ -1,0 +1,1 @@
+- slice 1: hygieneCleanTreePrintsThreeZeroLines and 6 sibling hygiene tests green — scripts/hygiene-gate.sh counts unsafe-ops, ax-imports, cgwindowlist-uses in App/ (AC-162)
