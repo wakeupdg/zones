@@ -285,4 +285,106 @@ func makeFlow(
     let sessionOnly = flow.delete(L2, replacement: nil)
     #expect(!succeeded(sessionOnly))
   }
+
+  // MARK: Shortcut recorder
+
+  /// A scripted registrar: what the Carbon registrar would answer, and what the flow asked of it.
+  private final class Registrar {
+    var answers: [ShortcutAction: HotkeyRegistration] = [:]
+    var registered: [ShortcutAction] = []
+    var unregistered: [ShortcutAction] = []
+    var driver: ShortcutsFlow.Driver {
+      ShortcutsFlow.Driver(
+        register: { [self] _, action in
+          registered.append(action)
+          return answers[action] ?? .registered
+        },
+        unregister: { [self] in unregistered.append($0) })
+    }
+  }
+
+  private func chord(_ key: Key, _ modifiers: ModifierSet) -> Chord { Chord(key: key, modifiers: modifiers) }
+
+  @Test func recorderDisplay() throws {
+    let registrar = Registrar()
+    var flow = ShortcutsFlow(shortcuts: ShortcutRules.defaults, granted: true)
+    let controlOption: ModifierSet = [.control, .option]
+    func chordOf(_ action: ShortcutAction) -> Chord? { flow.shortcuts.first { $0.action == action }?.chord }
+    let originalRestore = chordOf(.restore)
+
+    // Accepted: stored, persisted, no message.
+    let k = chord(.letter("K"), controlOption)
+    let acceptedPersist = flow.record(k, for: .openEditor, driver: registrar.driver)
+    #expect(acceptedPersist?.first { $0.action == .openEditor }?.chord == k)
+    #expect(chordOf(.openEditor) == k)
+    #expect(flow.messages[.openEditor] == nil)
+
+    // Conflict: names the other action, nothing stored or registered.
+    registrar.registered = []
+    let conflictPersist = flow.record(chord(.arrowRight, controlOption), for: .restore, driver: registrar.driver)
+    #expect(conflictPersist == nil)
+    #expect(flow.messages[.restore]?.kind == .conflict)
+    #expect(flow.messages[.restore]?.text.contains("Cycle right") == true)
+    #expect(chordOf(.restore) == originalRestore)
+    #expect(registrar.registered.isEmpty)
+
+    // Rejected: no Command or Control. Not stored.
+    let rejectedPersist = flow.record(chord(.letter("K"), [.option]), for: .restore, driver: registrar.driver)
+    #expect(rejectedPersist == nil)
+    #expect(flow.messages[.restore]?.kind == .rejected)
+    #expect(chordOf(.restore) == originalRestore)
+    #expect(registrar.registered.isEmpty)
+
+    // Warning: acceptable but only after an explicit Accept.
+    let warned = chord(.letter("J"), [.command])
+    let warnedPersist = flow.record(warned, for: .restore, driver: registrar.driver)
+    #expect(warnedPersist == nil)
+    #expect(flow.messages[.restore]?.kind == .warning)
+    #expect(flow.messages[.restore]?.needsAccept == true)
+    #expect(chordOf(.restore) == originalRestore)
+    let acceptPersist = flow.accept(.restore, driver: registrar.driver)
+    #expect(acceptPersist?.first { $0.action == .restore }?.chord == warned)
+    #expect(chordOf(.restore) == warned)
+    #expect(flow.messages[.restore] == nil)
+    // Accept with nothing waiting does nothing.
+    #expect(flow.accept(.restore, driver: registrar.driver) == nil)
+
+    // inUse: the registrar refuses; the previous chord stays and the message says so.
+    registrar.answers[.cycleLeft] = .inUse
+    let inUsePersist = flow.record(chord(.letter("L"), controlOption), for: .cycleLeft, driver: registrar.driver)
+    #expect(inUsePersist == nil)
+    #expect(flow.messages[.cycleLeft]?.kind == .inUse)
+    #expect(flow.messages[.cycleLeft]?.text.contains("in use") == true)
+    #expect(chordOf(.cycleLeft) == chord(.arrowLeft, controlOption))
+    registrar.answers[.cycleLeft] = nil
+
+    // Clear leaves the action unbound: no default comes back.
+    registrar.unregistered = []
+    let clearPersist = flow.clear(.cycleRight, driver: registrar.driver)
+    #expect(clearPersist?.first { $0.action == .cycleRight }?.chord == nil)
+    #expect(chordOf(.cycleRight) == nil)
+    #expect(flow.shortcuts.contains { $0.action == .cycleRight })
+    #expect(registrar.unregistered == [.cycleRight])
+
+    // Reset restores the defaults, in order, and clears every message.
+    let resetPersist = flow.resetToDefaults(driver: registrar.driver)
+    #expect(resetPersist == ShortcutRules.defaults)
+    #expect(flow.shortcuts == ShortcutRules.defaults)
+    #expect(flow.messages.isEmpty)
+  }
+
+  @Test func recorderCaptureAndText() {
+    // Key codes round-trip through the Carbon table the registrar uses.
+    #expect(RecorderKeyMap.key(forKeyCode: 40) == .letter("K"))
+    #expect(RecorderKeyMap.key(forKeyCode: 18) == .digit(1))
+    #expect(RecorderKeyMap.key(forKeyCode: 124) == .arrowRight)
+    #expect(RecorderKeyMap.key(forKeyCode: 43) == .comma)
+    #expect(RecorderKeyMap.key(forKeyCode: 99) == nil)
+    // CGEventFlags bits for Control and Option, plus Caps Lock which is ignored.
+    #expect(RecorderKeyMap.modifiers(rawFlags: (1 << 18) | (1 << 19) | (1 << 16)) == [.control, .option])
+    #expect(ShortcutsFlow.text(for: chord(.digit(1), [.control, .option])) == "\u{2303}\u{2325}1")
+    #expect(ShortcutsFlow.text(for: chord(.arrowLeft, [.command, .shift])) == "\u{21E7}\u{2318}\u{2190}")
+    #expect(ShortcutsFlow.text(for: chord(.comma, [.command])) == "\u{2318},")
+    #expect(ShortcutsFlow.name(of: .sendToZone(3)) == "Send to Zone 3")
+  }
 }
