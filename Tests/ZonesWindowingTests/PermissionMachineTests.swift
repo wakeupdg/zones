@@ -298,4 +298,32 @@ final class PermissionHarness: Sendable {
     pool += timers.map { .timer($0) } + timers.map { .timer($0) }
     return g.pick(pool)
   }
+
+  // AC-021
+  @Test func reonboardLeavesStoresUntouched() throws {
+    let fs = FakeFileSystem()
+    let store = DocumentStore(fs: fs, directory: URL(fileURLWithPath: "/virtual/Zones"), clock: FakeClock())
+    try store.save(ZonesDocument(), as: .layouts)
+    try store.save(ZonesDocument(), as: .assignments)
+    _ = store.load(.layouts)
+    let calls = fs.calls
+    let files = fs.files
+    #expect(!calls.isEmpty)
+
+    let h = PermissionHarness(state: .granted)
+    h.arm(.healthTick, after: Constants.healthTick)
+    let effects = h.send(.reonboard)
+    #expect(h.state == .notGranted)
+    #expect(effects == [.cancel(.healthTick), .showOnboarding, .cancel(.trustPoll), .schedule(.trustPoll, 1)])
+    #expect(!effects.contains(.invalidateTap) && !effects.contains(.removeRecoveryRecord))
+    #expect(!effects.contains(.disableTap))
+    #expect(h.clock.pending == [.trustPoll])
+    #expect(fs.calls == calls)
+    #expect(fs.files == files)
+
+    // The next true probe is the ordinary first grant again.
+    h.probe.enqueue(.trusted(true))
+    h.clock.advance(by: 1)
+    #expect(h.state == .granted)
+  }
 }

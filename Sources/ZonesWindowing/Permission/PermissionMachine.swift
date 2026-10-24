@@ -58,6 +58,9 @@ public enum PermissionMachine {
         .suspect(since: now),
         [.cancel(.healthTick), .recreateTap] + rearm(.suspectResolve, Constants.suspectWindow)
       )
+    case .reonboard:
+      // Re-run onboarding: the tap and every store stay as they are. The next true probe's `startTap` is idempotent.
+      return (.notGranted, [.cancel(.healthTick), .showOnboarding] + rearm(.trustPoll, Constants.trustPoll))
     default: return (.granted, [])
     }
   }
