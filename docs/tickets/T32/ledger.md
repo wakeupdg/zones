@@ -2,3 +2,4 @@
 - slice 2: LoginItemToggleTests.derivationTable green — LoginItemToggleModel.derive table (error beats status; isOn from status only)
 - slice 3: LoginItemToggleTests.registerOnlyOnUserAction green — LoginItemToggleCoordinator (@Observable; register only in setOn; refresh clears error); slices 2-3 share one commit because the test file would not compile otherwise
 - slice 4: AboutModelTests.fieldsAndSingleAttributionLine green — AboutModel(bundle:), MIT, one attribution line
+- adapter: SMLoginItemService builds (no test; OS call); NSError 3/11/12 mapped per brief
