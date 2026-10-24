@@ -1,1 +1,2 @@
 - slice 1: skeleton build + no-arg usage exit 64 green — standalone Spikes/AXSignalsProbe package
+- slice 2: selftest green — AXStatus mapping, interval stats, JSON-lines logger

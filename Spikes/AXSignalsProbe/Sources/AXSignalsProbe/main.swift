@@ -9,9 +9,8 @@ usage: AXSignalsProbe <mode> [options]
 """
 
 let args = Array(CommandLine.arguments.dropFirst())
-guard let mode = args.first else {
-  FileHandle.standardError.write(Data((usage + "\n").utf8))
-  exit(64)
+guard let mode = args.first else { fail(usage, code: 64) }
+switch mode {
+case "selftest": exit(runSelfTest())
+default: fail("unknown mode: \(mode)\n\(usage)", code: 64)
 }
-FileHandle.standardError.write(Data("unknown mode: \(mode)\n\(usage)\n".utf8))
-exit(64)
