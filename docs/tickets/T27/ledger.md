@@ -1,0 +1,16 @@
+# T27 ledger
+- gap: ShortcutAction.allCases is 14 with isWindowAction true for first 12 (checked, no fix needed).
+- gap: Core Preferences.defaultShortcuts used letter("r")/("e"); changed to uppercase "R"/"E" per brief (letters stored uppercase); ShortcutRules.defaults returns it.
+- slice 1: ShortcutStoreTests.defaultsMatchADR green — ShortcutRules.defaults (ChordWarning, RecorderState declared)
+- slice 2: ShortcutStoreTests.requiresCommandOrControl green — ShortcutRules.validate
+- slice 3: ShortcutStoreTests.recorderStateTable green — ShortcutRules.recorderState
+- slice 4: ShortcutStoreTests.windowHotkeysOnlyWhileGranted green — ShortcutStore launch/permission reduce, StoreHarness
+- slice 5: ShortcutStoreTests.failureKeepsPreviousChord green — set/registration with pending chord
+- slice 6: ShortcutStoreTests.clearedStaysUnbound green — set(nil) unregisters once, stays nil
+- slice 7: ShortcutStoreTests.diffReregistersOnlyChanged green — identical chord no-op, only changed action re-registered
+- slice 8: ShortcutDispatchTests.droppedAndQueuedDuringSession green — ShortcutDispatcher drop + one log; set queued while not idle, folded on idle (log counted via Log.shared.ring, not a sink, because other suites replace the sink)
+- slice 9: DragSessionReducerTests.modifierConfigReadAtMouseDown green on first run — T16 reducer already stores config at mouseDown; test pins it
+- slice 10: ShortcutStoreTests.carbonKeyCodeTable green — CarbonKeyMap keycode and modifier tables
+- slice 11: CarbonHotkeyRegistrar builds clean — import Carbon.HIToolbox worked (no @_silgen_name shims); register-new-then-unregister-old; no deinit cleanup (process-lifetime object)
+- AC-106/AC-107 manual, needs App wiring
+- review fix (AC-105): CarbonKeyMap.keyCode trapped on letter "ß" (uppercases to "SS"); red test added to carbonKeyCodeTable, guard on uppercased count == 1, green

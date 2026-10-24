@@ -576,3 +576,64 @@ import ZonesWindowing
     #expect(!upFx2.contains { if case .skip = $0 { true } else { false } })
   }
 }
+
+extension DragSessionReducerTests {
+  /// The `ModifierConfig` stored in a non-idle state.
+  static func storedConfig(_ s: DragState) -> ModifierConfig? {
+    switch s {
+    case .idle: nil
+    case .pressed(_, _, _, _, let config, _, _): config
+    case .moving(_, _, _, let config): config
+    case .armed(_, _, _, let config, _, _, _, _): config
+    }
+  }
+
+  /// AC-111 second half: the Activation Modifier is read at mouseDown only.
+  @Test func modifierConfigReadAtMouseDown() {
+    let shiftConfig = ModifierConfig(activation: .shift, span: .control)
+    let optionConfig = ModifierConfig(activation: .option, span: .control)
+
+    // Session 1: Shift. Walk pressed, moving, armed and check the stored config at every step.
+    var (state, _) = DragSessionReducer.reduce(.idle, F.mouseDown(flags: .shift, config: shiftConfig))
+    #expect(F.isPressed(state))
+    #expect(Self.storedConfig(state) == shiftConfig)
+
+    (state, _) = DragSessionReducer.reduce(state, F.dragged())
+    #expect(Self.storedConfig(state) == shiftConfig)
+
+    (state, _) = DragSessionReducer.reduce(state, F.moved())
+    #expect(F.isMoving(state) || F.isPressed(state) || F.isArmed(state))
+    #expect(Self.storedConfig(state) == shiftConfig)
+
+    (state, _) = DragSessionReducer.reduce(state, .armContext(F.context))
+    #expect(F.isArmed(state))
+    #expect(Self.storedConfig(state) == shiftConfig)
+
+    // A mouseDown carrying a new config mid-session is ignored: the stored config does not change.
+    (state, _) = DragSessionReducer.reduce(state, F.mouseDown(flags: .option, config: optionConfig))
+    #expect(Self.storedConfig(state) == shiftConfig)
+
+    (state, _) = DragSessionReducer.reduce(state, .dragged(point: F.center(3), flags: .shift))
+    #expect(Self.storedConfig(state) == shiftConfig)
+    (state, _) = DragSessionReducer.reduce(state, .flagsChanged([.shift, .option]))
+    #expect(Self.storedConfig(state) == shiftConfig)
+    (state, _) = DragSessionReducer.reduce(state, .flagsChanged([]))
+    #expect(Self.storedConfig(state) == shiftConfig)
+
+    (state, _) = DragSessionReducer.reduce(state, .mouseUp(point: F.center(3), flags: []))
+    #expect(state == .idle)
+
+    // Session 2: the NEXT mouseDown reads Option, and arms only when Option is held.
+    let armedWithOption = F.run([
+      F.mouseDown(flags: .option, config: optionConfig), F.dragged(), F.moved(),
+    ])
+    #expect(F.isArmed(armedWithOption.state))
+    #expect(Self.storedConfig(armedWithOption.state) == optionConfig)
+
+    let shiftHeld = F.run([
+      F.mouseDown(flags: .shift, config: optionConfig), F.dragged(), F.moved(),
+    ])
+    #expect(!F.isArmed(shiftHeld.state))
+    #expect(Self.storedConfig(shiftHeld.state) == optionConfig)
+  }
+}

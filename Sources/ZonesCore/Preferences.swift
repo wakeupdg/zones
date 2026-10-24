@@ -62,8 +62,8 @@ public struct Preferences: Hashable, Codable, Sendable {
     return digits + [
       Shortcut(action: .cycleRight, chord: Chord(key: .arrowRight, modifiers: modifiers)),
       Shortcut(action: .cycleLeft, chord: Chord(key: .arrowLeft, modifiers: modifiers)),
-      Shortcut(action: .restore, chord: Chord(key: .letter("r"), modifiers: modifiers)),
-      Shortcut(action: .openEditor, chord: Chord(key: .letter("e"), modifiers: modifiers)),
+      Shortcut(action: .restore, chord: Chord(key: .letter("R"), modifiers: modifiers)),
+      Shortcut(action: .openEditor, chord: Chord(key: .letter("E"), modifiers: modifiers)),
       Shortcut(action: .openSettings, chord: Chord(key: .comma, modifiers: modifiers)),
     ]
   }()

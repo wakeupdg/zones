@@ -1,0 +1,119 @@
+import Foundation
+import ZonesCore
+
+public enum ShortcutStoreEvent: Hashable, Sendable {
+  case set(ShortcutAction, Chord?)
+  case registration(ShortcutAction, HotkeyRegistration)
+  case permission(granted: Bool)
+  case reducerIdle(Bool)
+  case launch
+}
+
+public enum ShortcutStoreEffect: Hashable, Sendable {
+  case register(Chord, ShortcutAction)
+  case unregister(ShortcutAction)
+  case failed(ShortcutAction, HotkeyRegistration)
+  case persist([Shortcut])
+}
+
+public struct ShortcutStoreState: Hashable, Sendable {
+  public var shortcuts: [Shortcut]
+  public var registered: Set<ShortcutAction>
+  public var granted: Bool
+  public var idle: Bool
+  public var queued: [ShortcutStoreEvent]
+  /// An unconfirmed chord awaiting its registration result; `shortcuts` still holds the old one.
+  public var pending: [ShortcutAction: Chord]
+
+  public init(
+    shortcuts: [Shortcut] = ShortcutRules.defaults, registered: Set<ShortcutAction> = [], granted: Bool = false,
+    idle: Bool = true, queued: [ShortcutStoreEvent] = [], pending: [ShortcutAction: Chord] = [:]
+  ) {
+    self.shortcuts = shortcuts
+    self.registered = registered
+    self.granted = granted
+    self.idle = idle
+    self.queued = queued
+    self.pending = pending
+  }
+
+  func chord(of action: ShortcutAction) -> Chord? { shortcuts.first { $0.action == action }?.chord }
+  mutating func commit(_ chord: Chord?, for action: ShortcutAction) {
+    if let i = shortcuts.firstIndex(where: { $0.action == action }) {
+      shortcuts[i].chord = chord
+    } else {
+      shortcuts.append(Shortcut(action: action, chord: chord))
+    }
+  }
+
+  func eligible(_ action: ShortcutAction) -> Bool { !action.isWindowAction || granted }
+}
+
+public enum ShortcutStore {
+  public static func reduce(_ s: ShortcutStoreState, _ e: ShortcutStoreEvent) -> (ShortcutStoreState, [ShortcutStoreEffect]) {
+    var s = s
+    var effects: [ShortcutStoreEffect] = []
+    switch e {
+    case .launch:
+      effects = registrations(s) { _ in true }
+    case .permission(let granted):
+      guard granted != s.granted else { return (s, []) }
+      s.granted = granted
+      if granted {
+        effects = registrations(s) { $0.isWindowAction }
+      } else {
+        for a in ShortcutAction.allCases where a.isWindowAction && s.registered.contains(a) {
+          s.registered.remove(a)
+          effects.append(.unregister(a))
+        }
+      }
+    case .set where !s.idle:
+      s.queued.append(e)
+    case .set(let a, nil):
+      s.commit(nil, for: a)
+      s.pending[a] = nil
+      if s.registered.remove(a) != nil { effects.append(.unregister(a)) }
+      effects.append(.persist(s.shortcuts))
+    case .set(let a, let chord?):
+      if chord == s.chord(of: a), s.registered.contains(a) || !s.eligible(a) { break }
+      if s.eligible(a) {
+        s.pending[a] = chord
+        effects = [.register(chord, a)]
+      } else {
+        s.commit(chord, for: a)
+        effects = [.persist(s.shortcuts)]
+      }
+    case .registration(let a, .registered):
+      s.registered.insert(a)
+      if let chord = s.pending.removeValue(forKey: a) {
+        s.commit(chord, for: a)
+        effects = [.persist(s.shortcuts)]
+      }
+    case .registration(let a, let failure):
+      s.pending[a] = nil
+      effects = [.failed(a, failure)]
+    case .reducerIdle(false):
+      s.idle = false
+    case .reducerIdle(true):
+      s.idle = true
+      let queued = s.queued
+      s.queued = []
+      for event in queued {
+        let (next, more) = reduce(s, event)
+        s = next
+        effects += more
+      }
+    }
+    return (s, effects)
+  }
+
+  /// `register` effects, in `allCases` order, for eligible actions with a chord that are not yet registered.
+  private static func registrations(_ s: ShortcutStoreState, where include: (ShortcutAction) -> Bool)
+    -> [ShortcutStoreEffect]
+  {
+    ShortcutAction.allCases.compactMap { a in
+      guard include(a), s.eligible(a), !s.registered.contains(a), let chord = s.chord(of: a) else { return nil }
+      return .register(chord, a)
+    }
+  }
+}
