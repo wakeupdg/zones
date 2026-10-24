@@ -245,4 +245,47 @@ private struct Harness {
     let (_, on) = Self.commit(TopologyState(), Self.topology([Self.a]))
     #expect(!on.contains(.notice(.separateSpacesOff)))
   }
+
+  /// AC-122
+  @Test func mirrorKeyedByMaster() {
+    var mirrored = Self.b
+    mirrored.mirrorOf = Self.a.key
+    let bRecord = Self.record(Self.b, layout: "builtin:columns:2")
+    var records = [Self.uuid(Self.b): bRecord]
+
+    let (state, effects) = Self.commit(TopologyState(), Self.topology([Self.a, mirrored]), assignments: records)
+    let collapsed = Self.topology([Self.a])
+    #expect(effects.contains(.topologyChanged(collapsed)))
+    #expect(state.current == collapsed)
+    #expect(state.mirrorMaster == [Self.b.key: Self.a.key])
+
+    let picked = LayoutID(rawValue: "builtin:focus:1")
+    let keyA = PersistentDisplayKey(uuid: Self.uuid(Self.a))
+    let expected = Assignment(
+      layout: picked, displayName: Self.a.name, lastVisibleFrame: Self.a.visibleFrame, lastScale: Self.a.scale,
+      lastSeen: nil)
+    for target in [Self.a.key, Self.b.key] {
+      let (next, out) = TopologyMonitor.reduce(
+        state, .assignmentPicked(target, picked), assignments: records, now: 0)
+      #expect(out == [.persistAssignment(keyA, expected)])
+      #expect(next.session.isEmpty)
+    }
+
+    // The app writes the persisted record; then the Displays unmirror.
+    records[keyA.uuid] = expected
+    let (after, back) = Self.commit(state, Self.topology([Self.a, Self.b]), assignments: records)
+    #expect(back.contains(.topologyChanged(Self.topology([Self.a, Self.b]))))
+    #expect(after.mirrorMaster.isEmpty)
+    #expect(AssignmentLookup.layoutID(for: Self.a.key, in: records, session: after.session) == picked)
+    #expect(records[Self.uuid(Self.b)] == bRecord)
+    #expect(
+      AssignmentLookup.layoutID(for: Self.b.key, in: records, session: after.session) == bRecord.layout)
+
+    // A mirrorOf naming an absent Display is left as is.
+    var orphan = Self.b
+    orphan.mirrorOf = Self.c.key
+    let (kept, _) = Self.commit(TopologyState(), Self.topology([Self.a, orphan]))
+    #expect(kept.current?.displays.count == 2)
+    #expect(kept.mirrorMaster.isEmpty)
+  }
 }

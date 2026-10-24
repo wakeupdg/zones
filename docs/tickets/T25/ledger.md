@@ -6,3 +6,4 @@
 - slice 3: assignmentsSurviveReconnect green — passed with the slice-1 reducer (it never touches records, no move effect case exists)
 - slice 4: persistsNameFrameScale green — one persistAssignment per drifted known UUID, before topologyChanged
 - slice 5: separateSpacesNoticeOnce green — notice first in the commit effects, flag inserted into state.noticed
+- slice 6: mirrorKeyedByMaster green — mirror members collapse into the master, picks (incl. UUID and unstable) route through mirrorMaster

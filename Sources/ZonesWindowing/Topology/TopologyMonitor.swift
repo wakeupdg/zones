@@ -67,8 +67,8 @@ public enum TopologyMonitor {
       }
     case .snapshot(let snapshot, _):
       return commit(snapshot, into: state, assignments: assignments)
-    case .assignmentPicked:
-      return (state, [])
+    case .assignmentPicked(let key, let layout):
+      return pick(layout, for: state.mirrorMaster[key] ?? key, in: state, assignments: assignments)
     }
   }
 
@@ -77,6 +77,7 @@ public enum TopologyMonitor {
   ) -> (TopologyState, [TopologyEffect]) {
     var state = s
     state.uuidRetries = 0
+    let snapshot = collapseMirrors(snapshot, into: &state)
     guard snapshot != state.current else { return (state, []) }
     state.previous = state.current
     state.current = snapshot
@@ -88,6 +89,40 @@ public enum TopologyMonitor {
       .topologyChanged(snapshot), .resizePanels(snapshot),
     ]
     return (state, effects)
+  }
+
+  /// A mirror group acts as its master: members are dropped and remembered as member -> master.
+  private static func collapseMirrors(_ snapshot: TopologySnapshot, into state: inout TopologyState) -> TopologySnapshot {
+    let present = Set(snapshot.displays.map(\.key))
+    var collapsed = snapshot
+    var masters: [DisplayKey: DisplayKey] = [:]
+    collapsed.displays = snapshot.displays.filter { display in
+      guard let master = display.mirrorOf, present.contains(master) else { return true }
+      masters[display.key] = master
+      return false
+    }
+    state.mirrorMaster = masters
+    return collapsed
+  }
+
+  /// A UUID pick is persisted; an unstable key's pick lives for the session only.
+  private static func pick(
+    _ layout: LayoutID, for key: DisplayKey, in s: TopologyState, assignments: [String: Assignment]
+  ) -> (TopologyState, [TopologyEffect]) {
+    var state = s
+    switch key {
+    case .unstable:
+      state.session[key] = layout
+      return (state, [.sessionAssignment(key, layout)])
+    case .uuid(let uuid):
+      let existing = assignments[uuid]
+      let display = state.current?.display(key)
+      let record = Assignment(
+        layout: layout, displayName: display?.name ?? existing?.displayName ?? "",
+        lastVisibleFrame: display?.visibleFrame ?? existing?.lastVisibleFrame ?? .zero,
+        lastScale: display?.scale ?? existing?.lastScale ?? 1, lastSeen: existing?.lastSeen)
+      return (state, [.persistAssignment(PersistentDisplayKey(uuid: uuid), record)])
+    }
   }
 
   /// A known UUID whose name, visible frame or scale drifted gets one write; layout and lastSeen are untouched.
