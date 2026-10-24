@@ -33,8 +33,6 @@ targets:
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         LSUIElement: true
         LSMinimumSystemVersion: "14.0"
-    entitlements:
-      path: App/Zones.entitlements
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.dganesh.zones
@@ -50,7 +48,7 @@ targets:
         ENABLE_DEBUG_DYLIB: NO
       configs:
         Debug:
-          ENABLE_HARDENED_RUNTIME: NO
+          CODE_SIGN_ENTITLEMENTS: App/Zones.Debug.entitlements
   AppTests:
     type: bundle.unit-test
     platform: macOS
