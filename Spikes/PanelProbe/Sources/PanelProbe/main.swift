@@ -527,6 +527,290 @@ enum DragPhase { case idle, pressed, armed }
 @MainActor enum KeepAlive {
   static var probe: DragProbe?
   static var watcher: SpaceWatcher?
+  static var frameTimer: FrameTimer?
+}
+
+// MARK: - Frame-time mode (SPK-009)
+
+/// 4x3 style grid of `count` zone rects inside `rect` (panel-local coordinates).
+func zoneGrid(in rect: CGRect, count: Int, inset: CGFloat = 24, gap: CGFloat = 12) -> [CGRect] {
+  let area = rect.insetBy(dx: inset, dy: inset)
+  let cols = Int((Double(count) * Double(area.width / area.height)).squareRoot().rounded(.up))
+  let rows = (count + cols - 1) / cols
+  let w = (area.width - gap * CGFloat(cols - 1)) / CGFloat(cols)
+  let h = (area.height - gap * CGFloat(rows - 1)) / CGFloat(rows)
+  return (0..<count).map { i in
+    CGRect(x: area.minX + CGFloat(i % cols) * (w + gap), y: area.minY + CGFloat(i / cols) * (h + gap), width: w, height: h)
+  }
+}
+
+func hitZone(_ p: CGPoint, zones: [CGRect]) -> Int? { zones.firstIndex { $0.contains(p) } }
+
+/// Deterministic Lissajous sweep that crosses most zones; stands in for the cursor in synthetic runs.
+func scanPath(index i: Int, in rect: CGRect) -> CGPoint {
+  let t = Double(i)
+  return CGPoint(
+    x: rect.midX + CGFloat(sin(t * 0.021)) * rect.width * 0.45,
+    y: rect.midY + CGFloat(sin(t * 0.034 + 1.0)) * rect.height * 0.45)
+}
+
+let frameBudgetMs = 1000.0 / 120.0  // 8.33 ms
+
+/// SPK-009 pass rule: p99 within one 120 Hz frame and under 1 percent of events over it.
+func frameTimeVerdict(_ s: Stats) -> Bool { s.p99 <= frameBudgetMs && s.shareOver(frameBudgetMs) < 0.01 }
+
+@MainActor protocol HighlightRenderer: AnyObject {
+  var name: String { get }
+  /// Apply one dragged event: pick the zone under `point` and move the highlight.
+  func update(at point: CGPoint)
+  /// Push the change toward the window server. `flush` additionally forces CATransaction.flush().
+  func commit(flush: Bool)
+}
+
+/// Persistent CALayers (ADR-0023 recipe): 12 zone layers plus one highlight layer, created once.
+@MainActor final class LayerRenderer: HighlightRenderer {
+  let name = "CALayer"
+  let zones: [CGRect]
+  private let zoneLayers: [CALayer]
+  private let highlight = CALayer()
+
+  init(panel: NSPanel, zones: [CGRect]) {
+    self.zones = zones
+    let root = NSView(frame: NSRect(origin: .zero, size: panel.frame.size))
+    root.wantsLayer = true
+    var layers: [CALayer] = []
+    for z in zones {
+      let l = CALayer()
+      l.frame = z
+      l.cornerRadius = 8
+      l.backgroundColor = NSColor.systemBlue.withAlphaComponent(0.25).cgColor
+      l.borderColor = NSColor.systemBlue.withAlphaComponent(0.6).cgColor
+      l.borderWidth = 1
+      l.opacity = 0.6
+      root.layer?.addSublayer(l)
+      layers.append(l)
+    }
+    zoneLayers = layers
+    highlight.cornerRadius = 8
+    highlight.backgroundColor = NSColor.systemBlue.withAlphaComponent(0.55).cgColor
+    highlight.isHidden = true
+    root.layer?.addSublayer(highlight)
+    panel.contentView = root
+  }
+
+  func update(at point: CGPoint) {
+    CATransaction.begin()
+    CATransaction.setDisableActions(true)
+    let hit = hitZone(point, zones: zones)
+    for (i, l) in zoneLayers.enumerated() { l.opacity = i == hit ? 1 : 0.6 }
+    if let hit {
+      highlight.frame = zones[hit]
+      highlight.isHidden = false
+    } else {
+      highlight.isHidden = true
+    }
+  }
+
+  func commit(flush: Bool) {
+    CATransaction.commit()
+    if flush { CATransaction.flush() }
+  }
+}
+
+enum EndPoint: String { case commit, flush }
+
+struct FrameTimeResult {
+  var variant: String
+  var endPoint: String
+  var source: String
+  var stats: Stats
+  var frameIntervals: Stats?
+}
+
+@MainActor final class Stopper { var action: () -> Void = {} }
+
+@MainActor final class DisplayLinkTarget: NSObject {
+  var onTick: ((CADisplayLink) -> Void)?
+  @objc func tick(_ link: CADisplayLink) { onTick?(link) }
+}
+
+/// Times each handler call (update through commit) with ContinuousClock.
+@MainActor final class FrameTimer {
+  let renderer: HighlightRenderer
+  let endPoint: EndPoint
+  let visible: CGRect
+  private(set) var samplesMs: [Double] = []
+  private let clock = ContinuousClock()
+  private var seen = 0
+  let warmup = 60
+
+  init(renderer: HighlightRenderer, endPoint: EndPoint, visible: CGRect) {
+    self.renderer = renderer
+    self.endPoint = endPoint
+    self.visible = visible
+  }
+
+  /// One dragged event. `point` is panel-local.
+  func handleEvent(_ point: CGPoint) {
+    let t0 = clock.now
+    renderer.update(at: point)
+    renderer.commit(flush: endPoint == .flush)
+    let d = clock.now - t0
+    seen += 1
+    if seen > warmup {
+      samplesMs.append(Double(d.components.seconds) * 1000 + Double(d.components.attoseconds) / 1e15)
+    }
+  }
+}
+
+@MainActor func panelLocalVisible(_ screen: NSScreen) -> CGRect {
+  screen.visibleFrame.offsetBy(dx: -screen.frame.minX, dy: -screen.frame.minY)
+}
+
+/// Synthetic run: one event per display-link tick (the screen's native rate), `events` timed events after warm-up.
+@MainActor func runSynthetic(
+  renderer: HighlightRenderer, endPoint: EndPoint, screen: NSScreen, events: Int, visible: CGRect, timerHz: Double? = nil
+) async -> FrameTimeResult {
+  let timer = FrameTimer(renderer: renderer, endPoint: endPoint, visible: visible)
+  let target = DisplayLinkTarget()
+  var stamps: [Double] = []
+  var index = 0
+  var source = "synthetic (display link, requested \(screen.maximumFramesPerSecond) Hz)"
+  await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+    var resumed = false
+    let stopper = Stopper()
+    let tick: @MainActor (Double) -> Void = { ts in
+      timer.handleEvent(scanPath(index: index, in: visible))
+      index += 1
+      stamps.append(ts)
+      if timer.samplesMs.count >= events, !resumed {
+        resumed = true
+        stopper.action()
+        cont.resume()
+      }
+    }
+    if let timerHz {
+      source = "synthetic (run-loop timer \(Int(timerHz)) Hz)"
+      let t = Timer(timeInterval: 1 / timerHz, repeats: true) { _ in
+        MainActor.assumeIsolated { tick(ProcessInfo.processInfo.systemUptime) }
+      }
+      RunLoop.main.add(t, forMode: .common)
+      stopper.action = { t.invalidate() }
+    } else {
+      let link = screen.displayLink(target: target, selector: #selector(DisplayLinkTarget.tick(_:)))
+      let hz = Float(screen.maximumFramesPerSecond)
+      link.preferredFrameRateRange = CAFrameRateRange(minimum: hz / 2, maximum: hz, preferred: hz)
+      link.add(to: .main, forMode: .common)
+      target.onTick = { l in tick(l.timestamp) }
+      stopper.action = { link.invalidate() }
+    }
+  }
+  let deltas = zip(stamps.dropFirst(), stamps).map { ($0 - $1) * 1000 }
+  return FrameTimeResult(
+    variant: renderer.name, endPoint: endPoint.rawValue, source: source,
+    stats: Stats(samples: timer.samplesMs), frameIntervals: Stats(samples: deltas))
+}
+
+@MainActor func frameTimeRows(_ results: [FrameTimeResult], screen: NSScreen) -> [[String]] {
+  func f(_ v: Double) -> String { String(format: "%.3f", v) }
+  return results.map { r in
+    let s = r.stats
+    return [
+      r.variant, r.endPoint, r.source, "\(s.count)", f(s.p50), f(s.p95), f(s.p99), f(s.max),
+      String(format: "%.2f%%", s.shareOver(frameBudgetMs) * 100), "\(screen.maximumFramesPerSecond)",
+      ProcessInfo.processInfo.operatingSystemVersionString, frameTimeVerdict(s) ? "PASS" : "FAIL",
+    ]
+  }
+}
+let frameTimeHeader = [
+  "variant", "end point", "source", "events", "p50 ms", "p95 ms", "p99 ms", "max ms", "share > 8.33 ms", "maxFPS", "OS", "verdict",
+]
+
+/// Panel on the chosen screen, ordered front so commits reach the window server.
+@MainActor func makeLoadPanel(on screen: NSScreen) -> ProbePanel {
+  let panel = ProbePanel(screen: screen, joinAllApplications: false)
+  panel.orderFrontRegardless()
+  return panel
+}
+
+@MainActor func runFrameTimeMode(_ args: [String]) {
+  let app = NSApplication.shared
+  app.setActivationPolicy(.accessory)
+  let report = Report(mode: "frametime")
+  report.machineHeader()
+  func value(_ flag: String) -> String? { args.firstIndex(of: flag).flatMap { args.indices.contains($0 + 1) ? args[$0 + 1] : nil } }
+  let events = value("--events").flatMap(Int.init) ?? 2400
+  let screens = NSScreen.screens
+  let screen: NSScreen =
+    value("--display").flatMap(Int.init).flatMap { screens.indices.contains($0) ? screens[$0] : nil }
+    ?? screens.max { $0.maximumFramesPerSecond < $1.maximumFramesPerSecond } ?? NSScreen.main!
+  let variant = value("--variant") ?? "layers"
+  let endPoint = EndPoint(rawValue: value("--endpoint") ?? "commit") ?? .commit
+  report.emit("- load screen: \(screen.localizedName) at \(screen.maximumFramesPerSecond) Hz; events per run: \(events); budget \(String(format: "%.2f", frameBudgetMs)) ms")
+
+  Task { @MainActor in
+    var results: [FrameTimeResult] = []
+    let visible = panelLocalVisible(screen)
+    let zones = zoneGrid(in: visible, count: 12)
+    if args.contains("--synthetic") {
+      var configs: [(String, EndPoint)] = []
+      switch variant {
+      case "layers": configs = [("layers", .commit), ("layers", .flush)]
+      default: configs = [("layers", .commit), ("layers", .flush)]
+      }
+      var drivers: [Double?] = [nil]
+      if let hz = value("--timer-hz").flatMap(Double.init) { drivers.append(hz) }
+      for (v, ep) in configs {
+        for hzSel in drivers {
+          let panel = makeLoadPanel(on: screen)
+          let renderer: HighlightRenderer = makeRenderer(v, panel: panel, zones: zones)
+          try? await Task.sleep(for: .milliseconds(300))
+          results.append(await runSynthetic(renderer: renderer, endPoint: ep, screen: screen, events: events, visible: visible, timerHz: hzSel))
+          panel.orderOut(nil)
+        }
+      }
+      report.table("Frame time (synthetic)", header: frameTimeHeader, rows: frameTimeRows(results, screen: screen))
+      for r in results {
+        if let fi = r.frameIntervals {
+          report.emit(String(format: "- %@/%@ [%@] event interval p50 %.3f ms, p99 %.3f ms, max %.3f ms", r.variant, r.endPoint, r.source, fi.p50, fi.p99, fi.max))
+        }
+      }
+      exit(results.allSatisfy { frameTimeVerdict($0.stats) } ? 0 : 1)
+    } else {
+      let panel = makeLoadPanel(on: screen)
+      let renderer = makeRenderer(variant, panel: panel, zones: zones)
+      let timer = FrameTimer(renderer: renderer, endPoint: endPoint, visible: visible)
+      KeepAlive.frameTimer = timer
+      report.emit("Real drag run: drag any window (or the mouse button held) in circles over the \(screen.localizedName) display until \(events) events are timed. The panel is click-through.")
+      var last: Double?
+      var intervals: [Double] = []
+      var finished = false
+      _ = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDragged) { event in
+        let ts = event.timestamp
+        MainActor.assumeIsolated {
+          guard !finished else { return }
+          let loc = NSEvent.mouseLocation
+          if let last { intervals.append((ts - last) * 1000) }
+          last = ts
+          timer.handleEvent(CGPoint(x: loc.x - screen.frame.minX, y: loc.y - screen.frame.minY))
+          if timer.samplesMs.count >= events {
+            finished = true
+            let r = FrameTimeResult(variant: renderer.name, endPoint: endPoint.rawValue, source: "real drag", stats: Stats(samples: timer.samplesMs), frameIntervals: Stats(samples: intervals))
+            report.table("Frame time (real drag)", header: frameTimeHeader, rows: frameTimeRows([r], screen: screen))
+            if let fi = r.frameIntervals {
+              report.emit(String(format: "- dragged-event interval p50 %.3f ms, p99 %.3f ms", fi.p50, fi.p99))
+            }
+            exit(frameTimeVerdict(r.stats) ? 0 : 1)
+          }
+        }
+      }
+    }
+  }
+  app.run()
+}
+
+@MainActor func makeRenderer(_ variant: String, panel: ProbePanel, zones: [CGRect]) -> HighlightRenderer {
+  LayerRenderer(panel: panel, zones: zones)
 }
 
 @MainActor func selfTest() -> Bool {
@@ -544,6 +828,20 @@ enum DragPhase { case idle, pressed, armed }
   let t = markdownTable(header: ["a", "b"], rows: [["1", "2"], ["3", "4"]])
   check(t == "| a | b |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n", "table")
   do {
+    let vis = CGRect(x: 100, y: 50, width: 1200, height: 800)
+    let grid = zoneGrid(in: vis, count: 12)
+    check(grid.count == 12, "zoneGrid.count")
+    check(grid.allSatisfy { vis.contains($0) }, "zoneGrid.insideVisibleFrame")
+    var overlap = false
+    for i in grid.indices { for j in grid.indices where j > i && grid[i].intersects(grid[j]) { overlap = true } }
+    check(!overlap, "zoneGrid.noOverlap")
+    check(hitZone(CGPoint(x: grid[5].midX, y: grid[5].midY), zones: grid) == 5, "hitZone.inside")
+    check(hitZone(CGPoint(x: -10, y: -10), zones: grid) == nil, "hitZone.outside")
+    let path = (0..<500).map { scanPath(index: $0, in: vis) }
+    check(path.allSatisfy { vis.contains($0) }, "scanPath.insideVisibleFrame")
+    check(Set(path.compactMap { hitZone($0, zones: grid) }).count >= 8, "scanPath.visitsMostZones")
+    check(frameTimeVerdict(Stats(samples: [1, 2, 3, 4, 5])), "verdict.pass")
+    check(!frameTimeVerdict(Stats(samples: [1, 2, 3, 4, 9])), "verdict.failMax-p99")
     let scr = CGRect(x: 0, y: 0, width: 1000, height: 800)
     let fs = WinInfo(number: 1, pid: 9, layer: 0, bounds: scr, onScreen: true, owner: "Safari")
     let normal = WinInfo(number: 2, pid: 9, layer: 0, bounds: CGRect(x: 10, y: 30, width: 600, height: 400), onScreen: true, owner: "Safari")
@@ -583,7 +881,8 @@ let args = Array(CommandLine.arguments.dropFirst())
 switch args.first {
 case "--self-test": exit(selfTest() ? 0 : 1)
 case "panel": runPanelMode(Array(args.dropFirst()))
+case "frametime": runFrameTimeMode(Array(args.dropFirst()))
 default:
-  print("usage: PanelProbe --self-test | panel [--synthetic] [--join-all-apps] [--reassert] [--hold] [--label L] [--duration S] | frametime | witness")
+  print("usage: PanelProbe --self-test | panel [--synthetic] [--join-all-apps] [--reassert] [--hold] [--label L] [--duration S] | frametime [--synthetic] [--variant layers|swiftui] [--endpoint commit|flush] [--events N] [--display I] | witness")
   exit(64)
 }
