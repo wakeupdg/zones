@@ -327,4 +327,46 @@ import ZonesWindowing
     login.reset()
     #expect(login.status() == .notRegistered)
   }
+
+  @Test @MainActor func permissionProbe() {
+    let clock = FakeClock()
+    let probe = FakePermissionProbe(clock: clock)
+
+    // Queue: false then true; once drained, the last answer holds (trust does not flip back by itself).
+    #expect(!probe.isTrusted())
+    probe.enqueue(.trusted(false))
+    probe.enqueue(.trusted(true))
+    #expect(!probe.isTrusted())
+    #expect(probe.isTrusted())
+    #expect(probe.isTrusted())
+
+    // launchedAtLogin is settable; openAccessibilitySettings() is logged.
+    #expect(!probe.launchedAtLogin)
+    probe.launchedAtLogin = true
+    #expect(probe.launchedAtLogin)
+    probe.openAccessibilitySettings()
+    #expect(
+      probe.calls == [
+        .isTrusted, .isTrusted, .isTrusted, .isTrusted, .openAccessibilitySettings,
+      ])
+
+    // Latency 2 completes at the second advance(by: 1).
+    probe.reset()
+    probe.latency = 2
+    probe.openAccessibilitySettings()
+    clock.advance(by: 1)
+    #expect(probe.completed.isEmpty)
+    clock.advance(by: 1)
+    #expect(probe.completed == [.openAccessibilitySettings])
+
+    // reset() clears queue, log, trust and launchedAtLogin.
+    probe.reset()
+    probe.enqueue(.trusted(true))
+    _ = probe.isTrusted()
+    probe.launchedAtLogin = true
+    probe.reset()
+    #expect(probe.calls.isEmpty)
+    #expect(!probe.launchedAtLogin)
+    #expect(!probe.isTrusted())
+  }
 }
