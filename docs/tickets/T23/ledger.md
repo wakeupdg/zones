@@ -1,0 +1,1 @@
+- slice 1: productionTapIsListenOnly green — EventTapInputSource skeleton, config, cgEventMask(for:), TapMaker seam (TapConfig.production already in ZonesCore)
