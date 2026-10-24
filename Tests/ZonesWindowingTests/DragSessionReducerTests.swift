@@ -358,6 +358,57 @@ import ZonesWindowing
     #expect(planA.target != planB.target)
   }
 
+  @Test func topologyChangeRearms() throws {
+    let (armed, _) = Self.armedOverZone2()
+    guard case .armed(let w, let downFrame, let flags, let config, _, _, _, let span) = armed else {
+      Issue.record("not armed")
+      return
+    }
+    // The snapshot changes: Display C (index 2) dropped out.
+    let newCtx = F.context(displays: [0, 1])
+    let (next, fx) = DragSessionReducer.reduce(armed, .topologyChanged(newCtx))
+    guard case .armed(let w2, let f2, let flags2, let config2, let ctx, let display, let hit, let span2) = next else {
+      Issue.record("not armed after topologyChanged: \(next)")
+      return
+    }
+    #expect(ctx == newCtx)
+    #expect(w2 == w && f2 == downFrame && flags2 == flags && config2 == config && span2 == span)
+    #expect(display == F.primaryKey)
+    #expect(hit == .zone(2))
+    let scene = OverlayScene(
+      layouts: newCtx.topology.displays.compactMap { newCtx.layouts[$0.key] }, appearance: newCtx.appearance,
+      options: newCtx.options)
+    #expect(scene.layouts.count == 2)
+    #expect(
+      fx == [
+        .showOverlay(scene),
+        .updateHighlight(Highlight(display: F.primaryKey, primary: [2], secondary: [], dimAll: false)),
+      ])
+
+    // The Display the cursor was on is gone: no Display, no hit, everything dimmed.
+    let onlyOthers = F.context(displays: [1, 2])
+    let (gone, goneFx) = DragSessionReducer.reduce(armed, .topologyChanged(onlyOthers))
+    guard case .armed(_, _, _, _, let goneCtx, let goneDisplay, let goneHit, _) = gone else {
+      Issue.record("not armed: \(gone)")
+      return
+    }
+    #expect(goneCtx == onlyOthers)
+    #expect(goneDisplay == nil)
+    #expect(goneHit == .none)
+    #expect(goneFx.filter(F.isShowOverlay).count == 1)
+    #expect(goneFx.last == .updateHighlight(Highlight(display: nil, primary: [], secondary: [], dimAll: true)))
+
+    // Pressed, moving and idle hold no snapshot: nothing changes.
+    let (pressed, _) = DragSessionReducer.reduce(.idle, F.mouseDown(flags: .shift))
+    let (moving, _) = DragSessionReducer.reduce(
+      DragSessionReducer.reduce(pressed, F.dragged()).0, F.moved())
+    for state in [DragState.idle, pressed, moving] {
+      let (same, sameFx) = DragSessionReducer.reduce(state, .topologyChanged(newCtx))
+      #expect(same == state)
+      #expect(sameFx.isEmpty)
+    }
+  }
+
   @Test func ignoresSecondMouseDownCore() {
     let (pressed, _) = DragSessionReducer.reduce(.idle, F.mouseDown())
     let (s, fx) = DragSessionReducer.reduce(
@@ -765,12 +816,13 @@ import ZonesWindowing
   }
 
   @Test func topologyAndSpaceAreInertCore() {
-    let (armed, _) = Self.armedOverZone2()
     let (pressed, _) = DragSessionReducer.reduce(.idle, F.mouseDown(flags: .shift))
     let (moving, _) = DragSessionReducer.reduce(
       DragSessionReducer.reduce(pressed, F.dragged()).0, F.moved())
+    // Armed re-arms on topologyChanged and re-asserts on spaceChanged (topologyChangeRearms, spaceChangeReasserts);
+    // wake ends every session (AC-024).
     let inert: [DragEvent] = [.topologyChanged(F.context), .spaceChanged]
-    for state in [DragState.idle, pressed, moving, armed] {
+    for state in [DragState.idle, pressed, moving] {
       for event in inert {
         let (next, fx) = DragSessionReducer.reduce(state, event)
         #expect(next == state, "\(event)")

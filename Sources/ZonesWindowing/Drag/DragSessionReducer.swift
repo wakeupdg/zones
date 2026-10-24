@@ -14,8 +14,9 @@ public enum DragSessionReducer {
   /// A `wake` ends the session from every state (AC-024): idle, `hideOverlay`, and `stopSampling` when a pressed
   /// session was polling frames. No snap, no restore: the wake-time frame is not a drop.
   ///
-  /// EXTENSION(T22): `topologyChanged` and `spaceChanged` are inert in every state for now; the Display
-  /// change and Space change handling lands with the cross-Display ticket.
+  /// `topologyChanged` and `spaceChanged` act in armed only (pressed and moving hold no snapshot) and are inert
+  /// in every other state.
+  /// EXTENSION(T22): cross-Display handling beyond the re-arm lands with the cross-Display ticket.
   public static func reduce(_ s: DragState, _ e: DragEvent) -> (DragState, [DragEffect]) {
     if case .wake = e { return (.idle, wakeEffects(s)) }
     switch s {
@@ -125,9 +126,7 @@ public enum DragSessionReducer {
       )
     case .armContext(let ctx):
       guard flags.contains(ModifierSet(config.activation)) else { return (s, []) }
-      let scene = OverlayScene(
-        layouts: ctx.topology.displays.compactMap { ctx.layouts[$0.key] }, appearance: ctx.appearance,
-        options: ctx.options)
+      let scene = overlayScene(for: ctx)
       let span = SpanState(zones: [], display: nil, frozen: false, suspended: false)
       return (
         .armed(
@@ -191,10 +190,49 @@ public enum DragSessionReducer {
         }
       }
       return (.idle, fx)
+    case .topologyChanged(let newCtx):
+      // Re-arm from the new snapshot (ADR-0014: no re-layout): a fresh overlay and a re-hit. `armed` keeps no
+      // cursor point, so the stand-in is the center of the Zone the cursor was last over, in the OLD layout.
+      let point = lastHitPoint(display: display, hit: hit, in: ctx)
+      let cursor = rehit(point, previous: display, in: newCtx)
+      let state = DragState.armed(
+        window: window, downFrame: downFrame, flags: flags, config: config, context: newCtx, display: cursor.display,
+        hit: cursor.hit, span: span)
+      var fx: [DragEffect] = [.showOverlay(overlayScene(for: newCtx))]
+      if let highlight = SpanLogic.highlight(of: state) { fx.append(.updateHighlight(highlight)) }
+      return (state, fx)
+    case .spaceChanged:
+      // A Space switch can drop the overlay panels; re-assert them and refresh the highlight (AC-062).
+      var fx: [DragEffect] = [.reassertPanels]
+      if let highlight = SpanLogic.highlight(of: s) { fx.append(.updateHighlight(highlight)) }
+      return (s, fx)
     case .windowGone:
       return (.idle, [.hideOverlay])
     default:
       return (s, [])
     }
+  }
+
+  private static func overlayScene(for ctx: ArmContext) -> OverlayScene {
+    OverlayScene(
+      layouts: ctx.topology.displays.compactMap { ctx.layouts[$0.key] }, appearance: ctx.appearance,
+      options: ctx.options)
+  }
+
+  /// A pure stand-in for the cursor: the center of the hit Zone in `ctx`'s layout for `display`; nil when the
+  /// cursor was over no Zone.
+  private static func lastHitPoint(display: DisplayKey?, hit: Hit, in ctx: ArmContext) -> CGPoint? {
+    guard let display, let layout = ctx.layouts[display] else { return nil }
+    guard let number = SpanLogic.zones(of: hit).first else { return nil }
+    guard let zone = layout.zones.first(where: { $0.number == number }) else { return nil }
+    return CGPoint(x: zone.frame.midX, y: zone.frame.midY)
+  }
+
+  /// The re-hit after a snapshot change: nothing when the previous Display is gone or there is no point.
+  private static func rehit(_ point: CGPoint?, previous: DisplayKey?, in ctx: ArmContext) -> SpanLogic.Cursor {
+    guard let point, let previous, ctx.topology.display(previous) != nil else {
+      return SpanLogic.Cursor(display: nil, hit: .none)
+    }
+    return SpanLogic.cursor(at: point, in: ctx)
   }
 }
