@@ -112,4 +112,36 @@ import ZonesLayout
     #expect(CycleResolver.next(from: base, direction: .right, count: 4, span: span) == 3)
     #expect(CycleResolver.next(from: base, direction: .left, count: 4, span: span) == 4)
   }
+
+  // MARK: step C: max intersection
+
+  @Test("table step C: hand move falls back to the Zone of maximum intersection") func tableMaxIntersection() {
+    let layout = Self.columns4
+    let z = layout.zones.map(\.frame)
+    // A stale record (the window moved by hand): base is the Zone with the most overlap.
+    let stale = Self.record(zones: [1], frame: z[0])
+    #expect(CycleResolver.base(stale, frame: z[2], layout: layout) == 3)
+    #expect(CycleResolver.base(nil, frame: z[3], layout: layout) == 4)
+    // Mostly in Zone 2, a little in Zone 3.
+    let mostlyTwo = CGRect(x: z[1].minX + 100, y: z[1].minY + 50, width: z[1].width, height: 300)
+    #expect(CycleResolver.base(nil, frame: mostlyTwo, layout: layout) == 2)
+  }
+
+  @Test("table step C: a tie goes to the lower number") func tableTie() {
+    let layout = Self.columns4
+    let z1 = layout.zones[0].frame, z2 = layout.zones[1].frame
+    // Centered on the Zone 1 / Zone 2 boundary: equal area in each.
+    let straddle = CGRect(x: z1.maxX - 100, y: z1.minY + 100, width: 200, height: 300)
+    #expect(z1.maxX == z2.minX)
+    #expect(CycleResolver.base(nil, frame: straddle, layout: layout) == 1)
+  }
+
+  @Test("table step C: no intersection gives nil, Right starts at 1 and Left at the last Zone") func tableNoIntersection() {
+    let layout = Self.columns4
+    let outside = CGRect(x: 5000, y: 5000, width: 200, height: 200)
+    let base = CycleResolver.base(nil, frame: outside, layout: layout)
+    #expect(base == nil)
+    #expect(CycleResolver.next(from: base, direction: .right, count: 4, span: nil) == 1)
+    #expect(CycleResolver.next(from: base, direction: .left, count: 4, span: nil) == 4)
+  }
 }

@@ -37,8 +37,17 @@ public enum CycleResolver {
   }
 
   /// A matched record gives its lowest Zone (a Span only needs to be a member, `next` picks the end from `span`).
+  /// Otherwise the Zone with the largest intersection area; ascending iteration and a strict comparison send ties to
+  /// the lower number. Zero area for every Zone gives nil.
   public static func base(_ last: LastSnapRecord?, frame: CGRect, layout: ResolvedLayout) -> Int? {
     if let matched = matchedRecord(last, frame: frame, layout: layout) { return matched.zones.min() }
-    return nil
+    var best: (number: Int, area: Double)?
+    for zone in layout.zones {
+      let overlap = frame.intersection(zone.frame)
+      guard !overlap.isNull else { continue }
+      let area = Double(overlap.width * overlap.height)
+      if area > (best?.area ?? Constants.numberingEpsilon) { best = (zone.number, area) }
+    }
+    return best?.number
   }
 }
