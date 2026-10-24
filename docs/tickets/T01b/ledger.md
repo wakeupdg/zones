@@ -1,0 +1,4 @@
+- slice 6: seamProtocolsAreSendable, windowHandleEqualityUsesKey, tapConfigProductionIsListenOnly, uncheckedBoxCountIsOne green — WindowHandle (the one unchecked box), WindowRecord, WindowSystem+AXNotice, WindowEnumerator, InputSource+types, DisplayProvider, OverlayPresenter, HotkeyRegistrar, LoginItemService, PermissionProbe
+- decision: Highlight, AccessibilityOptions, OverlayScene (needed by OverlayPresenter) land in Drag/DragTypes.swift in slice 6; the rest of DragTypes comes in slice 7
+- decision: CGRect is Hashable only from macOS 15, so `AXRead<CGRect>` in a seam signature failed on the macOS 14 target; AXRead now requires only T: Sendable and is Equatable/Hashable conditionally (ZonesCore/Results.swift)
+- decision: WindowHandle.swift qualifies `ZonesCore.WindowRef` because ApplicationServices also declares WindowRef
