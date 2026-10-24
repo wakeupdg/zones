@@ -1,2 +1,3 @@
 - slice 1: FrameWriteResultTests.exhaustiveSwitch green — no-default switches over FrameWriteResult, AXStatus, AXRead (types already existed, so no red phase)
 - slice 2: WindowActorTests.timeoutsSetAtLaunch green — WindowActor.applyLaunchTimeouts(to:) calls setTimeouts with Constants (WindowActor and WindowHandle already existed from T01)
+- slice 3: AXMappingTests.statusFromAXErrorCode green — AXStatus(axErrorCode:) and AXRead.failure(axErrorCode:) in Adapters/AXWindowSystem.swift
