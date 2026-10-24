@@ -112,7 +112,7 @@ import ZonesWindowing
 
     // Only the second moved: it wins, with its own down frame.
     let (next, fx) = DragSessionReducer.reduce(still, Self.tick([1: Self.stayed, 2: Self.shifted]))
-    guard case .moving(let window, let downFrame, _, _) = next else {
+    guard case .moving(let window, let downFrame, _, _, _) = next else {
       Issue.record("not moving: \(next)")
       return
     }
@@ -126,7 +126,7 @@ import ZonesWindowing
     let (dragging, _) = DragSessionReducer.reduce(down, F.dragged())
     let (moved, _) = DragSessionReducer.reduce(
       dragging, Self.tick([1: Self.stayed, 7: .frame(other.frame.offsetBy(dx: 0, dy: 50), F.standardFacts)]))
-    guard case .moving(let w, let f, _, _) = moved else {
+    guard case .moving(let w, let f, _, _, _) = moved else {
       Issue.record("not moving: \(moved)")
       return
     }
@@ -288,7 +288,7 @@ import ZonesWindowing
 
     // Dragging over C: armed stays, no Display, no hit, everything dimmed.
     let (over, overFx) = DragSessionReducer.reduce(armed.state, .dragged(point: onC, flags: .shift))
-    guard case .armed(_, _, _, _, _, let display, let hit, _, _) = over else {
+    guard case .armed(_, _, _, _, _, let display, let hit, _, _, _) = over else {
       Issue.record("not armed: \(over)")
       return
     }
@@ -322,7 +322,7 @@ import ZonesWindowing
 
     let onB = CGPoint(x: -1000, y: 300)
     let (armedB, stepB) = drop(at: onB)
-    guard case .armed(_, _, _, _, _, let displayB, let hitB, _, _) = armedB else {
+    guard case .armed(_, _, _, _, _, let displayB, let hitB, _, _, _) = armedB else {
       Issue.record("not armed: \(armedB)")
       return
     }
@@ -343,7 +343,7 @@ import ZonesWindowing
     // The same window with the cursor on A: the choice follows the cursor, not the window.
     let onA = CGPoint(x: 300, y: 300)
     let (armedA, stepA) = drop(at: onA)
-    guard case .armed(_, _, _, _, _, let displayA, let hitA, _, _) = armedA else {
+    guard case .armed(_, _, _, _, _, let displayA, let hitA, _, _, _) = armedA else {
       Issue.record("not armed: \(armedA)")
       return
     }
@@ -360,14 +360,14 @@ import ZonesWindowing
 
   @Test func topologyChangeRearms() throws {
     let (armed, _) = Self.armedOverZone2()
-    guard case .armed(let w, let downFrame, let flags, let config, _, _, _, let span, _) = armed else {
+    guard case .armed(let w, let downFrame, let flags, let config, _, _, _, let span, _, _) = armed else {
       Issue.record("not armed")
       return
     }
     // The snapshot changes: Display C (index 2) dropped out.
     let newCtx = F.context(displays: [0, 1])
     let (next, fx) = DragSessionReducer.reduce(armed, .topologyChanged(newCtx))
-    guard case .armed(let w2, let f2, let flags2, let config2, let ctx, let display, let hit, let span2, _) = next else {
+    guard case .armed(let w2, let f2, let flags2, let config2, let ctx, let display, let hit, let span2, _, _) = next else {
       Issue.record("not armed after topologyChanged: \(next)")
       return
     }
@@ -388,7 +388,7 @@ import ZonesWindowing
     // The Display the cursor was on is gone: no Display, no hit, everything dimmed.
     let onlyOthers = F.context(displays: [1, 2])
     let (gone, goneFx) = DragSessionReducer.reduce(armed, .topologyChanged(onlyOthers))
-    guard case .armed(_, _, _, _, let goneCtx, let goneDisplay, let goneHit, _, _) = gone else {
+    guard case .armed(_, _, _, _, let goneCtx, let goneDisplay, let goneHit, _, _, _) = gone else {
       Issue.record("not armed: \(gone)")
       return
     }
@@ -461,7 +461,7 @@ import ZonesWindowing
     let armed = Self.armedAt(point, context: armContext)
     #expect(F.isArmed(armed))
     let (next, fx) = DragSessionReducer.reduce(armed, .topologyChanged(newCtx))
-    guard case .armed(_, _, _, _, let ctx, let display, let hit, _, _) = next else {
+    guard case .armed(_, _, _, _, let ctx, let display, let hit, _, _, _) = next else {
       Issue.record("not armed after topologyChanged: \(next)")
       return
     }
@@ -478,7 +478,7 @@ import ZonesWindowing
     let armedOnB = Self.armedAt(onB, context: armContext)
     let onlyA = F.context(displays: [0])
     let (gone, goneFx) = DragSessionReducer.reduce(armedOnB, .topologyChanged(onlyA))
-    guard case .armed(_, _, _, _, _, let goneDisplay, let goneHit, _, _) = gone else {
+    guard case .armed(_, _, _, _, _, let goneDisplay, let goneHit, _, _, _) = gone else {
       Issue.record("not armed: \(gone)")
       return
     }
@@ -494,7 +494,7 @@ import ZonesWindowing
     (state, _) = DragSessionReducer.reduce(state, .armContext(armContext))
     #expect(F.isArmed(state))
     let (fresh, freshFx) = DragSessionReducer.reduce(state, .topologyChanged(newCtx))
-    guard case .armed(_, _, _, _, _, let freshDisplay, let freshHit, _, _) = fresh else {
+    guard case .armed(_, _, _, _, _, let freshDisplay, let freshHit, _, _, _) = fresh else {
       Issue.record("not armed: \(fresh)")
       return
     }
@@ -518,13 +518,13 @@ import ZonesWindowing
 
     let held: ModifierSet = [.shift, .control]
     let armed = Self.armedAt(point, context: armContext, flags: held)
-    guard case .armed(_, _, _, _, _, _, _, let before, _) = armed else {
+    guard case .armed(_, _, _, _, _, _, _, let before, _, _) = armed else {
       Issue.record("not armed: \(armed)")
       return
     }
     #expect(before.zones == [2])
     let (next, fx) = DragSessionReducer.reduce(armed, .topologyChanged(newCtx))
-    guard case .armed(_, _, _, _, _, _, let hit, let span, _) = next else {
+    guard case .armed(_, _, _, _, _, _, let hit, let span, _, _) = next else {
       Issue.record("not armed after topologyChanged: \(next)")
       return
     }
@@ -726,7 +726,7 @@ import ZonesWindowing
 
     let (next, fx) = DragSessionReducer.reduce(armed, .dragged(point: F.center(3), flags: []))
     #expect(fx == [.updateHighlight(Highlight(display: F.primaryKey, primary: [3], secondary: [], dimAll: false))])
-    guard case .armed(_, _, _, _, _, let display, let hit, _, _) = next else {
+    guard case .armed(_, _, _, _, _, let display, let hit, _, _, _) = next else {
       Issue.record("not armed")
       return
     }
@@ -758,7 +758,7 @@ import ZonesWindowing
     let (state, fx) = DragSessionReducer.reduce(armed, .flagsChanged([]))
     #expect(F.isMoving(state))
     #expect(fx == [.hideOverlay])
-    guard case .moving(_, _, let flags, _) = state else { return }
+    guard case .moving(_, _, let flags, _, _) = state else { return }
     #expect(flags.isEmpty)
 
     let (idle, upFx) = DragSessionReducer.reduce(state, .mouseUp(point: F.center(3), flags: []))
@@ -802,6 +802,63 @@ import ZonesWindowing
     }
     #expect(plan.display == retina.key)
     #expect(plan.zones == [1])
+  }
+
+  @Test func sizeLockedSnapsPositionOnly() throws {
+    let locked = WindowFacts(subrole: .standard, isFullScreen: false, positionSettable: true, sizeSettable: false)
+    let w = Self.windowCentered(in: 2)
+    let movedFrame = w.frame.offsetBy(dx: 30, dy: 10)
+
+    // Shift held from the press: phaseTwo's allow(.positionOnly) rides into armed and the mouseUp SnapPlan.
+    let (armed, _) = F.run([
+      F.mouseDown(flags: .shift, candidates: [w], point: F.center(2)), F.dragged(F.center(2)),
+      F.sample(movedFrame, facts: locked),
+    ])
+    #expect(F.isArmed(armed))
+    let (idle, fx) = DragSessionReducer.reduce(armed, .mouseUp(point: F.center(3), flags: .shift))
+    #expect(idle == .idle)
+    guard case .snap(let plan)? = fx.last else {
+      Issue.record("no snap in \(fx)")
+      return
+    }
+    #expect(plan.mode == .positionOnly)
+
+    // Activation pressed after the move (moving -> armed) keeps the mode too.
+    let (moving, _) = F.run([
+      F.mouseDown(flags: [], candidates: [w], point: F.center(2)), F.dragged(F.center(2)),
+      F.sample(movedFrame, facts: locked),
+    ])
+    #expect(F.isMoving(moving))
+    let (late, _) = F.run([.flagsChanged(.shift)], from: moving)
+    #expect(F.isArmed(late))
+    let (_, lateFx) = DragSessionReducer.reduce(late, .mouseUp(point: F.center(3), flags: .shift))
+    guard case .snap(let latePlan)? = lateFx.last else {
+      Issue.record("no snap in \(lateFx)")
+      return
+    }
+    #expect(latePlan.mode == .positionOnly)
+
+    // Releasing the modifier and re-pressing still remembers the mode (armed -> moving -> armed).
+    let (released, _) = DragSessionReducer.reduce(armed, .flagsChanged([]))
+    let (rearmed, _) = F.run([.flagsChanged(.shift)], from: released)
+    let (_, reFx) = DragSessionReducer.reduce(rearmed, .mouseUp(point: F.center(3), flags: .shift))
+    guard case .snap(let rePlan)? = reFx.last else {
+      Issue.record("no snap in \(reFx)")
+      return
+    }
+    #expect(rePlan.mode == .positionOnly)
+
+    // Control: a size-settable window keeps the full Snap.
+    let (fullArmed, _) = F.run([
+      F.mouseDown(flags: .shift, candidates: [w], point: F.center(2)), F.dragged(F.center(2)),
+      F.sample(movedFrame),
+    ])
+    let (_, fullFx) = DragSessionReducer.reduce(fullArmed, .mouseUp(point: F.center(3), flags: .shift))
+    guard case .snap(let fullPlan)? = fullFx.last else {
+      Issue.record("no snap in \(fullFx)")
+      return
+    }
+    #expect(fullPlan.mode == .full)
   }
 
   @Test func snapOnlyWithModifierAtMouseUp() throws {
@@ -1082,7 +1139,7 @@ import ZonesWindowing
           light == [
             .updateHighlight(Highlight(display: F.primaryKey, primary: [zone], secondary: [], dimAll: false))
           ])
-        guard case .armed(_, _, _, _, _, _, let hit, _, _) = next else {
+        guard case .armed(_, _, _, _, _, _, let hit, _, _, _) = next else {
           Issue.record("not armed")
           return
         }
@@ -1154,8 +1211,8 @@ extension DragSessionReducerTests {
     switch s {
     case .idle: nil
     case .pressed(_, _, _, _, let config, _, _): config
-    case .moving(_, _, _, let config): config
-    case .armed(_, _, _, let config, _, _, _, _, _): config
+    case .moving(_, _, _, let config, _): config
+    case .armed(_, _, _, let config, _, _, _, _, _, _): config
     }
   }
 

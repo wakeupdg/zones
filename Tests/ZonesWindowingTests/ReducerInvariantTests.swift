@@ -280,14 +280,14 @@ import ZonesWindowing
         Self.drive(seed: seed, events: Self.directedPrefix(seed: seed, then: random)),
       ] {
         for step in steps {
-          guard case .armed(_, _, let flags, _, _, let display, let hit, let span, _) = step.after,
+          guard case .armed(_, _, let flags, _, _, let display, let hit, let span, _, _) = step.after,
             !span.zones.isEmpty, !span.suspended, flags.contains(activation), flags.contains(spanKey)
           else { continue }
           forks += 1
           seedsHit.insert(seed)
           let released = DragSessionReducer.reduce(step.after, .flagsChanged(flags.subtracting(spanKey)))
           let repressed = DragSessionReducer.reduce(released.0, .flagsChanged(flags))
-          guard case .armed(_, _, _, _, _, _, _, let after, _) = repressed.0 else {
+          guard case .armed(_, _, _, _, _, _, _, let after, _, _) = repressed.0 else {
             Issue.record(Self.message(seed, "release/re-press left armed: \(repressed.0)"))
             continue
           }
@@ -332,7 +332,7 @@ import ZonesWindowing
     var dimmed = 0
     for seed in Self.seeds {
       for step in Self.drive(seed: seed) {
-        guard case .armed(_, _, let flags, _, let ctx, _, let hit, _, _) = step.after else { continue }
+        guard case .armed(_, _, let flags, _, let ctx, _, let hit, _, _, _) = step.after else { continue }
         // Every updateHighlight that dims obeys the rule against the state it produced.
         for case .updateHighlight(let h) in step.effects where h.dimAll {
           dimmed += 1

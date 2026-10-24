@@ -291,8 +291,8 @@ public struct ArmContext: Hashable, Sendable { public var topology: TopologySnap
 public enum DragState: Hashable, Sendable {
   case idle
   case pressed(candidates: [WindowRef], down: CGPoint, downFrames: [WindowID: CGRect], flags: ModifierSet, config: ModifierConfig, samples: Int, retried: Bool)
-  case moving(window: WindowRef, downFrame: CGRect, flags: ModifierSet, config: ModifierConfig)
-  case armed(window: WindowRef, downFrame: CGRect, flags: ModifierSet, config: ModifierConfig, context: ArmContext, display: DisplayKey?, hit: Hit, span: SpanState, point: CGPoint?)
+  case moving(window: WindowRef, downFrame: CGRect, flags: ModifierSet, config: ModifierConfig, mode: SnapMode = .full)  // mode: phaseTwo's allow(mode); .positionOnly for a size-locked window (AC-144, T46)
+  case armed(window: WindowRef, downFrame: CGRect, flags: ModifierSet, config: ModifierConfig, context: ArmContext, display: DisplayKey?, hit: Hit, span: SpanState, point: CGPoint?, mode: SnapMode = .full)  // mode carried from moving into the mouseUp SnapPlan
 }
 public enum DragEvent: Hashable, Sendable {
   case mouseDown(point: CGPoint, flags: ModifierSet, candidates: [WindowRef], phaseOne: Verdict, config: ModifierConfig)
@@ -393,7 +393,7 @@ public struct FocusedWindow: Hashable, Sendable { public var record: WindowRecor
 public enum CycleDirection: Sendable { case left, right }
 public enum CycleResolver { public static func base(_ last: LastSnapRecord?, frame: CGRect, layout: ResolvedLayout) -> Int?   // 2 pt match, else max intersection
   public static func next(from base: Int?, direction: CycleDirection, count: Int, span: Set<Int>?) -> Int }   // wrap (AC-100)
-public enum ShortcutResolver { public static func plan(_ a: ShortcutAction, focused: FocusedWindow?, verdict: Verdict, topology: TopologySnapshot, layouts: [DisplayKey: ResolvedLayout], registry: OriginalFrameRegistry) -> CommandPlan }
+public enum ShortcutResolver { public static func plan(_ a: ShortcutAction, focused: FocusedWindow?, verdict: Verdict, topology: TopologySnapshot, layouts: [DisplayKey: ResolvedLayout], registry: OriginalFrameRegistry) -> CommandPlan }   // !focused.facts.sizeSettable forces mode .positionOnly (AC-144)
 public enum ShortcutDispatcher { public static func dispatch(_ a: ShortcutAction, reducerIdle: Bool) -> Result<ShortcutAction, NoOpReason> }   // notIdle dropped, one log (AC-110)
 ```
 
