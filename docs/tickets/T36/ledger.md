@@ -1,0 +1,1 @@
+- slice 1: ProductionClockTests.scheduleFiresOnceAndCancelIsIdempotent green — ProductionClock over DispatchSourceTimer (token per handle, idempotent cancel, systemUptime now); AppTests now links ZonesTestSupport

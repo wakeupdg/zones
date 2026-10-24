@@ -64,6 +64,8 @@ targets:
         product: ZonesLayout
       - package: Zones
         product: ZonesWindowing
+      - package: Zones
+        product: ZonesTestSupport
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.zones.AppTests
