@@ -1,0 +1,1 @@
+- slice 1: PermissionMachineTests.pollScheduleMatchesState green — notGranted trust poll, first true probe -> granted (dismissOnboarding before startTap), granted 5 s health tick; PermissionMachine enum was not declared by T01, declared in PermissionMachine.swift; SPK-006 heartbeatEnabled: false
