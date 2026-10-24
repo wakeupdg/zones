@@ -3,3 +3,8 @@
 - slice 3: LoginItemToggleTests.registerOnlyOnUserAction green — LoginItemToggleCoordinator (@Observable; register only in setOn; refresh clears error); slices 2-3 share one commit because the test file would not compile otherwise
 - slice 4: AboutModelTests.fieldsAndSingleAttributionLine green — AboutModel(bundle:), MIT, one attribution line
 - adapter: SMLoginItemService builds (no test; OS call); NSError 3/11/12 mapped per brief
+- app: App/Settings (SettingsWindowController, SettingsView, GeneralPane, AboutPane, KeyCapView) builds under xcodebuild with no warnings; inputs are closures, wiring ticket calls show(tab:source:)
+- SPK-014 encoded: hotkeyKeyOSMajors = [27] (only macOS 27.0.1 recorded; 14 and 15 untested so hotkey orders front only there); NSApp.activate() runs before ordering in both sources
+- AC-023: implemented, awaiting human run
+- AC-028: implemented, awaiting human run
+- AC-030: implemented, awaiting human run
