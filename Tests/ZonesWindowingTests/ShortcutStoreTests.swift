@@ -83,4 +83,75 @@ import ZonesTestSupport
       ShortcutRules.recorderState(chord(.letter("K"), [.control]), for: .restore, bound: dup)
         == .conflict(duplicate: .cycleLeft))
   }
+
+  @Test @MainActor func windowHotkeysOnlyWhileGranted() {
+    let windowActions = ShortcutAction.allCases.filter { $0.isWindowAction }
+    #expect(windowActions.count == 12)
+
+    let h = StoreHarness()
+    h.send(.launch)
+    #expect(h.registrar.bound(.openEditor) != nil)
+    #expect(h.registrar.bound(.openSettings) != nil)
+    for a in windowActions { #expect(h.registrar.bound(a) == nil) }
+
+    h.send(.permission(granted: true))
+    for a in ShortcutAction.allCases { #expect(h.registrar.bound(a) != nil) }
+
+    let before = h.mutations.count
+    h.send(.permission(granted: false))
+    let off = h.mutations.dropFirst(before)
+    #expect(off.count == 12)
+    #expect(Set(off) == Set(windowActions.map { FakeHotkeyRegistrar.Call.unregister($0) }))
+    for a in windowActions { #expect(h.registrar.bound(a) == nil) }
+    #expect(h.registrar.bound(.openEditor) != nil)
+    #expect(h.registrar.bound(.openSettings) != nil)
+    #expect(h.state.shortcuts == ShortcutRules.defaults)  // chords stay stored
+
+    let steady = h.mutations.count
+    h.send(.permission(granted: false))
+    #expect(h.mutations.count == steady)
+    h.send(.permission(granted: true))
+    let afterOn = h.mutations.count
+    #expect(afterOn - steady == 12)
+    h.send(.permission(granted: true))
+    #expect(h.mutations.count == afterOn)
+  }
+}
+
+/// Test-local driver: runs the reducer, executes effects on the fake registrar, and feeds each result back
+/// as `.registration`.
+@MainActor final class StoreHarness {
+  var state: ShortcutStoreState
+  let registrar = FakeHotkeyRegistrar(clock: FakeClock())
+  /// Register and unregister calls only (reads of `bound` are not mutations).
+  var mutations: [FakeHotkeyRegistrar.Call] {
+    registrar.calls.filter { if case .bound = $0 { false } else { true } }
+  }
+  private(set) var allEffects: [ShortcutStoreEffect] = []
+
+  init(_ state: ShortcutStoreState = ShortcutStoreState()) { self.state = state }
+
+  /// Reduces `event`, applies the effects, and returns every effect emitted (including follow-ups).
+  @discardableResult func send(_ event: ShortcutStoreEvent) -> [ShortcutStoreEffect] {
+    let (next, effects) = ShortcutStore.reduce(state, event)
+    state = next
+    allEffects += effects
+    return effects + apply(effects)
+  }
+
+  func apply(_ effects: [ShortcutStoreEffect]) -> [ShortcutStoreEffect] {
+    var followUps: [ShortcutStoreEffect] = []
+    for effect in effects {
+      switch effect {
+      case .register(let chord, let action):
+        let result = registrar.register(chord, for: action)
+        followUps += send(.registration(action, result))
+      case .unregister(let action):
+        registrar.unregister(action)
+      case .failed, .persist:
+        break
+      }
+    }
+    return followUps
+  }
 }
