@@ -5,3 +5,4 @@
 - slice 2: ShortcutStoreTests.requiresCommandOrControl green — ShortcutRules.validate
 - slice 3: ShortcutStoreTests.recorderStateTable green — ShortcutRules.recorderState
 - slice 4: ShortcutStoreTests.windowHotkeysOnlyWhileGranted green — ShortcutStore launch/permission reduce, StoreHarness
+- slice 5: ShortcutStoreTests.failureKeepsPreviousChord green — set/registration with pending chord

@@ -38,6 +38,14 @@ public struct ShortcutStoreState: Hashable, Sendable {
   }
 
   func chord(of action: ShortcutAction) -> Chord? { shortcuts.first { $0.action == action }?.chord }
+  mutating func commit(_ chord: Chord?, for action: ShortcutAction) {
+    if let i = shortcuts.firstIndex(where: { $0.action == action }) {
+      shortcuts[i].chord = chord
+    } else {
+      shortcuts.append(Shortcut(action: action, chord: chord))
+    }
+  }
+
   func eligible(_ action: ShortcutAction) -> Bool { !action.isWindowAction || granted }
 }
 
@@ -59,9 +67,24 @@ public enum ShortcutStore {
           effects.append(.unregister(a))
         }
       }
+    case .set(let a, let chord?):
+      if s.eligible(a) {
+        s.pending[a] = chord
+        effects = [.register(chord, a)]
+      } else {
+        s.commit(chord, for: a)
+        effects = [.persist(s.shortcuts)]
+      }
     case .registration(let a, .registered):
       s.registered.insert(a)
-    case .set, .registration, .reducerIdle:
+      if let chord = s.pending.removeValue(forKey: a) {
+        s.commit(chord, for: a)
+        effects = [.persist(s.shortcuts)]
+      }
+    case .registration(let a, let failure):
+      s.pending[a] = nil
+      effects = [.failed(a, failure)]
+    case .set, .reducerIdle:
       break
     }
     return (s, effects)

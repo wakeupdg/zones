@@ -116,6 +116,41 @@ import ZonesTestSupport
     h.send(.permission(granted: true))
     #expect(h.mutations.count == afterOn)
   }
+
+  @Test @MainActor func failureKeepsPreviousChord() {
+    let h = StoreHarness()
+    h.send(.launch)
+    h.send(.permission(granted: true))
+    let old = Chord(key: .letter("E"), modifiers: [.control, .option])
+    let x = Chord(key: .letter("K"), modifiers: [.control, .option])
+    #expect(h.registrar.bound(.openEditor) == old)
+    let committed = h.state.shortcuts
+
+    // Pure reducer: only a register effect; shortcuts untouched until the result arrives.
+    let (pendingState, effects) = ShortcutStore.reduce(h.state, .set(.openEditor, x))
+    #expect(effects == [.register(x, .openEditor)])
+    #expect(pendingState.shortcuts == committed)
+
+    let (failedState, failEffects) = ShortcutStore.reduce(pendingState, .registration(.openEditor, .inUse))
+    #expect(failEffects == [.failed(.openEditor, .inUse)])
+    #expect(failedState.shortcuts == committed)
+    #expect(failedState.registered == h.state.registered)
+
+    // End to end against the fake: the previous chord stays live.
+    h.registrar.enqueue(.registration(.inUse))
+    let all = h.send(.set(.openEditor, x))
+    #expect(all == [.register(x, .openEditor), .failed(.openEditor, .inUse)])
+    #expect(!all.contains { if case .persist = $0 { true } else { false } })
+    #expect(h.state.shortcuts == committed)
+    #expect(h.state.pending.isEmpty)
+    #expect(h.registrar.bound(.openEditor) == old)
+
+    // A later success commits and persists.
+    let ok = h.send(.set(.openEditor, x))
+    #expect(ok.contains(.persist(h.state.shortcuts)))
+    #expect(h.state.chord(of: .openEditor) == x)
+    #expect(h.registrar.bound(.openEditor) == x)
+  }
 }
 
 /// Test-local driver: runs the reducer, executes effects on the fake registrar, and feeds each result back
