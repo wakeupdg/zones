@@ -197,4 +197,31 @@ import ZonesWindowing
     }
     #expect(topologyAndSpaceSteps > 0, "topologyChanged/spaceChanged were exercised while armed")
   }
+
+  // Slice 4 (AC-166): a snap needs the Activation Modifier in the mouse-up's own flags.
+  @Test func snapOnlyWithActivationAtMouseUp() {
+    var snaps = 0
+    var unmodified = 0
+    for seed in Self.seeds {
+      for step in Self.drive(seed: seed) {
+        let activation = ModifierSet(F.config.activation)
+        let snapped = step.effects.contains(where: F.isSnap)
+        if snapped {
+          snaps += 1
+          guard case .mouseUp(_, let flags) = step.event else {
+            Issue.record(Self.message(seed, "snap on \(step.event)"))
+            continue
+          }
+          #expect(flags.contains(activation), Self.message(seed, "snap on a mouseUp without the Activation Modifier"))
+        }
+        if F.isArmed(step.before), case .mouseUp(_, let flags) = step.event, !flags.contains(activation) {
+          unmodified += 1
+          #expect(!snapped, Self.message(seed, "snap from armed on a mouseUp without the Activation Modifier"))
+          #expect(step.effects.contains(.hideOverlay), Self.message(seed, "armed mouseUp must hide the Overlay"))
+        }
+      }
+    }
+    #expect(snaps > 50, "snaps exercised: \(snaps)")
+    #expect(unmodified > 0, "armed mouseUp without activation exercised: \(unmodified)")
+  }
 }

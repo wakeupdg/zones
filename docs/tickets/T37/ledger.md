@@ -1,3 +1,4 @@
 - slice 1: Generator.dragEventsAreSeededAndTotal green — Generator.dragEvents (seeded, exact count, all 10 kinds, mouseDown first); drag fixtures added to Fixtures
 - slice 2: ReducerInvariantTests.overlayShownOnlyOnEntryToArmed green — every showOverlay ends armed; only re-show from armed is the topologyChanged re-arm (T21 slice 10); non-vacuity asserted
 - slice 3: ReducerInvariantTests.everyPathToIdleHidesShownOverlay green — exits via windowGone/wake/mouseUp/flagsChanged all hide a shown Overlay; idle never leaves it up; coverage asserted
+- slice 4: ReducerInvariantTests.snapOnlyWithActivationAtMouseUp green — snap only on mouseUp with activation in its flags; armed mouseUp without it emits no snap; >50 snaps asserted
