@@ -6,6 +6,7 @@ xcuserdata/
 .swiftpm/
 dist/
 .DS_Store
-docs/tickets/*/spend.log
+docs/tickets/**/spend.log
+docs/tickets/_subagents/
 docs/tickets/graph.json.lock
 *.dmg

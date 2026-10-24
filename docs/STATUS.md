@@ -13,4 +13,4 @@ none yet (graph.json empty)
 - Waiting on grill round 1 answers (the only human checkpoint).
 
 ## LESSONS line count
-6
+8

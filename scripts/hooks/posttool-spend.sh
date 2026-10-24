@@ -12,9 +12,18 @@ common="$(git -C "$cwd" rev-parse --git-common-dir 2>/dev/null)" || exit 0
 case "$common" in /*) ;; *) common="$cwd/$common";; esac
 main="$(cd "$(dirname "$common")" && pwd)"
 branch="$(git -C "$cwd" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")"
+transcript="$(printf '%s' "$input" | jq -r '.transcript_path // empty')"
 id="${ZONES_TICKET_ID:-}"
 if [ -z "$id" ]; then
-  case "$branch" in ticket/*) id="${branch#ticket/}";; *) id="orchestrator";; esac
+  case "$branch" in
+    ticket/*) id="${branch#ticket/}";;
+    *)
+      # a subagent running in the main checkout gets its own log; the orchestrator keeps its own
+      case "$transcript" in
+        */subagents/*) id="_subagents/$(basename "$transcript" .jsonl)";;
+        *) id="orchestrator";;
+      esac;;
+  esac
 fi
 dir="$main/docs/tickets/$id"; mkdir -p "$dir"
 log="$dir/spend.log"
@@ -25,7 +34,8 @@ if [ -z "$ceiling" ]; then
   if [ "$id" = "orchestrator" ]; then ceiling=200000; else ceiling=250000; fi
 fi
 graph="$main/docs/tickets/graph.json"
-if [ "$id" != "orchestrator" ] && [ -f "$graph" ]; then
+case "$id" in orchestrator|_subagents/*) graph="";; esac
+if [ -n "$graph" ] && [ -f "$graph" ]; then
   lock="$graph.lock"; i=0
   while ! mkdir "$lock" 2>/dev/null; do i=$((i+1)); [ $i -gt 50 ] && break; sleep 0.1; done
   tmp="$(mktemp)"
