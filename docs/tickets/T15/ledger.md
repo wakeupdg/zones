@@ -1,1 +1,2 @@
 - slice 1: AppHealthTests.cooldownThenOneRetry green — AppHealth markUnresponsive/isUnresponsive/consumeRetry on the passed-in clock time
+- slice 2: SnapServiceTests.writeOrderSizePositionSize green — FrameWriter size/position/size/read-back, SnapService pre-read, EnhancedUIRecovery stub, no-op Enhanced UI hook
