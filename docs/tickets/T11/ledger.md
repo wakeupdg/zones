@@ -1,0 +1,1 @@
+- slice 1: ringBoundedAndSinks green — EventRing (cumulative skipCounts; eviction never decrements), Log facade, UnifiedLogSink; reused ZonesTestSupport ArrayLogSink (T02); no stubs needed, all consumed types exist
