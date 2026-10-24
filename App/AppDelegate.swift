@@ -19,24 +19,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // The unit-test host launches this delegate too; it must not wire the real tap, hotkeys or Application Support.
     if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil { return }
     let probe = AXPermissionProbe()
-    let editor = EditorLauncher.production()
-    self.editor = editor
     // ADR-0021: one onboarding window (T33) for showOnboarding / dismissOnboarding / offerRelaunch.
     let onboarding = OnboardingWindowController(probe: probe, preferences: { [weak self] in self?.root?.state.preferences ?? .defaults })
     let status = StatusItemController(
       onGrant: { [weak onboarding] in onboarding?.grantAccessibility() },
-      onEditLayouts: { [weak editor] in editor?.openEditor() })
+      onEditLayouts: { [weak self] in self?.editor?.openEditor() })
     let surfaces = AppSurfaces(onboarding: onboarding)
     let ui = UIActions(
       openSettings: { [weak self] in self?.settings?.show(source: .menu) },
       openAbout: { [weak self] in self?.settings?.show(tab: .about, source: .menu) },
-      openEditor: { [weak editor] in editor?.openEditor() },
+      openEditor: { [weak self] in self?.editor?.openEditor() },
       requestQuit: { NSApp.terminate(nil) },
       grantAccessibility: { [weak onboarding] in onboarding?.grantAccessibility() })
     let root = CompositionRoot(
       adapters: CompositionRoot.productionAdapters(
         probe: probe, surfaces: surfaces, diagnostics: AlertDiagnosticsPresenter(), ui: ui))
     self.root = root
+    // Built from the root's own store, Displays and registrar: a second Carbon registrar would install a handler
+    // that swallows every 'ZONE' hotkey event before the root's sees it.
+    editor = EditorLauncher(
+      documents: root.documents, provider: root.adapters.displays, registrar: root.adapters.hotkeys,
+      preferences: root.state.preferences)
     statusItem = status
     self.onboarding = onboarding
     status.attach(root.menu.menu)
