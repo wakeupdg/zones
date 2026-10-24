@@ -3,3 +3,4 @@
 - slice 2: SettingsPaneFlowTests.exportAllAndOne green — new Sources/ZonesWindowing/Settings/LayoutsFlow.swift (state, exportDocument, writeExport via one codec)
 - slice 3: SettingsPaneFlowTests.importMergeReplaceSheet green — LayoutsFlow.beginImport/cancelImport/replaceBackupName/applyImport (backup first, both documents saved, dormant reported); added public DocumentStore.saveBackup(_:named:) in ZonesCore/DocumentStore+Raw.swift
 - slice 4: SettingsPaneFlowTests.importErrorsInline green — beginImport validates whole file up front; DocumentError.importText gives inline sentences; refusals change nothing
+- slice 5: SettingsPaneFlowTests.layoutActions green — LayoutsFlow+Actions.swift: duplicate, rename, delete(replacement), copyAssignment, forget, pick (unstable = session only), setDefaultInsets; each persists via DocumentStore

@@ -16,6 +16,8 @@ public struct LayoutsFlow {
   public internal(set) var importError: String?
   /// What the last applied import did, for the confirmation line.
   public internal(set) var lastImport: ImportReport?
+  /// Inline text for the last refused Layout or Display action; cleared by the next one that succeeds.
+  public internal(set) var actionError: String?
 
   let documents: DocumentStore
   var defaults: Insets

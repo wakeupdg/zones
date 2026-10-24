@@ -180,4 +180,109 @@ func makeFlow(
     #expect(flow.importError == nil)
     #expect(flow.pendingImport != nil)
   }
+
+  // MARK: Layout and Display actions
+
+  private func succeeded<T>(_ result: Result<T, DocumentError>) -> Bool {
+    if case .success = result { true } else { false }
+  }
+
+  private func display(_ key: DisplayKey, _ name: String) -> DisplaySnapshot {
+    DisplaySnapshot(
+      key: key, frame: CGRect(x: 0, y: 0, width: 1920, height: 1080),
+      visibleFrame: CGRect(x: 0, y: 0, width: 1920, height: 1055), scale: 2, isMain: false, mirrorOf: nil, name: name,
+      resolution: CGSize(width: 1920, height: 1080))
+  }
+
+  @Test func layoutActions() throws {
+    let (made, fs) = makeFlow(assignments: [
+      flowKeyA: flowAssignment("L1", name: "Desk"), flowKeyB: flowAssignment("L2", name: "Wall"),
+      flowKeyC: flowAssignment("L1", name: "Old"),
+    ])
+    var flow = made
+    func onDisk() throws -> (layouts: [Layout], assignments: [String: Assignment]) {
+      func document(_ name: String) throws -> ZonesDocument {
+        guard let data = fs.files[flowDirectory.appending(path: name)] else { return ZonesDocument() }
+        return try JSONDecoder().decode(ZonesDocument.self, from: data)
+      }
+      return (try document("layouts.json").layouts, try document("assignments.json").assignments)
+    }
+    let L1 = LayoutID(rawValue: "L1"), L2 = LayoutID(rawValue: "L2")
+
+    // Duplicate adds a custom copy (of a custom or a built-in Layout).
+    let duplicated = flow.duplicate(L1, newID: { LayoutID(rawValue: "D1") })
+    #expect(duplicated == .success(LayoutID(rawValue: "D1")))
+    #expect(flow.store.custom.map(\.name) == ["One", "Two", "One copy"])
+    #expect(flow.store.layout(LayoutID(rawValue: "D1"))?.root == flow.store.layout(L1)?.root)
+    #expect(try onDisk().layouts == flow.store.custom)
+    let builtIn = Templates.builtInID(.priorityGrid, count: 3)
+    let copyOfBuiltIn = flow.duplicate(builtIn, newID: { LayoutID(rawValue: "D2") })
+    #expect(copyOfBuiltIn == .success(LayoutID(rawValue: "D2")))
+    #expect(flow.store.layout(LayoutID(rawValue: "D2"))?.builtIn == nil)
+
+    // Rename updates the name; an empty name and a built-in are refused and change nothing.
+    let renamed = flow.rename(L2, to: " Deux ")
+    #expect(succeeded(renamed))
+    #expect(flow.store.layout(L2)?.name == "Deux")
+    #expect(try onDisk().layouts == flow.store.custom)
+    let snapshot = flow.currentDocument
+    let blank = flow.rename(L2, to: "   ")
+    #expect(!succeeded(blank))
+    let builtInRename = flow.rename(builtIn, to: "Mine")
+    #expect(!succeeded(builtInRename))
+    #expect(flow.currentDocument == snapshot)
+
+    // Delete of a Layout in use is refused until a replacement is chosen, then reassigns (AC-115).
+    let refused = flow.delete(L1, replacement: nil)
+    #expect(!succeeded(refused))
+    #expect(flow.actionError != nil)
+    #expect(flow.currentDocument == snapshot)
+    let reassigned = flow.delete(L1, replacement: L2)
+    #expect(succeeded(reassigned))
+    #expect(flow.actionError == nil)
+    #expect(flow.store.layout(L1) == nil)
+    #expect(flow.assignments[flowKeyA]?.layout == L2)
+    #expect(flow.assignments[flowKeyC]?.layout == L2)
+    #expect(try onDisk().assignments == flow.assignments)
+    #expect(try onDisk().layouts == flow.store.custom)
+
+    // Delete of an unused Layout needs none; a built-in cannot be deleted.
+    let unused = flow.delete(LayoutID(rawValue: "D1"), replacement: nil)
+    #expect(succeeded(unused))
+    let deleteBuiltIn = flow.delete(builtIn, replacement: nil)
+    #expect(!succeeded(deleteBuiltIn))
+
+    // Copy Assignment copies a stored record to an attached Display.
+    let target = display(.uuid(flowKeyC), "Studio")
+    let copied = flow.copyAssignment(from: flowKeyB, to: target)
+    #expect(succeeded(copied))
+    #expect(flow.assignments[flowKeyC]?.layout == flow.assignments[flowKeyB]?.layout)
+    #expect(flow.assignments[flowKeyC]?.displayName == "Studio")
+    #expect(try onDisk().assignments == flow.assignments)
+    let unstableTarget = flow.copyAssignment(from: flowKeyB, to: display(.unstable("dup:X#1"), "Twin"))
+    #expect(!succeeded(unstableTarget))
+
+    // Forget removes the stored record.
+    let forgot = flow.forget(flowKeyB)
+    #expect(succeeded(forgot))
+    #expect(flow.assignments[flowKeyB] == nil)
+    #expect(try onDisk().assignments == flow.assignments)
+
+    // The picker: a persistent key writes the Assignment; an unstable key is session only.
+    let picked = flow.pick(builtIn, for: display(.uuid(flowKeyA), "Desk"))
+    #expect(succeeded(picked))
+    #expect(flow.assignments[flowKeyA]?.layout == builtIn)
+    #expect(try onDisk().assignments == flow.assignments)
+    let writesBefore = fs.calls.count
+    let twin = display(.unstable("dup:X#1"), "Twin")
+    let pickedUnstable = flow.pick(L2, for: twin)
+    #expect(succeeded(pickedUnstable))
+    #expect(flow.session[twin.key] == L2)
+    #expect(flow.assignments.count == 2)
+    #expect(fs.calls.count == writesBefore)  // nothing touched the disk
+
+    // A Layout used only by a session pick also needs a replacement.
+    let sessionOnly = flow.delete(L2, replacement: nil)
+    #expect(!succeeded(sessionOnly))
+  }
 }
