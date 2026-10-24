@@ -376,4 +376,40 @@ func write(_ text: String, to url: URL) throws {
     #expect(text.contains("ticket/**"))
     #expect(text.contains("integration"))
   }
+  // MARK: slice 6, release files (AC-168 structure, Casks)
+
+  func matchCount(_ text: String, _ pattern: String) throws -> Int {
+    let regex = try NSRegularExpression(pattern: pattern)
+    return text.components(separatedBy: "\n").filter {
+      regex.firstMatch(in: $0, range: NSRange($0.startIndex..., in: $0)) != nil
+    }.count
+  }
+
+  @Test func checklistHasFifteenRowsAndNoFail() throws {
+    let url = repoRoot().appendingPathComponent("docs/release-checklist.md")
+    let text = try String(contentsOf: url, encoding: .utf8)
+    #expect(try matchCount(text, "AC-[0-9]{3}") == 15)
+    let rows = text.components(separatedBy: "\n").filter {
+      $0.hasPrefix("|") && $0.hasSuffix("|") && $0.range(of: "AC-[0-9]{3}", options: .regularExpression) != nil
+    }
+    #expect(rows.count == 15)
+    #expect(try matchCount(text, "\\|\\s*fail\\s*\\|") == 0)
+    #expect(text.contains("Release tag"))
+    #expect(text.contains("macOS version"))
+    #expect(text.contains("Tester"))
+  }
+
+  @Test func caskParses() throws {
+    let cask = repoRoot().appendingPathComponent("Casks/zones.rb")
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+    process.arguments = ["ruby", "-c", cask.path]
+    process.standardOutput = FileHandle.nullDevice
+    process.standardError = FileHandle.nullDevice
+    try process.run()
+    process.waitUntilExit()
+    #expect(process.terminationStatus == 0)
+    let text = try String(contentsOf: cask, encoding: .utf8)
+    #expect(text.contains("app \"Zones.app\""))
+  }
 }
