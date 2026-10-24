@@ -46,6 +46,12 @@ public struct DocumentStore: Sendable {
     do { raw = try fs.read(target) } catch { return quarantine(kind, reason: "unreadable: \(error)") }
     switch Migrator.migrate(raw, current: currentVersion, steps: steps) {
     case .success(let (document, _)): return .loaded(document)
+    case .failure(.newerVersion(let found, let supported)):
+      emit(
+        .notice,
+        "\(kind.rawValue) left untouched: "
+          + DocumentError.newerVersion(found: found, supported: supported).message)
+      return .newerLeftUntouched(version: found)
     case .failure(let error): return quarantine(kind, reason: error.message)
     }
   }
@@ -87,6 +93,12 @@ public struct DocumentStore: Sendable {
   }
 
   public func save(_ document: ZonesDocument, as kind: DocumentKind) throws(DocumentError) {
+    if let existing = try? fs.read(url(kind)),
+      let object = (try? JSONSerialization.jsonObject(with: existing)) as? [String: Any],
+      let found = Migrator.sniffVersion(object), found > currentVersion
+    {
+      throw .newerVersion(found: found, supported: currentVersion)
+    }
     let data: Data
     do { data = try document.encoded(for: kind) } catch { throw .io("encode failed: \(error)") }
     do { try fs.writeAtomic(data, to: url(kind)) } catch { throw .io(String(describing: error)) }

@@ -229,6 +229,39 @@ private let layoutsJSON = """
     #expect(store.load(.layouts) == .loaded(ZonesDocument()))
     #expect(sink.events.count == 1)
   }
+
+  @Test func newerVersionRefusedAndUntouched() throws {
+    let newer = Data(#"{"version":2,"layouts":[],"future":{"x":1}}"#.utf8)
+    switch Migrator.migrate(newer) {
+    case .success: Issue.record("a newer document must be refused")
+    case .failure(let error):
+      #expect(error == .newerVersion(found: 2, supported: 1))
+      #expect(error.message.contains("2") && error.message.contains("1"))
+    }
+
+    let fs = LocalFakeFileSystem()
+    let sink = LocalArrayLogSink()
+    let store = DocumentStore(fs: fs, directory: directory, clock: FakeClock(), sink: sink)
+    let target = directory.appending(path: "layouts.json")
+    try fs.writeAtomic(newer, to: target)
+    let writesBefore = fs.writeLog.count
+
+    #expect(store.load(.layouts) == .newerLeftUntouched(version: 2))
+    #expect(fs.contents(target) == newer)
+    #expect(fs.moveLog.isEmpty)
+    #expect(fs.paths == [target])
+    #expect(sink.events.count == 1)
+    #expect(sink.events.first?.category == .core)
+
+    do {
+      try store.save(TestFixtures.layoutsDocument, as: .layouts)
+      Issue.record("save over a newer document must throw")
+    } catch {
+      #expect(error == .newerVersion(found: 2, supported: 1))
+    }
+    #expect(fs.writeLog.count == writesBefore)
+    #expect(fs.contents(target) == newer)
+  }
 }
 
 /// Collects events for assertions.
