@@ -29,4 +29,35 @@ import ZonesWindowing
     #expect(rows.count == mixed.count)
     #expect(ExclusionsPaneModel.rows([], names: [:]).isEmpty)
   }
+
+  @Test func addFromFileURL() throws {
+    let root = FileManager.default.temporaryDirectory
+      .appendingPathComponent("zones-t14-\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let app = root.appendingPathComponent("Sample.app")
+    let contents = app.appendingPathComponent("Contents")
+    try FileManager.default.createDirectory(at: contents, withIntermediateDirectories: true)
+    let plist: [String: Any] = [
+      "CFBundleIdentifier": "com.example.sample", "CFBundleName": "Sample",
+      "CFBundlePackageType": "APPL",
+    ]
+    try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
+      .write(to: contents.appendingPathComponent("Info.plist"))
+
+    var set: Set<String> = []
+    #expect(ExclusionsPaneModel.bundleID(forAppAt: app) == "com.example.sample")
+    #expect(ExclusionsPaneModel.add(appAt: app, to: &set))
+    #expect(set == ["com.example.sample"])
+
+    let plain = root.appendingPathComponent("NotAnApp", isDirectory: true)
+    try FileManager.default.createDirectory(at: plain, withIntermediateDirectories: true)
+    #expect(ExclusionsPaneModel.bundleID(forAppAt: plain) == nil)
+    #expect(!ExclusionsPaneModel.add(appAt: plain, to: &set))
+    #expect(set == ["com.example.sample"])
+
+    // add from the running-apps list stores the bundle id, not the name
+    var running: Set<String> = []
+    ExclusionsPaneModel.add(bundleID: "com.apple.calculator", to: &running)
+    #expect(running == ["com.apple.calculator"])
+  }
 }

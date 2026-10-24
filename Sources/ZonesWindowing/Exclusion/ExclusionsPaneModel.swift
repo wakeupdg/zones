@@ -26,4 +26,17 @@ public enum ExclusionsPaneModel {
   public static func add(bundleID: String, to exclusions: inout Set<String>) {
     exclusions.insert(bundleID)
   }
+
+  /// Bundle identifier of the app bundle at `url`; nil when it is not a bundle or has no identifier.
+  public static func bundleID(forAppAt url: URL) -> String? {
+    Bundle(url: url)?.bundleIdentifier
+  }
+
+  /// Adds the bundle identifier of the app at `url`. False, and nothing stored, when it has none.
+  @discardableResult
+  public static func add(appAt url: URL, to exclusions: inout Set<String>) -> Bool {
+    guard let id = bundleID(forAppAt: url), !id.isEmpty else { return false }
+    add(bundleID: id, to: &exclusions)
+    return true
+  }
 }

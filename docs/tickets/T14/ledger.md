@@ -5,3 +5,4 @@
 - slice 2: ExclusionPolicyTests.table (phase two, reason coverage) green — ExclusionPolicy.phaseTwo
 - slice 3: ExclusionPolicyTests.precedence green — ordering pinned (policy already implemented the order in slices 1-2, so no separate red)
 - slice 4: ExclusionsPaneModelTests.bundleIdentifierKeyed green — rows/add/Row (AC-142)
+- slice 5: ExclusionsPaneModelTests.addFromFileURL green — bundleID(forAppAt:) and add(appAt:to:)
