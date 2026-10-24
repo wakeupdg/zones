@@ -2,3 +2,4 @@
 - slice 2: CycleResolverTests.table (tableRecordMatch, tableCalculatorClamped, tableSpanRecord) green — matchedRecord 2 pt match, base from record
 - slice 3: CycleResolverTests.table (tableMaxIntersection, tableTie, tableNoIntersection) green — max-intersection fallback, ties to lower, nil when no overlap
 - slice 4: CycleResolverTests.wrapProperty green — 200 seeded cases: in range, Right x count returns, Left inverts Right (passed at once, next already complete)
+- slice 5: ShortcutResolverTests.sendToZoneUsesOccupiedDisplay green — send to Zone N on the max-overlap Display's own Layout, keyboard SnapPlan with read-back original frame
