@@ -2,3 +2,4 @@
 - slice 2: tap-delivers green — tapCreate non-nil with AX only on host (macOS 27.0.1); synthetic Shift emits flagsChanged x2; CGEvent.timestamp observed in ns not mach ticks
 - slice 3: tap-latency green — per-event delay/callback, dragged rate, CGGetEventTapList (listen-only reports 0.0 usec), SUMMARY on exit; host saw 23 foreign click pairs, no drags
 - slice 4: cgwindowlist-denied built+run — list read on mouse-down; bounds/layer/pid present (0 missing); host has Screen Recording GRANTED (scratch preflight true) so names present: denied case NOT reproducible here, PENDING-HUMAN
+- slice 5: resolve-dragged-window green — pid+size resolver and field-id agreement; logic self-test PASS on fabricated lists (SYNTHETIC-LOGIC); real drag run needs a human
