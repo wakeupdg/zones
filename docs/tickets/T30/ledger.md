@@ -1,1 +1,2 @@
 - slice 1: disconnectedDisplayUsesStoredGeometry green — EditorState/Event/Effect types, EditorModel.open with shared geometry resolver, labels helper
+- slice 2: marginGapLive green — command/undo/redo through UndoStack, preview and warnings recomputed in the same step

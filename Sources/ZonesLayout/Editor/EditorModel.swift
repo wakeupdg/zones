@@ -53,7 +53,27 @@ public enum EditorModel {
   public static func reduce(
     _ s: EditorState, _ e: EditorEvent, context: (topology: TopologySnapshot, document: ZonesDocument)
   ) -> (EditorState, [EditorEffect]) {
-    (s, [])
+    switch e {
+    case .command(let c):
+      switch EditorEngine.apply(c, to: s.draft, geometry: (s.visibleFrame, s.scale)) {
+      case .failure(let error):
+        return (s, [.error(error)])
+      case .success(let next):
+        var stack = UndoStack(undo: s.undo, redo: s.redo)
+        stack.record(before: s.draft, after: next)
+        return (restored(s, draft: next, stack: stack), [])
+      }
+    case .undo:
+      var stack = UndoStack(undo: s.undo, redo: s.redo)
+      guard let previous = stack.undo(current: s.draft) else { return (s, []) }
+      return (restored(s, draft: previous, stack: stack), [])
+    case .redo:
+      var stack = UndoStack(undo: s.undo, redo: s.redo)
+      guard let next = stack.redo(current: s.draft) else { return (s, []) }
+      return (restored(s, draft: next, stack: stack), [])
+    case .switchDisplay, .assign, .save, .cancel:
+      return (s, [])
+    }
   }
 
   /// The editor's label model: the shared `LabelModel` over the live preview (AC-132).
@@ -75,6 +95,11 @@ public enum EditorModel {
       return (main.visibleFrame, main.scale)
     }
     return (topology.primaryFrame, 1)
+  }
+
+  /// `s` with a new draft and stacks; `preview` and `warnings` are recomputed in the same step.
+  private static func restored(_ s: EditorState, draft: EditorDraft, stack: UndoStack) -> EditorState {
+    state(draft: draft, undo: stack.undo, redo: stack.redo, display: s.display, geometry: (s.visibleFrame, s.scale))
   }
 
   private static func state(

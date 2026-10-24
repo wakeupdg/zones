@@ -55,4 +55,39 @@ struct EditorModelTests {
     #expect(connected.preview == LayoutMath.resolve(layout, key: primaryKey, visibleFrame: snap.visibleFrame, scale: snap.scale))
     #expect(connected.preview != state.preview)
   }
+
+  @Test func marginGapLive() {
+    let start = EditorModel.open(columns(), display: primaryKey, topology: topology, assignments: [:])
+
+    let (afterMargin, marginEffects) = step(start, .command(.setMargin(20)))
+    #expect(marginEffects.isEmpty)
+    #expect(afterMargin.draft.layout.insets.margin == 20)
+    #expect(afterMargin.draft.dirty)
+    #expect(afterMargin.preview == LayoutMath.resolve(afterMargin.draft.layout, key: primaryKey, visibleFrame: afterMargin.visibleFrame, scale: afterMargin.scale))
+    #expect(afterMargin.preview.zones.map(\.frame) != start.preview.zones.map(\.frame))
+
+    let (afterGap, gapEffects) = step(afterMargin, .command(.setGap(12)))
+    #expect(gapEffects.isEmpty)
+    #expect(afterGap.draft.layout.insets == Insets(margin: 20, gap: 12))
+    #expect(afterGap.preview == LayoutMath.resolve(afterGap.draft.layout, key: primaryKey, visibleFrame: afterGap.visibleFrame, scale: afterGap.scale))
+    #expect(afterGap.preview.zones.map(\.frame) != afterMargin.preview.zones.map(\.frame))
+
+    let (undone, undoEffects) = step(afterGap, .undo)
+    #expect(undoEffects.isEmpty)
+    #expect(undone.preview == afterMargin.preview)
+    #expect(undone.draft == afterMargin.draft)
+    let (redone, redoEffects) = step(undone, .redo)
+    #expect(redoEffects.isEmpty)
+    #expect(redone.preview == afterGap.preview)
+    #expect(redone.draft == afterGap.draft)
+
+    // Nothing to undo or redo is a no-op.
+    #expect(step(start, .undo) == (start, []))
+    #expect(step(start, .redo) == (start, []))
+
+    // A failing command leaves the state alone and reports the error.
+    let (failed, failEffects) = step(start, .command(.merge))
+    #expect(failed == start)
+    #expect(failEffects == [.error(.nothingSelected)])
+  }
 }
