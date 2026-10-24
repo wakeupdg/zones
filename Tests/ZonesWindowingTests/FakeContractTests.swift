@@ -426,4 +426,45 @@ import ZonesWindowing
     clock.advance(by: 1)
     #expect(fs.completed == [.exists(a)])
   }
+
+  @Test func arrayLogSink() {
+    let clock = FakeClock()
+    let sink = ArrayLogSink(clock: clock)
+    let first = LogEvent(time: 1, category: .snap, level: .info, message: "first")
+    let second = LogEvent(
+      time: 2, category: .input, level: .error, message: "second", bundleID: "com.example.app", pid: 42,
+      skip: .unresponsive)
+
+    // write appends in order and logs a call per event.
+    sink.write(first)
+    sink.write(second)
+    #expect(sink.events == [first, second])
+    #expect(sink.calls == [.write(first), .write(second)])
+
+    // enqueue preloads an event without a call.
+    sink.enqueue(first)
+    #expect(sink.events == [first, second, first])
+    #expect(sink.calls.count == 2)
+
+    // Usable as a LogSink existential.
+    let asSink: any LogSink = sink
+    asSink.write(second)
+    #expect(sink.events.last == second)
+
+    // Latency 2 completes at the second advance(by: 1).
+    sink.reset()
+    #expect(sink.events.isEmpty)
+    #expect(sink.calls.isEmpty)
+    sink.latency = 2
+    sink.write(first)
+    clock.advance(by: 1)
+    #expect(sink.completed.isEmpty)
+    clock.advance(by: 1)
+    #expect(sink.completed == [.write(first)])
+
+    // reset() empties events and calls.
+    sink.reset()
+    #expect(sink.events.isEmpty)
+    #expect(sink.calls.isEmpty)
+  }
 }

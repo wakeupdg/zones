@@ -9,3 +9,4 @@ T02 started
 - slice 8: FakeContractTests.loginItemService green — FakeLoginItemService (@MainActor; scripted status, typed-throw register/unregister, tracked status)
 - slice 9: FakeContractTests.permissionProbe green — FakePermissionProbe (isTrusted queue then last answer holds, settable launchedAtLogin, openAccessibilitySettings logged)
 - slice 10: FakeContractTests.fileSystem green — FakeFileSystem (in-memory, atomic writeAtomic, failAfterBytes diskFull, scripted .error, notFound, init defaults its own FakeClock)
+- slice 11: FakeContractTests.arrayLogSink green — ArrayLogSink (lock-guarded events, enqueue preload, calls; Log.shared.install(sink:) does not exist yet so that sub-case is skipped)
