@@ -172,4 +172,56 @@ import ZonesWindowing
     #expect(!r.effects.contains(where: F.isSnap))
     #expect(!r.effects.contains(where: F.isRestore))
   }
+
+  /// A window whose center sits in Zone `n`.
+  static func windowCentered(in n: Int, id: UInt32 = 1, pid: pid_t = 100) -> WindowRef {
+    let c = F.center(n)
+    return F.ref(id, pid: pid, frame: CGRect(x: c.x - 100, y: c.y - 75, width: 200, height: 150))
+  }
+
+  /// Armed state reached through the harness; the window starts centered in Zone 2.
+  static func armedOverZone2() -> (state: DragState, effects: [DragEffect]) {
+    let w = windowCentered(in: 2)
+    return F.run([
+      F.mouseDown(flags: .shift, candidates: [w], point: F.center(2)), F.dragged(F.center(2)),
+      F.sample(w.frame.offsetBy(dx: 30, dy: 10)),
+    ])
+  }
+
+  @Test func highlightFollowsCursorNotWindow() {
+    let (armed, armFx) = Self.armedOverZone2()
+    #expect(F.isArmed(armed))
+    // The replayed dragged sets the first highlight (CONTRACT-NOTE: hit is .none until then).
+    #expect(
+      armFx.last == .updateHighlight(
+        Highlight(display: F.primaryKey, primary: [2], secondary: [], dimAll: false)))
+
+    let (next, fx) = DragSessionReducer.reduce(armed, .dragged(point: F.center(3), flags: []))
+    #expect(fx == [.updateHighlight(Highlight(display: F.primaryKey, primary: [3], secondary: [], dimAll: false))])
+    guard case .armed(_, _, _, _, _, let display, let hit, _) = next else {
+      Issue.record("not armed")
+      return
+    }
+    #expect(display == F.primaryKey)
+    #expect(hit == .zone(3))
+
+    let (same, none) = DragSessionReducer.reduce(next, .dragged(point: F.center(3), flags: []))
+    #expect(same == next)
+    #expect(none.isEmpty)
+
+    // Off every Display: no Zone, empty highlight.
+    let (off, offFx) = DragSessionReducer.reduce(next, .dragged(point: CGPoint(x: 9000, y: 9000), flags: []))
+    #expect(offFx == [.updateHighlight(Highlight(display: nil, primary: [], secondary: [], dimAll: false))])
+    #expect(F.isArmed(off))
+  }
+
+  @Test func highlightUsesTheLayoutOfTheDisplayUnderTheCursor() {
+    let (armed, _) = Self.armedOverZone2()
+    let left = F.topology.displays[1]
+    let layout = F.context.layouts[left.key]!
+    let zone = layout.zones.first { $0.number == 5 }!.frame
+    let p = CGPoint(x: zone.midX, y: zone.midY)
+    let (_, fx) = DragSessionReducer.reduce(armed, .dragged(point: p, flags: []))
+    #expect(fx == [.updateHighlight(Highlight(display: left.key, primary: [5], secondary: [], dimAll: false))])
+  }
 }

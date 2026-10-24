@@ -11,7 +11,7 @@ public enum DragSessionReducer {
     case .idle: return idle(s, e)
     case .pressed: return pressed(s, e)
     case .moving: return moving(s, e)
-    case .armed: return (s, [])
+    case .armed: return armed(s, e)
     }
   }
 
@@ -110,6 +110,39 @@ public enum DragSessionReducer {
       return (.idle, [])
     default:
       return (s, [])
+    }
+  }
+
+  private static func armed(_ s: DragState, _ e: DragEvent) -> (DragState, [DragEffect]) {
+    guard case .armed(let window, let downFrame, let flags, let config, let ctx, let display, let hit, let span) = s
+    else { return (s, []) }
+    switch e {
+    case .dragged(let point, _):
+      // The highlight follows the cursor Zone, not the window center (AC-034, LI-009).
+      // EXTENSION(T22): `.none` dims all and shows the Original Frame; Span modifier; cross-Display suspend.
+      let (newDisplay, newHit) = hitUnderCursor(point, ctx)
+      guard newDisplay != display || newHit != hit else { return (s, []) }
+      let state = DragState.armed(
+        window: window, downFrame: downFrame, flags: flags, config: config, context: ctx, display: newDisplay,
+        hit: newHit, span: span)
+      let highlight = Highlight(display: newDisplay, primary: zones(of: newHit), secondary: [], dimAll: false)
+      return (state, [.updateHighlight(highlight)])
+    default:
+      return (s, [])
+    }
+  }
+
+  /// The Display under `point` and the Hit in that Display's layout; `.none` when there is no Display or layout.
+  private static func hitUnderCursor(_ point: CGPoint, _ ctx: ArmContext) -> (DisplayKey?, Hit) {
+    let display = HitTest.display(at: point, in: ctx.topology)
+    guard let display, let layout = ctx.layouts[display] else { return (display, .none) }
+    return (display, HitTest.hit(point, in: layout))
+  }
+
+  private static func zones(of hit: Hit) -> Set<Int> {
+    switch hit {
+    case .zone(let n), .nearest(let n): [n]
+    case .none: []
     }
   }
 }

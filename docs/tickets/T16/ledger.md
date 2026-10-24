@@ -6,3 +6,4 @@
 - slice 5: DragSessionReducerTests.pauseThenMoveStillArms green — passed on first run, pressed sample loop from slice 3 covers it
 - slice 6: DragSessionReducerTests.resizeFromEveryEdgeEndsSession green — size delta over tolerance ends the session before the origin check
 - slice 7: DragSessionReducerTests.modifierLateArms and plainDragIsInert green — moving flagsChanged requests arm context when the modifier is newly present
+- slice 8: DragSessionReducerTests.highlightFollowsCursorNotWindow green — armed dragged hit-tests the cursor Display and Zone, emits updateHighlight on change only
