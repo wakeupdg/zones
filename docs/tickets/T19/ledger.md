@@ -1,0 +1,5 @@
+- slice 1: SnapServiceTests.enhancedUIRestoredOnEveryPath green — FrameWriter reads Enhanced UI, toggles off/on with defer; T15 call-log tests updated for the extra enhancedUI read
+- AC-075 manual, not run
+- slice 2: EnhancedUIRecoveryTests.writeOnceRestoreOnMatch green — EnhancedUIRecovery noteIfFirst/restoreAtLaunch/drainAndDelete; RecoveryRecord already in SnapTypes.swift; added DocumentStore+Raw.swift (loadRaw/saveRaw/remove) using store's own fs/url(kind)
+- slice 3: EnhancedUIRecoveryTests.frameWriterRecordsOncePerApp green — FrameWriter(identify:) notes a record after the restore for applied/clamped with a readable attribute
+- slice 4: EnhancedUIRecoveryTests.diskFullIsSwallowed green — failAfterBytes 0 leaves the Snap .applied, restore still last

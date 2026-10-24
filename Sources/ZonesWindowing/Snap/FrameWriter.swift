@@ -1,3 +1,4 @@
+import AppKit
 import CoreGraphics
 import Foundation
 import ZonesCore
@@ -14,22 +15,44 @@ public protocol FrameWriting: Sendable {
 public struct FrameWriter: FrameWriting {
   let system: any WindowSystem
   let recovery: EnhancedUIRecovery
+  /// Who owns a pid, for the recovery record; `nil` means no record is written.
+  let identify: @Sendable (pid_t) -> (bundleID: String, launchDate: Date)?
 
-  public init(system: any WindowSystem, recovery: EnhancedUIRecovery) {
+  public init(
+    system: any WindowSystem, recovery: EnhancedUIRecovery,
+    identify: @escaping @Sendable (pid_t) -> (bundleID: String, launchDate: Date)? =
+      FrameWriter.runningAppIdentity
+  ) {
     self.system = system
     self.recovery = recovery
+    self.identify = identify
   }
 
-  /// What `prepareEnhancedUI` hands back; `run` undoes the toggle. T19 fills it.
+  public static let runningAppIdentity: @Sendable (pid_t) -> (bundleID: String, launchDate: Date)? = {
+    pid in
+    guard let app = NSRunningApplication(processIdentifier: pid),
+      let bundleID = app.bundleIdentifier, let launchDate = app.launchDate
+    else { return nil }
+    return (bundleID, launchDate)
+  }
+
+  /// What `prepareEnhancedUI` hands back: the value it read (`nil` when absent, unreadable or the
+  /// policy is `.leave`) and the undo for the toggle.
   struct EnhancedUIRestore {
+    let prior: Bool?
     let run: @WindowActor () -> Void
-    static let none = EnhancedUIRestore(run: {})
+    static let none = EnhancedUIRestore(prior: nil, run: {})
   }
 
-  /// Hook: turn AXEnhancedUserInterface off before the writes. Skips when the policy is `.leave`,
-  /// the attribute is absent or it is already off. No AX calls until T19 fills this in.
+  /// Reads AXEnhancedUserInterface and, when it is on, turns it off before the writes (ADR-0022).
+  /// Skips every call under `.leave`; skips the set when the attribute is absent, off or unreadable.
+  /// The restore always writes `true` and is never retried.
   @WindowActor func prepareEnhancedUI(pid: pid_t, policy: EnhancedUIPolicy) -> EnhancedUIRestore {
-    .none
+    guard policy == .toggle else { return .none }
+    guard case .value(let attribute) = system.enhancedUI(pid: pid) else { return .none }
+    guard attribute == true else { return EnhancedUIRestore(prior: attribute, run: {}) }
+    _ = system.setEnhancedUI(false, pid: pid)
+    return EnhancedUIRestore(prior: true, run: { _ = system.setEnhancedUI(true, pid: pid) })
   }
 
   @WindowActor public func write(
@@ -42,8 +65,33 @@ public struct FrameWriter: FrameWriting {
     _ = health.consumeRetry(h.pid, now: now)
 
     let restore = prepareEnhancedUI(pid: h.pid, policy: policy)
-    defer { restore.run() }
+    let result: FrameWriteResult
+    do {
+      defer { restore.run() }
+      result = writeSequence(target, mode: mode, to: h, health: &health, now: now)
+    }
+    noteRecovery(after: result, prior: restore.prior, pid: h.pid)
+    return result
+  }
 
+  /// After the restore, off the hot path: one record per app per session, only for a completed
+  /// sequence and only when the attribute was readable. A disk error never reaches the Snap.
+  private func noteRecovery(after result: FrameWriteResult, prior: Bool?, pid: pid_t) {
+    guard let prior else { return }
+    switch result {
+    case .applied, .clamped: break
+    default: return
+    }
+    guard let app = identify(pid) else { return }
+    recovery.noteIfFirst(
+      RecoveryRecord(
+        bundleID: app.bundleID, pid: pid, launchDate: app.launchDate, priorEnhancedUI: prior))
+  }
+
+  @WindowActor private func writeSequence(
+    _ target: CGRect, mode: SnapMode, to h: WindowHandle, health: inout AppHealth,
+    now: TimeInterval
+  ) -> FrameWriteResult {
     var steps: [@WindowActor () -> AXStatus] = []
     if mode == .full { steps.append { system.setSize(target.size, h) } }
     steps.append { system.setPosition(target.origin, h) }
