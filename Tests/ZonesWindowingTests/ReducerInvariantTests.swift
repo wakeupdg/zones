@@ -146,4 +146,28 @@ import ZonesWindowing
       other.dragEvents(count: 50, context: F.context, config: F.config)
         != one.dragEvents(count: 50, context: F.context, config: F.config))
   }
+
+  // Slice 2 (AC-166): the Overlay is shown only on entry to armed. A topologyChanged re-arm from a new snapshot
+  // (T21 slice 10, ADR-0014) shows the replacement Overlay while already armed; that is the one allowed re-show.
+  @Test func overlayShownOnlyOnEntryToArmed() {
+    var shows = 0
+    var reArms = 0
+    for seed in Self.seeds {
+      for step in Self.drive(seed: seed) {
+        for case .showOverlay in step.effects {
+          shows += 1
+          #expect(F.isArmed(step.after), Self.message(seed, "showOverlay must end armed: \(step.event)"))
+          if F.isArmed(step.before) {
+            reArms += 1
+            guard case .topologyChanged = step.event else {
+              Issue.record(Self.message(seed, "showOverlay from armed on \(step.event)"))
+              continue
+            }
+          }
+        }
+      }
+    }
+    #expect(shows > 300, "property was exercised: \(shows) showOverlay effects")
+    #expect(reArms > 0, "topology re-arm path was exercised")
+  }
 }
