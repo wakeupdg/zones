@@ -1,1 +1,3 @@
 - slice 1: constantsMatchContract, hitHasThreeDistinctCases, windowActorSharedIsStable green — Package.swift (7 targets, Swift 6, warnings-as-errors), Constants, Hit, WindowActor, Fixtures shell
+- slice 2: splitNodeJSONShape, layoutIDEncodesAsBareString, layoutRoundTripOmitsBuiltIn, templateCountsMatchContract green — UnitRect, RGBA, CoordinateSpace shell, LayoutID, SplitNode, NodePath, Insets, Surround, BuiltInRef, Layout, Template (Zone/ResolvedLayout deferred to slice 3 with DisplayKey)
+- decision: Zone and ResolvedLayout live in Layout.swift but are added in slice 3 because they need DisplayKey
