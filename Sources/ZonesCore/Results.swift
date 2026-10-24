@@ -1,6 +1,6 @@
 import CoreGraphics
 
-public enum NoOpReason: String, Codable, Sendable {
+public enum NoOpReason: String, Codable, Sendable, Error {
   case sameFrame, zoneAbsent, noEntry, fullScreen, excluded, positionNotSettable, windowAbsent, notIdle
 }
 
