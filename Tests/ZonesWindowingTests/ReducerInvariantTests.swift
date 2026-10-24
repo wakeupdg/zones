@@ -170,4 +170,31 @@ import ZonesWindowing
     #expect(shows > 300, "property was exercised: \(shows) showOverlay effects")
     #expect(reArms > 0, "topology re-arm path was exercised")
   }
+
+  // Slice 3 (AC-166): every path out of armed hides a shown Overlay, and idle never leaves one up.
+  @Test func everyPathToIdleHidesShownOverlay() {
+    var exits: [String: Int] = [:]
+    var topologyAndSpaceSteps = 0
+    for seed in Self.seeds {
+      for step in Self.drive(seed: seed) {
+        if step.overlayShownBefore && !F.isArmed(step.after) {
+          #expect(
+            step.effects.contains(.hideOverlay),
+            Self.message(seed, "left armed without hideOverlay on \(step.event)"))
+          exits[Self.kind(step.event), default: 0] += 1
+        }
+        if step.after == .idle {
+          #expect(!step.overlayShownAfter, Self.message(seed, "idle with the Overlay up after \(step.event)"))
+        }
+        switch step.event {
+        case .topologyChanged, .spaceChanged: if F.isArmed(step.before) { topologyAndSpaceSteps += 1 }
+        default: break
+        }
+      }
+    }
+    for kind in ["windowGone", "wake", "mouseUp", "flagsChanged"] {
+      #expect((exits[kind] ?? 0) > 0, "no exit through \(kind) was exercised: \(exits)")
+    }
+    #expect(topologyAndSpaceSteps > 0, "topologyChanged/spaceChanged were exercised while armed")
+  }
 }
