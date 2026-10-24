@@ -41,4 +41,26 @@ import ZonesWindowing
     #expect(s == pressed)
     #expect(fx.isEmpty)
   }
+
+  @Test func overlayOnlyAfterMovedSample() {
+    let id = F.window.id
+    var (state, fx) = DragSessionReducer.reduce(.idle, F.mouseDown(flags: .shift))
+    #expect(fx.isEmpty)
+
+    (state, fx) = DragSessionReducer.reduce(state, F.dragged())
+    #expect(fx == [.requestSample([id])])
+
+    (state, fx) = DragSessionReducer.reduce(state, F.unmoved())
+    #expect(F.isPressed(state))
+    #expect(!fx.contains(where: F.isShowOverlay))
+
+    (state, fx) = DragSessionReducer.reduce(state, F.moved())
+    #expect(F.isMoving(state))
+    #expect(fx == [.stopSampling, .requestArmContext(window: F.window, point: F.downPoint)])
+    #expect(!fx.contains(where: F.isShowOverlay))
+
+    (state, fx) = DragSessionReducer.reduce(state, .armContext(F.context))
+    #expect(F.isArmed(state))
+    #expect(fx.filter(F.isShowOverlay).count == 1)
+  }
 }
