@@ -7,3 +7,5 @@
 - decision: Preferences.defaults uses shortcuts [] with comment per brief gap 1; Appearance placeholder fill RGBA(0,0.478,1,1), opacity 0.35, insets 8/8
 - slice 5: skipReasonHasTenCases, logEventHasNoTitleField, timerIDRawValuesAreStable, verdictAndFrameWriteResultAreHashable green — Results.swift (all §1.6), TimerID, TimerHandle, Clock, Log types + Log shell, EventRing, FileSystem, DocumentKind, LoadResult, DocumentStore shell, Migrator shell
 - decision: EventRing keeps `capacity` as a stored let; LogEvent init defaults bundleID/pid/skip to nil
+- slice 8: fakeClockFiresDueTimersInOrder, fakeClockRepeatsAndCancels, fakeClockPendingAndFire, generatorSameSeedSameSequence, generatorTreeIsAlwaysValid, generatorFailureMessageHasSeed, threeDisplaysGeometry green — FakeClock (OSAllocatedUnfairLock, callbacks outside lock), Generator (splitmix64), Fixtures.threeDisplays
+- decision: Generator.dragEvents, Fixtures.layouts and nineZone omitted per brief gap 6; FakeClock clamps a zero delay to 1e-9 so advance(by:) always terminates
