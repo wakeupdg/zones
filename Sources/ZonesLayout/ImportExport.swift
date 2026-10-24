@@ -22,7 +22,8 @@ public enum ImportExport {
       assignments: assignments.filter { $0.value.layout == only })
   }
 
-  /// Pure import: the caller writes only on `.applied`.
+  /// Pure import: the caller writes only on `.applied`. Every incoming Layout is validated first; the first fault
+  /// (document order) refuses the whole file.
   /// Merge keeps current Layouts and Assignments, renames name collisions with a numeric suffix and gives
   /// colliding ids fresh ones. Replace returns the incoming document whole and names a backup of both current
   /// documents, stamped like `DocumentStore.backupName`. `dormant` lists the imported keys in the result that are
@@ -31,6 +32,12 @@ public enum ImportExport {
     _ incoming: ZonesDocument, into current: ZonesDocument, mode: ImportMode, attached: Set<String>,
     newID: () -> LayoutID, now: TimeInterval
   ) -> ImportResult {
+    // Whole-file validation first (AC-151): the first offender in document order is named and nothing changes.
+    for layout in incoming.layouts {
+      if let fault = LayoutValidator.validate(layout) {
+        return .refused(.invalidLayout(name: layout.name, fault))
+      }
+    }
     switch mode {
     case .merge:
       let (document, imported) = merge(incoming, into: current, newID: newID)

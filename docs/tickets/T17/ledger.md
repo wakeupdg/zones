@@ -6,3 +6,4 @@
 - slice 6: AssignmentLookupTests.dormantAppliesOnArrival green — already satisfied by AssignmentLookup (test added, no new code)
 - slice 7: ImportExportTests.exportAllAndOne green — ImportExport.export (built-in/unknown only: id => empty layouts; assignments filtered by id regardless)
 - slice 8: ImportExportTests.mergeAndReplace green — importDocument Merge/Replace/dormant; deviation: Replace backup string is "zones.<yyyyMMdd-HHmmss>.bak" (stamp formatter duplicated privately, DocumentStore.stampedName is internal to ZonesCore)
+- slice 9: ImportExportTests.importValidatesWholeFile green — validate all layouts first in both modes; note LayoutValidator never yields .overlap (a split tree tiles), so the overlap variant is covered by surroundOutOfRange/ratio/leafTooSmall only

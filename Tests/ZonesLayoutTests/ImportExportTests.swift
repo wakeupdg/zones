@@ -132,4 +132,51 @@ struct ImportExportTests {
     #expect(layoutsDoc.layouts == incoming.layouts)
     #expect(assignmentsDoc.assignments == incoming.assignments)
   }
+
+  @Test func importValidatesWholeFile() throws {
+    let ratioOne = SplitNode.split(axis: .horizontal, ratio: 1.0, first: .leaf, second: .leaf)
+    let tiny = SplitNode.split(axis: .horizontal, ratio: 0.05, first: .leaf, second: .leaf)
+    let bad: [(String, Layout, LayoutFault)] = [
+      ("ratio", custom("X1", "Bad ratio", root: ratioOne), .ratioOutOfRange(NodePath(steps: []))),
+      ("small", custom("X2", "Bad small", root: tiny), .leafTooSmall(NodePath(steps: [false]))),
+      (
+        "surround",
+        Layout(
+          id: LayoutID(rawValue: "X3"), name: "Bad surround", root: twoUp,
+          surround: Surround(top: 0.6, left: 0, bottom: 0, right: 0), insets: Insets(margin: 1, gap: 1)),
+        .surroundOutOfRange
+      ),
+    ]
+    let current = ZonesDocument(layouts: [custom("C", "Mine")], assignments: [keyA: assignment("C")])
+    for (label, layout, fault) in bad {
+      let incoming = ZonesDocument(layouts: [custom("G1", "Good one"), custom("G2", "Good two"), layout])
+      for mode in [ImportMode.merge, .replace] {
+        let result = ImportExport.importDocument(
+          incoming, into: current, mode: mode, attached: [], newID: { LayoutID(rawValue: "fresh") }, now: 0)
+        #expect(result == .refused(.invalidLayout(name: layout.name, fault)), "\(label) \(mode)")
+      }
+    }
+
+    // Two bad Layouts: the first in array order is named.
+    let twoBad = ZonesDocument(layouts: [
+      custom("G", "Good"), custom("X1", "First bad", root: ratioOne), custom("X2", "Second bad", root: tiny),
+    ])
+    let named = ImportExport.importDocument(
+      twoBad, into: current, mode: .merge, attached: [], newID: { LayoutID(rawValue: "fresh") }, now: 0)
+    #expect(named == .refused(.invalidLayout(name: "First bad", .ratioOutOfRange(NodePath(steps: [])))))
+
+    // Refused means nothing is written: both disk documents keep their bytes.
+    let fs = FakeFileSystem()
+    let dir = URL(filePath: "/zones")
+    let store = DocumentStore(fs: fs, directory: dir, clock: FakeClock())
+    try store.save(ZonesDocument(layouts: current.layouts), as: .layouts)
+    try store.save(ZonesDocument(assignments: current.assignments), as: .assignments)
+    let before = fs.files
+    let writesBefore = fs.calls.count
+    let result = ImportExport.importDocument(
+      twoBad, into: current, mode: .replace, attached: [], newID: { LayoutID(rawValue: "fresh") }, now: 1)
+    if case .applied = result { Issue.record("should be refused") }
+    #expect(fs.files == before)
+    #expect(fs.calls.count == writesBefore)
+  }
 }
