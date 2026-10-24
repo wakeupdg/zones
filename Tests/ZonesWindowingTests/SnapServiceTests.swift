@@ -64,4 +64,16 @@ import ZonesWindowing
         .setSize(Self.target.size, h), .frame(h),
       ])
   }
+
+  /// AC-072: the outcome carries what the app accepted, not what was asked for.
+  @Test @WindowActor func resultCarriesReadBackFrame() {
+    var rig = Rig()
+    let accepted = CGRect(x: 100, y: 50, width: 650, height: 500)
+    rig.script(current: Self.elsewhere, readBack: accepted)
+    rig.ws.enqueue(.frame(.value(accepted)))  // the clamp follow-up reads the same frame again
+    let outcome = rig.run(rig.plan())
+    #expect(outcome.result == .clamped(accepted))
+    #expect(outcome.readBack == accepted)
+    #expect(outcome.readBack != Self.target)
+  }
 }

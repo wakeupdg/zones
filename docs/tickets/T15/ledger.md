@@ -1,2 +1,3 @@
 - slice 1: AppHealthTests.cooldownThenOneRetry green — AppHealth markUnresponsive/isUnresponsive/consumeRetry on the passed-in clock time
 - slice 2: SnapServiceTests.writeOrderSizePositionSize green — FrameWriter size/position/size/read-back, SnapService pre-read, EnhancedUIRecovery stub, no-op Enhanced UI hook
+- slice 3: SnapServiceTests.resultCarriesReadBackFrame green — outcome.readBack is the fake's frame and result is .clamped (read-back classification already came with slice 2)
