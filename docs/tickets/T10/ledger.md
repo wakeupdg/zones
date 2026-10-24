@@ -8,3 +8,5 @@
 - slice 2: DocumentTests.rejectsNonUUIDKey green — PersistentDisplayKey decoder throws nonUUIDKey; document decode validates assignment keys
 - slice 3: DocumentTests.exportRoundTrip green — Migrator.migrate (version sniff, step chain, newer refusal) and DocumentError.message
 - slice 4: DocumentTests.atomicWriteSurvivesFailure green — DocumentStore load/save over FileSystem, FoundationFileSystem, LocalFakeFileSystem
+- slice 5: DocumentTests.corruptFileQuarantined green — quarantine to <stem>.<ts>.corrupt (stem = kind file name without .json), one .notice event via optional LogSink
+- note: backup/quarantine names use the kind stem, e.g. layouts.20261024-170200.bak (kind file name without .json)

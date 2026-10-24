@@ -1,8 +1,9 @@
 import CoreGraphics
 import Foundation
 import Testing
-import ZonesCore
+@testable import ZonesCore
 import ZonesTestSupport
+import os
 
 private let assignmentJSON = """
   {"layout":"builtin:priorityGrid:3","displayName":"Studio Display",
@@ -206,4 +207,33 @@ private let layoutsJSON = """
     #expect(!fs.exists(moved))
     #expect(throws: (any Error).self) { _ = try fs.read(moved) }
   }
+
+  @Test func corruptFileQuarantined() throws {
+    let fs = LocalFakeFileSystem()
+    let sink = LocalArrayLogSink()
+    let store = DocumentStore(
+      fs: fs, directory: directory, clock: FakeClock(), wallClock: { 1_792_861_320 }, sink: sink)
+    let target = directory.appending(path: "layouts.json")
+    let garbage = Data([0x00, 0xFF, 0x7B, 0x22, 0x01])
+    try fs.writeAtomic(garbage, to: target)
+
+    let result = store.load(.layouts)
+    #expect(result == .defaults(quarantined: "layouts.20261024-170200.corrupt"))
+    #expect(!fs.exists(target))
+    #expect(fs.contents(directory.appending(path: "layouts.20261024-170200.corrupt")) == garbage)
+    #expect(sink.events.count == 1)
+    #expect(sink.events.first?.level == .notice)
+    #expect(sink.events.first?.category == .core)
+
+    // A second load finds no file: the empty default, and no further event.
+    #expect(store.load(.layouts) == .loaded(ZonesDocument()))
+    #expect(sink.events.count == 1)
+  }
+}
+
+/// Collects events for assertions.
+final class LocalArrayLogSink: LogSink, Sendable {
+  private let storage = OSAllocatedUnfairLock(initialState: [LogEvent]())
+  var events: [LogEvent] { storage.withLock { $0 } }
+  func write(_ event: LogEvent) { storage.withLock { $0.append(event) } }
 }
