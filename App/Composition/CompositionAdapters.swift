@@ -25,6 +25,8 @@ struct UIActions {
   var openAbout: @MainActor () -> Void
   var openEditor: @MainActor () -> Void
   var requestQuit: @MainActor () -> Void
+  /// The status menu's Grant Accessibility item: the onboarding window (System Settings at login).
+  var grantAccessibility: @MainActor () -> Void
 }
 
 /// Every adapter the composition root needs, as an injected protocol: tests pass fakes, production passes the

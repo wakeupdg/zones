@@ -16,7 +16,6 @@ final class MenuController: NSObject, NSMenuDelegate {
   private let appState: AppState
   private let topology: TopologyDriver
   private let permission: PermissionDriver
-  private let probe: any PermissionProbe
   private let ui: UIActions
   private let frontmost: @MainActor () -> (name: String, bundleID: String)?
   private let cursor: @MainActor () -> CGPoint
@@ -27,7 +26,7 @@ final class MenuController: NSObject, NSMenuDelegate {
   private(set) var lastItems: [MenuItem] = []
 
   init(
-    appState: AppState, topology: TopologyDriver, permission: PermissionDriver, probe: any PermissionProbe,
+    appState: AppState, topology: TopologyDriver, permission: PermissionDriver,
     ui: UIActions, frontmost: @escaping @MainActor () -> (name: String, bundleID: String)?,
     cursor: @escaping @MainActor () -> CGPoint,
     builder: @escaping Builder = {
@@ -38,7 +37,6 @@ final class MenuController: NSObject, NSMenuDelegate {
     self.appState = appState
     self.topology = topology
     self.permission = permission
-    self.probe = probe
     self.ui = ui
     self.frontmost = frontmost
     self.cursor = cursor
@@ -119,6 +117,6 @@ final class MenuController: NSObject, NSMenuDelegate {
   @objc func editLayouts() { ui.openEditor() }
   @objc func openSettings() { ui.openSettings() }
   @objc func openAbout() { ui.openAbout() }
-  @objc func grantAccessibility() { probe.openAccessibilitySettings() }
+  @objc func grantAccessibility() { ui.grantAccessibility() }
   @objc func quit() { ui.requestQuit() }
 }

@@ -15,7 +15,7 @@ import os
     _ h: Harness, root: CompositionRoot, builds: OSAllocatedUnfairLock<Int>, cursor: CGPoint
   ) -> MenuController {
     MenuController(
-      appState: root.state, topology: root.topology, permission: root.permission, probe: h.probe, ui: h.adapters.ui,
+      appState: root.state, topology: root.topology, permission: root.permission, ui: h.adapters.ui,
       frontmost: { h.frontmost.withLock { $0 } }, cursor: { cursor },
       builder: { display, assignment, store, front, exclusions, permission in
         builds.withLock { $0 += 1 }
@@ -86,5 +86,15 @@ import os
     root.permission.receive(.probe(true))
     menu.menuNeedsUpdate(menu.menu)
     #expect(!menu.menu.items.map(\.title).contains("Grant Accessibility…"))
+  }
+
+  @Test func grantItemRoutesToTheOnboardingAction() {
+    let h = Harness()
+    let root = h.makeRoot()
+    let builds = OSAllocatedUnfairLock(initialState: 0)
+    let menu = controller(h, root: root, builds: builds, cursor: .zero)
+    menu.grantAccessibility()
+    #expect(h.uiLog.withLock { $0 }.contains("grant"))
+    #expect(h.probe.calls.isEmpty)
   }
 }
