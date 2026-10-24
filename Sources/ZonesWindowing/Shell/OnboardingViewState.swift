@@ -1,0 +1,45 @@
+/// What the onboarding window shows for a `PermissionState` (ADR-0021). Pure: the window follows the
+/// reducer's effects (`showOnboarding`, `dismissOnboarding`, `offerRelaunch`) and never polls trust itself.
+public struct OnboardingViewState: Hashable, Sendable {
+  public var statusLine: String
+  public var showOpenSettings: Bool
+  public var showQuitAndReopen: Bool
+  public var relaunchExplanation: String?
+  public var windowVisible: Bool
+
+  public init(
+    statusLine: String, showOpenSettings: Bool, showQuitAndReopen: Bool, relaunchExplanation: String?,
+    windowVisible: Bool
+  ) {
+    self.statusLine = statusLine
+    self.showOpenSettings = showOpenSettings
+    self.showQuitAndReopen = showQuitAndReopen
+    self.relaunchExplanation = relaunchExplanation
+    self.windowVisible = windowVisible
+  }
+
+  static let relaunchSentence = "Zones must quit and reopen to pick up the restored Accessibility permission."
+
+  public static func derive(_ p: PermissionState, relaunchOffered: Bool) -> OnboardingViewState {
+    switch p {
+    case .needsRelaunch:
+      OnboardingViewState(
+        statusLine: "Zones can't recover Accessibility without restarting", showOpenSettings: true,
+        showQuitAndReopen: relaunchOffered,
+        relaunchExplanation: relaunchOffered ? Self.relaunchSentence : nil, windowVisible: true)
+    case .revoked:
+      OnboardingViewState(
+        statusLine: "Accessibility access was turned off", showOpenSettings: true, showQuitAndReopen: false,
+        relaunchExplanation: nil, windowVisible: true)
+    case .notGranted:
+      OnboardingViewState(
+        statusLine: "Waiting for Accessibility access", showOpenSettings: true, showQuitAndReopen: false,
+        relaunchExplanation: nil, windowVisible: true)
+    case .granted, .suspect:
+      // The window is closed by the `dismissOnboarding` effect, not by the view.
+      OnboardingViewState(
+        statusLine: "Accessibility access granted", showOpenSettings: false, showQuitAndReopen: false,
+        relaunchExplanation: nil, windowVisible: false)
+    }
+  }
+}

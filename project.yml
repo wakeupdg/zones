@@ -59,6 +59,8 @@ targets:
       - package: Zones
         product: ZonesCore
       - package: Zones
+        product: ZonesTestSupport
+      - package: Zones
         product: ZonesLayout
       - package: Zones
         product: ZonesWindowing

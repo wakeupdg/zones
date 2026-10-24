@@ -1,0 +1,12 @@
+- slice 1: OnboardingViewStateTests.notGrantedShowsOpenSettingsOnly green — OnboardingViewState struct + derive for notGranted (Sources/ZonesWindowing/Shell)
+- slice 2: OnboardingViewStateTests.revokedNeverOffersQuitAndReopen green — revoked status line, Open System Settings only, never relaunch
+- slice 3: OnboardingViewStateTests.needsRelaunchOffersQuitAndReopenWithSentence green — Quit and Reopen only in needsRelaunch and only while offerRelaunch is true, with explanation sentence
+- slice 4: OnboardingViewStateTests.grantedAndSuspectHaveNoWindow green — granted/suspect windowVisible false; derive switch now exhaustive
+- slice 5: OnboardingControllerTests.showTwiceKeepsOneWindow green — OnboardingWindowController (+OnboardingModel/OnboardingView/CheatSheetView) in App/Onboarding; AppTests now depend on ZonesTestSupport (project.yml); unwired: no composition root exists yet to call show/dismiss/update
+- slice 6: OnboardingControllerTests.noWindowWhenLaunchedAtLogin green — passed on first run (guard already written in slice 5), no code change
+- slice 7: OnboardingControllerTests.openSettingsButtonCallsProbe green — passed on first run (controller.openSettings forwards to probe only), no code change
+- slice 8: StatusItemBindingTests green — App/StatusItemController.swift did not exist, so it was created (badge icon from StatusItemModel.badged, NSMenu from MenuModel items, "Grant Accessibility" calls onGrant = OnboardingWindowController.show); model/menu content already pinned by StatusItemModelTests and MenuModelTests; AppDelegate not touched and no composition root exists yet, so show/dismiss/update/apply are unwired
+- AC-004: implemented (one window via OnboardingWindowController; button calls probe.openAccessibilitySettings only), manual, not run
+- AC-005: implemented (window closes on dismiss(), driven by dismissOnboarding; no polling in the view; badge from StatusItemModel), manual, not run; needs the composition root to execute effects
+- AC-020: implemented (CheatSheetView lists three gestures; KeyCapView redraws from Preferences re-read on UserDefaults.didChangeNotification), manual, not run
+- review fix: "Grant Accessibility" menu item was inert launched at login (show() no-ops there) — red: OnboardingControllerTests.grantMenuItemOpensSettingsWhenLaunchedAtLogin; fix: OnboardingWindowController.grantAccessibility() opens System Settings via probe at login, else show(); StatusItemController onGrant is to be wired to grantAccessibility (not show) by the composition root
