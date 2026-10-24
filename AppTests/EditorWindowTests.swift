@@ -346,6 +346,37 @@ import ZonesWindowing
     #expect(directEffects.isEmpty)
     #expect(direct.display == target)
   }
+
+  @Test func slidersAndTemplatePickerSendCommands() {
+    let range = EditorToolbarModel.insetRange
+    #expect(range == 0...64)
+    // In-range values pass through as whole points; out-of-range and non-finite values clamp.
+    let table: [(Double, Double)] = [(0, 0), (12, 12), (12.4, 12), (12.6, 13), (-5, 0), (1000, 64), (.nan, 0), (.infinity, 64)]
+    for (slider, expected) in table {
+      #expect(EditorToolbarModel.marginEvent(sliderValue: slider) == .command(.setMargin(expected)))
+      #expect(EditorToolbarModel.gapEvent(sliderValue: slider) == .command(.setGap(expected)))
+    }
+    // The reducer accepts what the sliders send: no error effect for the whole range.
+    let topology = Self.topology()
+    let context = (topology: topology, document: ZonesDocument())
+    let state = EditorModel.open(Self.blankLayout(), display: .uuid(Self.uuidA), topology: topology, assignments: [:])
+    for value in [range.lowerBound, 8, range.upperBound] {
+      let (next, effects) = EditorModel.reduce(state, EditorToolbarModel.marginEvent(sliderValue: value), context: context)
+      #expect(effects.isEmpty)
+      #expect(next.draft.layout.insets.margin == value)
+    }
+
+    // Picker: Template + count for every pair the model offers, each mapping to .template(t, count:).
+    let expected = Template.allCases.flatMap { t in t.counts.map { EditorToolbarModel.TemplateChoice(template: t, count: $0) } }
+    #expect(EditorToolbarModel.templateChoices == expected)
+    #expect(EditorToolbarModel.templateChoices.contains { $0.title == "Columns 3" })
+    for choice in EditorToolbarModel.templateChoices {
+      let event = EditorToolbarModel.templateEvent(choice)
+      #expect(event == .command(.template(choice.template, count: choice.count)))
+      let (_, effects) = EditorModel.reduce(state, event, context: context)
+      #expect(effects.isEmpty)
+    }
+  }
 }
 
 /// Test-only factory so the test reads top-down.

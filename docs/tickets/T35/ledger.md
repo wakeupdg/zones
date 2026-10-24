@@ -6,3 +6,4 @@
 - slice 5: EditorWindowTests.zoneRectsEqualResolvedFrames green — EditorCanvasGeometry.zoneRects shifts preview frames by content origin only
 - slice 6: EditorWindowTests.dividerDragProducesSetRatio green — EditorCanvasGeometry.dividers and event(forDragOf:to:optionHeld:), snap off with Option
 - slice 7: EditorWindowTests.displaySwitcherListsDisconnectedAndPrompts green — EditorToolbarModel.displayChoices, pick and confirm switch events
+- slice 8: EditorWindowTests.slidersAndTemplatePickerSendCommands green — Margin/Gap sliders clamp 0...64 whole points, Template picker maps to .template(t, count:)
