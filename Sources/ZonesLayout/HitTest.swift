@@ -22,10 +22,26 @@ public enum HitTest {
   }
 
   /// The first non-mirrored Display, in snapshot order, whose `frame` (not `visibleFrame`, so the menu bar strip
-  /// still belongs to its Display) contains the point, half-open.
+  /// still belongs to its Display) contains the point, half-open. A point no frame contains (the cursor pinned on
+  /// the top or right edge of the outermost Display, where the flip lands it on `maxY`/`maxX`) falls back to the
+  /// nearest non-mirrored Display by edge distance, the first in snapshot order on a tie, provided it lies within
+  /// `edgeSlack`. Further out the cursor is on a Display the snapshot does not know, and the answer stays `nil`
+  /// so a drop there never lands on a neighbour.
   public static func display(at point: CGPoint, in snapshot: TopologySnapshot) -> DisplayKey? {
-    snapshot.displays.first { $0.mirrorOf == nil && halfOpenContains($0.frame, point) }?.key
+    let candidates = snapshot.displays.filter { $0.mirrorOf == nil }
+    if let hit = candidates.first(where: { halfOpenContains($0.frame, point) }) { return hit.key }
+    var best: (key: DisplayKey, distance: Double)?
+    for d in candidates {
+      let distance = edgeDistance(point, d.frame)
+      if let b = best, distance >= b.distance { continue }
+      best = (d.key, distance)
+    }
+    guard let best, best.distance <= edgeSlack else { return nil }
+    return best.key
   }
+
+  /// How far outside every frame (points) a point may fall and still resolve to the nearest Display.
+  static let edgeSlack = 8.0
 
   private static func halfOpenContains(_ r: CGRect, _ p: CGPoint) -> Bool {
     p.x >= r.minX && p.x < r.maxX && p.y >= r.minY && p.y < r.maxY

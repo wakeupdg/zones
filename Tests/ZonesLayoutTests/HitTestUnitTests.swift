@@ -71,7 +71,7 @@ struct HitTestTests {
     #expect(HitTest.display(at: CGPoint(x: 0, y: 100), in: topology) == primary)
     #expect(HitTest.display(at: CGPoint(x: -0.5, y: 100), in: topology) == retina)
     #expect(HitTest.display(at: CGPoint(x: 100, y: 1080), in: topology) == portrait)
-    // Outside every Display.
+    // Well outside every Display (a Display that was not in the snapshot): no Display.
     #expect(HitTest.display(at: CGPoint(x: 5000, y: 5000), in: topology) == nil)
     #expect(HitTest.display(at: CGPoint(x: -1000, y: 1500), in: topology) == nil)
     // Mirrored Display is skipped even when it comes first.
@@ -81,6 +81,23 @@ struct HitTestTests {
     copy.mirrorOf = primary
     mirrored.displays.insert(copy, at: 0)
     #expect(HitTest.display(at: CGPoint(x: 100, y: 100), in: mirrored) == primary)
+  }
+
+  @Test func topEdgeBelongsToDisplay() {
+    let one = CGRect(x: 0, y: 0, width: 1920, height: 1080)
+    let key = DisplayKey.uuid("11111111-1111-4111-8111-111111111111")
+    let topology = TopologySnapshot(
+      displays: [
+        DisplaySnapshot(
+          key: key, frame: one, visibleFrame: one, scale: 1, isMain: true, mirrorOf: nil, name: "A",
+          resolution: one.size)
+      ], separateSpaces: true, primaryFrame: one)
+    // The CG cursor resting on the top edge flips to y == maxY.
+    #expect(HitTest.display(at: CGPoint(x: 960, y: 1080), in: topology) == key)
+    #expect(HitTest.display(at: CGPoint(x: 960, y: 1085), in: topology) == key)
+    #expect(HitTest.display(at: CGPoint(x: 960, y: 1200), in: topology) == nil)
+    #expect(HitTest.display(at: CGPoint(x: 1920, y: 540), in: topology) == key)
+    #expect(HitTest.display(at: CGPoint(x: 960, y: 1080), in: TopologySnapshot(displays: [], separateSpaces: true, primaryFrame: one)) == nil)
   }
 
   @Test func zoneCentersAreZones() {
