@@ -13,3 +13,4 @@
 - slice 6: DocumentTests.newerVersionRefusedAndUntouched green — newer disk file left byte-identical with notice, save refuses with .newerVersion
 - slice 7: MigrationTests.goldenFixturesMigrate green — table-driven over layouts/assignments v1..documentVersion
 - slice 8: MigrationTests.migrationWritesBackupFirst green — backup written before migrated file, .migrated(doc, from:, backup:)
+- slice 9: FixtureHashTests green — SHA-256 table over goldens, highest fixture equals Constants.documentVersion (mutation-checked red)
