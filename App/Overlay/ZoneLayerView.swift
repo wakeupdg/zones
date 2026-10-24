@@ -48,22 +48,32 @@ final class ZoneLayerView: NSView {
       + zoneNumbers.compactMap { labelLayers[$0] }
   }
 
-  /// Builds the fill and label layers for Zones `1...count` that do not exist yet, hidden behind the panel while it is
-  /// ordered out, so the first `apply` only sets frames and colors. The label text layer gets a font now, which
-  /// is the slow part of its first use (AC-040).
+  /// Builds the fill and label layers for Zones `1...count` that do not exist yet and lays them out as a square grid
+  /// over the view, with real label text at real sizes, so a warm-up commit while the panel is ordered out rasterizes
+  /// the glyphs and the first `apply` only sets frames and colors (AC-040). Layers that already exist are left alone;
+  /// the next `apply` overwrites every value on the new ones.
   func prebuild(zoneCount count: Int) {
     guard count > 0 else { return }
     CATransaction.begin()
     CATransaction.setDisableActions(true)
     defer { CATransaction.commit() }
+    let columns = Int(Double(count).squareRoot().rounded(.up))
+    let rows = (count + columns - 1) / columns
+    let cell = CGSize(width: bounds.width / Double(columns), height: bounds.height / Double(rows))
     for number in 1...count {
-      if fillLayers[number] == nil { _ = makeFillLayer(for: number) }
-      if labelLayers[number] == nil {
-        let label = makeLabelLayer(for: number)
-        label.contentsScale = backingScale
-        label.string = NSAttributedString(
-          string: String(number), attributes: [.font: NSFont.systemFont(ofSize: 14, weight: .semibold)])
-      }
+      guard fillLayers[number] == nil, labelLayers[number] == nil else { continue }
+      let fill = makeFillLayer(for: number)
+      let label = makeLabelLayer(for: number)
+      let local = CGRect(
+        x: Double((number - 1) % columns) * cell.width, y: Double((number - 1) / columns) * cell.height,
+        width: cell.width, height: cell.height)
+      fill.frame = local
+      configure(
+        label,
+        with: ZoneLabel(
+          number: number, text: String(number), frame: .zero, outline: RGBA(r: 1, g: 1, b: 1, a: 1),
+          contentsScale: backingScale, noChord: false),
+        in: local)
     }
   }
 
