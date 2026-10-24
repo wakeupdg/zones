@@ -14,16 +14,17 @@ enum CarbonKeyMap {
   /// ANSI virtual keycode, or nil for a digit outside 0...9 or a string that is not one known letter.
   static func keyCode(for key: Key) -> UInt32? {
     switch key {
-    case .digit(let n): digitCodes.indices.contains(n) ? digitCodes[n] : nil
+    case .digit(let n): return digitCodes.indices.contains(n) ? digitCodes[n] : nil
     case .letter(let s):
       // "ß".uppercased() is "SS": Character(String) would trap on more than one grapheme.
-      guard s.count == 1, s.uppercased().count == 1, let c = s.uppercased().first else { return nil }
+      let upper = s.uppercased()
+      guard s.count == 1, upper.count == 1, let c = upper.first else { return nil }
       return letterCodes[c]
-    case .arrowLeft: 123
-    case .arrowRight: 124
-    case .arrowDown: 125
-    case .arrowUp: 126
-    case .comma: 43
+    case .arrowLeft: return 123
+    case .arrowRight: return 124
+    case .arrowDown: return 125
+    case .arrowUp: return 126
+    case .comma: return 43
     }
   }
 
