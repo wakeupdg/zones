@@ -1,0 +1,1 @@
+- slice 1: AppLifecycleTests.quitEffectsInOrder green — AppLifecycle.quitEffects in AC-026 order
