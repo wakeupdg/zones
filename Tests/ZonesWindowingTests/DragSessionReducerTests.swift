@@ -529,4 +529,50 @@ import ZonesWindowing
       }
     }
   }
+
+  /// A point in the menu bar strip of the primary Display: on the Display, outside its visible frame.
+  static var menuBar: CGPoint {
+    let v = F.layout().visibleFrame
+    return CGPoint(x: v.midX, y: v.maxY + 5)
+  }
+
+  @Test func noneHitDimsOnlyWithOriginalFrame() throws {
+    let w = Self.windowCentered(in: 2)
+
+    // With an Original Frame: dim every fill, and drop restores.
+    let withFrame = Self.armed(hasOriginalFrame: true)
+    let (dimmed, dimFx) = DragSessionReducer.reduce(withFrame, .dragged(point: Self.menuBar, flags: .shift))
+    #expect(
+      dimFx == [
+        .updateHighlight(Highlight(display: F.primaryKey, primary: [], secondary: [], dimAll: true))
+      ])
+    let (idle, upFx) = DragSessionReducer.reduce(dimmed, .mouseUp(point: Self.menuBar, flags: .shift))
+    #expect(idle == .idle)
+    #expect(upFx == [.hideOverlay, .restore(w, downFrame: w.frame)])
+
+    // Back over a Zone the dim lifts.
+    let (_, backFx) = DragSessionReducer.reduce(dimmed, .dragged(point: F.center(4), flags: .shift))
+    #expect(
+      backFx == [
+        .updateHighlight(Highlight(display: F.primaryKey, primary: [4], secondary: [], dimAll: false))
+      ])
+
+    // Restore needs the Activation Modifier at the drop, like a snap.
+    let (_, noMod) = DragSessionReducer.reduce(dimmed, .mouseUp(point: Self.menuBar, flags: []))
+    #expect(noMod == [.hideOverlay])
+
+    // Without an Original Frame: the highlight is cleared, nothing dims, and the drop does nothing.
+    let without = Self.armed(hasOriginalFrame: false)
+    let (cleared, clearFx) = DragSessionReducer.reduce(without, .dragged(point: Self.menuBar, flags: .shift))
+    #expect(
+      clearFx == [
+        .updateHighlight(Highlight(display: F.primaryKey, primary: [], secondary: [], dimAll: false))
+      ])
+    let (idle2, upFx2) = DragSessionReducer.reduce(cleared, .mouseUp(point: Self.menuBar, flags: .shift))
+    #expect(idle2 == .idle)
+    #expect(upFx2 == [.hideOverlay])
+    #expect(!upFx2.contains(where: F.isSnap))
+    #expect(!upFx2.contains(where: F.isRestore))
+    #expect(!upFx2.contains { if case .skip = $0 { true } else { false } })
+  }
 }

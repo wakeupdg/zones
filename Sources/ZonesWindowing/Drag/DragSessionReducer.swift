@@ -126,14 +126,12 @@ public enum DragSessionReducer {
     switch e {
     case .dragged(let point, _):
       // The highlight follows the cursor Zone, not the window center (AC-034, LI-009).
-      // EXTENSION(T22): `.none` dims all and shows the Original Frame; Span modifier; cross-Display suspend.
-      let (newDisplay, newHit) = hitUnderCursor(point, ctx)
-      guard newDisplay != display || newHit != hit else { return (s, []) }
+      let cursor = SpanLogic.cursor(at: point, in: ctx)
+      guard cursor.display != display || cursor.hit != hit else { return (s, []) }
       let state = DragState.armed(
-        window: window, downFrame: downFrame, flags: flags, config: config, context: ctx, display: newDisplay,
-        hit: newHit, span: span)
-      let highlight = Highlight(display: newDisplay, primary: zones(of: newHit), secondary: [], dimAll: false)
-      return (state, [.updateHighlight(highlight)])
+        window: window, downFrame: downFrame, flags: flags, config: config, context: ctx, display: cursor.display,
+        hit: cursor.hit, span: span)
+      return (state, [.updateHighlight(SpanLogic.drop(at: cursor, span: span, in: ctx).highlight)])
     case .flagsChanged(let f):
       // Releasing the Activation Modifier hides the overlay and cancels; the Span is dropped (AC-035).
       guard f.contains(ModifierSet(config.activation)) else {
@@ -144,22 +142,22 @@ public enum DragSessionReducer {
         span: span)
       return (state, [])
     case .mouseUp(let point, let upFlags):
-      // The overlay is on screen in armed, so it is always hidden first (AC-053). A snap needs the Activation
-      // Modifier in the mouse-up's own flags (LI-007) and a hit recomputed from the mouse-up point, never a stale one.
-      // EXTENSION(T22): a modifier-drag that ends over no Zone restores the Original Frame (AC-091); Span drop set.
+      // The overlay is on screen in armed, so it is always hidden first (AC-053). A snap or restore needs the
+      // Activation Modifier in the mouse-up's own flags (LI-007) and a drop recomputed from the mouse-up point,
+      // never a stale hit.
       var fx: [DragEffect] = [.hideOverlay]
       if upFlags.contains(ModifierSet(config.activation)) {
-        let (dropDisplay, dropHit) = hitUnderCursor(point, ctx)
-        if let dropDisplay, let layout = ctx.layouts[dropDisplay] {
-          let zone = zones(of: dropHit)
-          if !zone.isEmpty {
-            // EXTENSION(T21): SnapPlan mode comes from the phase-one verdict; `.full` for now.
-            fx.append(
-              .snap(
-                SnapPlan(
-                  window: window, display: dropDisplay, zones: zone, target: Span.rect(zone, in: layout),
-                  mode: .full, via: .mouse, originalFrame: ctx.hasOriginalFrame ? nil : downFrame)))
-          }
+        let cursor = SpanLogic.cursor(at: point, in: ctx)
+        let drop = SpanLogic.drop(at: cursor, span: span, in: ctx)
+        if drop.restore {
+          fx.append(.restore(window, downFrame: downFrame))
+        } else if let dropDisplay = drop.display, let layout = ctx.layouts[dropDisplay], !drop.zones.isEmpty {
+          // EXTENSION(T21): SnapPlan mode comes from the phase-one verdict; `.full` for now.
+          fx.append(
+            .snap(
+              SnapPlan(
+                window: window, display: dropDisplay, zones: drop.zones, target: Span.rect(drop.zones, in: layout),
+                mode: .full, via: .mouse, originalFrame: ctx.hasOriginalFrame ? nil : downFrame)))
         }
       }
       return (.idle, fx)
@@ -167,20 +165,6 @@ public enum DragSessionReducer {
       return (.idle, [.hideOverlay])
     default:
       return (s, [])
-    }
-  }
-
-  /// The Display under `point` and the Hit in that Display's layout; `.none` when there is no Display or layout.
-  private static func hitUnderCursor(_ point: CGPoint, _ ctx: ArmContext) -> (DisplayKey?, Hit) {
-    let display = HitTest.display(at: point, in: ctx.topology)
-    guard let display, let layout = ctx.layouts[display] else { return (display, .none) }
-    return (display, HitTest.hit(point, in: layout))
-  }
-
-  private static func zones(of hit: Hit) -> Set<Int> {
-    switch hit {
-    case .zone(let n), .nearest(let n): [n]
-    case .none: []
     }
   }
 }
