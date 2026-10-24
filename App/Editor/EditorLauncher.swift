@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import os
 import ZonesCore
 import ZonesLayout
 import ZonesWindowing
@@ -89,34 +90,35 @@ final class EditorLauncher {
   }
 }
 
-/// A wall-clock-free `Clock` for `DocumentStore`, which only reads `now` for log timestamps. Timers are real
+/// A `Clock` for `DocumentStore`, which only reads `now` for log timestamps. Timers are real
 /// (`DispatchSourceTimer` on the main queue) so the type honours the protocol if that ever changes; T36's
 /// `ProductionClock` replaces it.
-final class UptimeClock: Clock, @unchecked Sendable {
-  private let lock = NSLock()
-  private var timers: [TimerHandle: DispatchSourceTimer] = [:]
-  private var next: UInt64 = 0
+final class UptimeClock: Clock {
+  private struct Timers {
+    var next: UInt64 = 0
+    var live: [TimerHandle: DispatchSourceTimer] = [:]
+  }
+  private let timers = OSAllocatedUnfairLock(initialState: Timers())
 
   var now: TimeInterval { ProcessInfo.processInfo.systemUptime }
 
   func schedule(
     _ id: TimerID, after seconds: TimeInterval, repeats: Bool, _ fire: @Sendable @escaping () -> Void
   ) -> TimerHandle {
-    lock.lock()
-    defer { lock.unlock() }
-    next += 1
-    let handle = TimerHandle(id: id, token: next)
     let timer = DispatchSource.makeTimerSource(queue: .main)
     timer.schedule(deadline: .now() + seconds, repeating: repeats ? seconds : .infinity)
     timer.setEventHandler(handler: fire)
+    let handle = timers.withLock { state in
+      state.next += 1
+      let handle = TimerHandle(id: id, token: state.next)
+      state.live[handle] = timer
+      return handle
+    }
     timer.resume()
-    timers[handle] = timer
     return handle
   }
 
   func cancel(_ handle: TimerHandle) {
-    lock.lock()
-    defer { lock.unlock() }
-    timers.removeValue(forKey: handle)?.cancel()
+    timers.withLock { $0.live.removeValue(forKey: handle) }?.cancel()
   }
 }
