@@ -232,4 +232,88 @@ extension NSColor {
     presenter.reassert()
     #expect(try #require(presenter.panel(for: Self.keyA)).orderFrontCount == 3)
   }
+
+  @Test func presenterReusesPanels() throws {
+    let topology = Self.twoDisplays
+    let presenter = PanelOverlayPresenter(topology: { topology })
+    let scene = Self.scene(topology.displays)
+    // Before any session a highlight is a no-op and creates nothing.
+    presenter.highlight(Highlight(display: Self.keyA, primary: [1], secondary: [], dimAll: false))
+    #expect(presenter.panel(for: Self.keyA) == nil)
+
+    presenter.show(scene)
+    let first = try [Self.keyA, Self.keyB].map { try #require(presenter.panel(for: $0)) }
+    let views = try [Self.keyA, Self.keyB].map { try #require(presenter.layerView(for: $0)) }
+    presenter.hide()
+    for panel in first { #expect(!panel.isVisible) }
+    #expect(presenter.panel(for: Self.keyA) === first[0])
+
+    // After hide, highlight does not repaint or order anything.
+    let before = views[0].fillLayer(1)?.backgroundColor
+    presenter.highlight(Highlight(display: Self.keyA, primary: [1], secondary: [], dimAll: false))
+    #expect(views[0].fillLayer(1)?.backgroundColor == before)
+    for panel in first { #expect(!panel.isVisible) }
+
+    presenter.show(scene)
+    let second = try [Self.keyA, Self.keyB].map { try #require(presenter.panel(for: $0)) }
+    #expect(second[0] === first[0])
+    #expect(second[1] === first[1])
+    let reusedView = try #require(presenter.layerView(for: Self.keyA))
+    #expect(reusedView === views[0])
+    for panel in second { #expect(panel.isVisible) }
+
+    // orderOut hides but keeps the panels; the next show reuses them.
+    presenter.orderOut()
+    for panel in second { #expect(!panel.isVisible) }
+    #expect(presenter.panel(for: Self.keyB) === first[1])
+    presenter.reassert()
+    for panel in second { #expect(!panel.isVisible) }
+    presenter.show(scene)
+    #expect(presenter.panel(for: Self.keyA) === first[0])
+  }
+
+  @Test func resizeOnTopologyChange() throws {
+    let topology = Self.twoDisplays
+    let presenter = PanelOverlayPresenter(topology: { topology })
+    presenter.show(Self.scene(topology.displays))
+    let panelA = try #require(presenter.panel(for: Self.keyA))
+    let panelB = try #require(presenter.panel(for: Self.keyB))
+
+    // The same Display at a new resolution: same panel instance, new frame, layers redrawn (AC-061).
+    let newFrameA = CGRect(x: -100, y: -50, width: 1728, height: 1117)
+    let resized = Self.topology([Self.display(Self.keyA, newFrameA, scale: 2), Self.display(Self.keyB, Self.frameB, scale: 1)])
+    presenter.resize(to: resized)
+    #expect(presenter.panel(for: Self.keyA) === panelA)
+    #expect(panelA.frame == newFrameA)
+    #expect(panelA.isVisible)
+    #expect(panelA.orderFrontCount == 1)
+    let view = try #require(presenter.layerView(for: Self.keyA))
+    #expect(view.frame.size == newFrameA.size)
+    let zone = try #require(view.fillLayer(1))
+    // Zone 1 was resolved at (0, 20, 720, 860) in AppKit global space; its local rect follows the new panel origin.
+    #expect(zone.frame == CGRect(x: 100, y: 70, width: 720, height: 860))
+
+    // A scene resolved for the new geometry re-applies against the new frame.
+    presenter.show(Self.scene(resized.displays))
+    let layer = try #require(presenter.layerView(for: Self.keyA)?.fillLayer(2))
+    #expect(layer.frame.maxX == resized.displays[0].visibleFrame.maxX - newFrameA.minX)
+
+    // A removed Display: its panel is ordered out and dropped; the other keeps its instance.
+    let onlyB = Self.topology([Self.display(Self.keyB, Self.frameB, scale: 1)])
+    presenter.resize(to: onlyB)
+    #expect(presenter.panel(for: Self.keyA) == nil)
+    #expect(!panelA.isVisible)
+    #expect(presenter.panel(for: Self.keyB) === panelB)
+    #expect(panelB.isVisible)
+
+    // An added Display gets a new panel, hidden until the next show.
+    let keyC = DisplayKey.uuid("00000000-0000-0000-0000-00000000000C")
+    let frameC = CGRect(x: -1280, y: 0, width: 1280, height: 800)
+    let withC = Self.topology([Self.display(Self.keyB, Self.frameB, scale: 1), Self.display(keyC, frameC, scale: 2)])
+    presenter.resize(to: withC)
+    let panelC = try #require(presenter.panel(for: keyC))
+    #expect(panelC.frame == frameC)
+    #expect(!panelC.isVisible)
+    #expect(panelC !== panelA)
+  }
 }
