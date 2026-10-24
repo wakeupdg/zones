@@ -1,0 +1,1 @@
+- slice 1: HitTestTests.topEdgeBelongsToDisplay green — display(at:) falls back to nearest Display within 8 pt edgeSlack (unbounded fallback broke dropOutsideSnapshotIsNoOp/dimAllNeedsAnOriginalFrame, which need nil for a Display absent from the snapshot)
