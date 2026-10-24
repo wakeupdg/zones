@@ -1,2 +1,3 @@
 - slice 1: AppLifecycleTests.quitEffectsInOrder green — AppLifecycle.quitEffects in AC-026 order
 - slice 2: AppLifecycleTests.wakeEffectsOrder + quitMatchesPermissionMachine green — wakeEffects; NOTE machine .quit emits cancel(x4)+disableTap only (no invalidateTap/orderPanelsOut/drainEnhancedUI/removeRecoveryRecord), so the consistency test asserts the machine's mapped effects are an ordered subsequence of quitEffects (AC-026 order kept, machine untouched)
+- slice 3: StatusItemModelTests.badgeTable green — StatusItemModel.derive over 15 permission x tap cases
