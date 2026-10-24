@@ -6,3 +6,4 @@
 - slice 6: docs/spikes/SPK-008.md written — PASS on CG sample (20/20), AX tick-1 FAIL (0/20), same-pid caveat
 - slice 7: spk016 confirmation green — child-process window move confirmed by CG description at sample 1 in 20/20 (AX also 1 in 20/20), elapsed p50 19.9 ms
 - slice 8: spk016 SIGSTOP cost ran to completion (4 runs) — 0 errors, AX times out 250 ms 3/3 while stopped, child always CONTed; predeclared 2x-live latency criterion FAILs in 4 of 4 runs (stopped p95 2.9-3.8 ms vs live 0.8-3.4 ms)
+- slice 9: docs/spikes/SPK-016.md written — FAIL on predeclared latency criterion (4 of 4 runs), confirmation PASS 20/20, AX stands, no ADR proposed
