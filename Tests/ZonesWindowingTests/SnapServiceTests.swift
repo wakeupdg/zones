@@ -19,14 +19,14 @@ import ZonesWindowing
     let service: SnapService
     var health = AppHealth()
 
-    init(pid: pid_t = getpid()) {
+    init(pid: pid_t = getpid(), policy: EnhancedUIPolicy = .toggle) {
       ws = FakeWindowSystem(clock: clock)
       handle = WindowHandle(element: AXUIElementCreateApplication(pid), pid: pid)
       let store = DocumentStore(
         fs: FakeFileSystem(), directory: URL(filePath: "/zones-test"), clock: clock)
       service = SnapService(
         writer: FrameWriter(system: ws, recovery: EnhancedUIRecovery(store: store)), system: ws,
-        clock: clock)
+        clock: clock, policy: policy)
     }
 
     func plan(
@@ -59,7 +59,7 @@ import ZonesWindowing
     #expect(outcome.result == .applied(Self.target))
     #expect(
       rig.ws.calls == [
-        .frame(h),
+        .frame(h), .enhancedUI(h.pid),
         .setSize(Self.target.size, h), .setPosition(Self.target.origin, h),
         .setSize(Self.target.size, h), .frame(h),
       ])
@@ -112,10 +112,10 @@ import ZonesWindowing
     let h = rig.handle
     #expect(
       rig.ws.calls == [
-        .frame(h),
+        .frame(h), .enhancedUI(h.pid),
         .setSize(Self.target.size, h), .setPosition(Self.target.origin, h),
         .setSize(Self.target.size, h), .frame(h),
-        .setPosition(Self.target.origin, h), .frame(h),
+        .enhancedUI(h.pid), .setPosition(Self.target.origin, h), .frame(h),
       ])
     #expect(outcome.result == .clamped(aligned))
     #expect(outcome.readBack == aligned)
@@ -140,6 +140,7 @@ import ZonesWindowing
     for call in rig.ws.calls {
       switch call {
       case .frame(let h), .setPosition(_, let h), .setSize(_, let h): handles.append(h)
+      case .enhancedUI(let pid), .setEnhancedUI(_, let pid): handles.append(pid == rig.handle.pid ? rig.handle : other)
       default: Issue.record("unexpected call \(call)")
       }
     }
@@ -159,14 +160,17 @@ import ZonesWindowing
     let outcome = rig.run(rig.plan())
     #expect(outcome == SnapOutcome(result: .timedOut, readBack: nil))
     // The first call and its one retry; nothing after (the Enhanced UI restore is the only follow-up).
-    #expect(rig.ws.calls == [.frame(h), .setSize(Self.target.size, h), .setSize(Self.target.size, h)])
+    #expect(
+      rig.ws.calls == [
+        .frame(h), .enhancedUI(pid), .setSize(Self.target.size, h), .setSize(Self.target.size, h),
+      ])
     #expect(rig.health.isUnresponsive(pid, now: rig.clock.now))
 
     // Cooldown: phase 1 would report skip(unresponsive); the service makes no AX call at all.
     rig.clock.advance(by: 9.9)
     let skipped = rig.run(rig.plan())
     #expect(skipped.result == .timedOut)
-    #expect(rig.ws.calls.count == 3)
+    #expect(rig.ws.calls.count == 4)
     #expect(rig.health.isUnresponsive(pid, now: rig.clock.now))
 
     // After the cooldown exactly one attempt goes through.
@@ -175,8 +179,8 @@ import ZonesWindowing
     rig.script(current: Self.elsewhere, readBack: Self.target)
     let attempt = rig.run(rig.plan())
     #expect(attempt.result == .applied(Self.target))
-    #expect(rig.ws.calls.count == 3 + 5)
-    #expect(rig.ws.calls.dropFirst(3).first == .frame(h))
+    #expect(rig.ws.calls.count == 4 + 6)
+    #expect(rig.ws.calls.dropFirst(4).first == .frame(h))
     var spent = rig.health
     let again = spent.consumeRetry(pid, now: rig.clock.now)
     #expect(!again)
@@ -191,7 +195,7 @@ import ZonesWindowing
     #expect(outcome.result == .applied(Self.target))
     #expect(
       rig.ws.calls == [
-        .frame(h),
+        .frame(h), .enhancedUI(h.pid),
         .setSize(Self.target.size, h), .setPosition(Self.target.origin, h),
         .setPosition(Self.target.origin, h),
         .setSize(Self.target.size, h), .frame(h),
@@ -229,8 +233,146 @@ import ZonesWindowing
     let kept = CGRect(origin: Self.target.origin, size: Self.elsewhere.size)
     rig.script(current: Self.elsewhere, readBack: kept)
     let outcome = rig.run(rig.plan(mode: .positionOnly))
-    #expect(rig.ws.calls == [.frame(h), .setPosition(Self.target.origin, h), .frame(h)])
+    #expect(
+      rig.ws.calls == [.frame(h), .enhancedUI(h.pid), .setPosition(Self.target.origin, h), .frame(h)])
     // The size was never asked for, so keeping the old one is not a clamp.
     #expect(outcome == SnapOutcome(result: .applied(kept), readBack: kept))
+  }
+
+  /// AC-074: Enhanced UI is read first, set off once before the first size write, and restored last
+  /// on every path.
+  @Test @WindowActor func enhancedUIRestoredOnEveryPath() {
+    let target = Self.target
+    func restored(
+      _ rig: Rig, sourceLine: Int = #line
+    ) {
+      #expect(
+        rig.ws.calls.last == .setEnhancedUI(true, rig.handle.pid),
+        "last call restores Enhanced UI", sourceLocation: SourceLocation(
+          fileID: #fileID, filePath: #filePath, line: sourceLine, column: 1))
+    }
+
+    // (a) prior on: off before the first size write, back on at the end.
+    do {
+      var rig = Rig()
+      let h = rig.handle
+      let pid = h.pid
+      rig.script(current: Self.elsewhere, readBack: target)
+      rig.ws.enqueue(.enhancedUI(.value(true)))
+      let outcome = rig.run(rig.plan())
+      #expect(outcome.result == .applied(target))
+      #expect(
+        rig.ws.calls == [
+          .frame(h), .enhancedUI(pid), .setEnhancedUI(false, pid),
+          .setSize(target.size, h), .setPosition(target.origin, h), .setSize(target.size, h),
+          .frame(h), .setEnhancedUI(true, pid),
+        ])
+    }
+
+    // (b) already off, or the attribute is absent: no set at all.
+    for prior: Bool? in [false, nil] {
+      var rig = Rig()
+      let pid = rig.handle.pid
+      rig.script(current: Self.elsewhere, readBack: target)
+      rig.ws.enqueue(.enhancedUI(.value(prior)))
+      let outcome = rig.run(rig.plan())
+      #expect(outcome.result == .applied(target))
+      #expect(rig.ws.calls.contains(.enhancedUI(pid)))
+      #expect(!rig.ws.calls.contains { if case .setEnhancedUI = $0 { true } else { false } })
+    }
+
+    // (c) policy leave: not even a read.
+    do {
+      var rig = Rig(policy: .leave)
+      rig.script(current: Self.elsewhere, readBack: target)
+      rig.ws.enqueue(.enhancedUI(.value(true)))
+      let outcome = rig.run(rig.plan())
+      #expect(outcome.result == .applied(target))
+      #expect(
+        !rig.ws.calls.contains {
+          switch $0 {
+          case .enhancedUI, .setEnhancedUI: true
+          default: false
+          }
+        })
+    }
+
+    // (d) refused, elementGone, timedOut abort and clamped: the restore is still the last call.
+    do {
+      var rig = Rig()
+      rig.script(current: Self.elsewhere)
+      rig.ws.enqueue(.enhancedUI(.value(true)))
+      rig.ws.enqueue(.size(.refused(-25205)))
+      let outcome = rig.run(rig.plan())
+      #expect(outcome.result == .refused(-25205))
+      restored(rig)
+    }
+    do {
+      var rig = Rig()
+      rig.script(current: Self.elsewhere)
+      rig.ws.enqueue(.enhancedUI(.value(true)))
+      rig.ws.enqueue(.size(.elementGone))
+      let outcome = rig.run(rig.plan())
+      #expect(outcome.result == .elementGone)
+      restored(rig)
+    }
+    do {
+      var rig = Rig()
+      let h = rig.handle
+      let pid = h.pid
+      rig.script(current: Self.elsewhere)
+      rig.ws.enqueue(.enhancedUI(.value(true)))
+      rig.ws.enqueue(.size(.timedOut))
+      rig.ws.enqueue(.size(.timedOut))
+      let outcome = rig.run(rig.plan())
+      #expect(outcome.result == .timedOut)
+      #expect(
+        rig.ws.calls == [
+          .frame(h), .enhancedUI(pid), .setEnhancedUI(false, pid),
+          .setSize(target.size, h), .setSize(target.size, h), .setEnhancedUI(true, pid),
+        ])
+    }
+    do {
+      var rig = Rig()
+      let h = rig.handle
+      let pid = h.pid
+      let accepted = CGRect(x: 60, y: 20, width: 650, height: 500)
+      let aligned = CGRect(origin: target.origin, size: accepted.size)
+      rig.script(current: Self.elsewhere, readBack: accepted)
+      rig.ws.enqueue(.frame(.value(aligned)))
+      rig.ws.enqueue(.enhancedUI(.value(true)))
+      rig.ws.enqueue(.enhancedUI(.value(true)))
+      let outcome = rig.run(rig.plan())
+      #expect(outcome.result == .clamped(aligned))
+      // The first write restores before the follow-up reposition starts its own pair.
+      #expect(
+        rig.ws.calls == [
+          .frame(h), .enhancedUI(pid), .setEnhancedUI(false, pid),
+          .setSize(target.size, h), .setPosition(target.origin, h), .setSize(target.size, h),
+          .frame(h), .setEnhancedUI(true, pid),
+          .enhancedUI(pid), .setEnhancedUI(false, pid),
+          .setPosition(target.origin, h), .frame(h), .setEnhancedUI(true, pid),
+        ])
+    }
+
+    // (e) a failed read skips the toggle and the Snap still writes.
+    do {
+      var rig = Rig()
+      rig.script(current: Self.elsewhere, readBack: target)
+      rig.ws.enqueue(.enhancedUI(.timedOut))
+      let outcome = rig.run(rig.plan())
+      #expect(outcome.result == .applied(target))
+      #expect(!rig.ws.calls.contains { if case .setEnhancedUI = $0 { true } else { false } })
+    }
+
+    // (f) a pid in cooldown: zero calls of any kind.
+    do {
+      var rig = Rig()
+      rig.health.markUnresponsive(rig.handle.pid, now: rig.clock.now)
+      rig.ws.enqueue(.enhancedUI(.value(true)))
+      let outcome = rig.run(rig.plan())
+      #expect(outcome.result == .timedOut)
+      #expect(rig.ws.calls.isEmpty)
+    }
   }
 }

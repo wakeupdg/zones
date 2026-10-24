@@ -1,0 +1,2 @@
+- slice 1: SnapServiceTests.enhancedUIRestoredOnEveryPath green — FrameWriter reads Enhanced UI, toggles off/on with defer; T15 call-log tests updated for the extra enhancedUI read
+- AC-075 manual, not run

@@ -20,16 +20,23 @@ public struct FrameWriter: FrameWriting {
     self.recovery = recovery
   }
 
-  /// What `prepareEnhancedUI` hands back; `run` undoes the toggle. T19 fills it.
+  /// What `prepareEnhancedUI` hands back: the value it read (`nil` when absent, unreadable or the
+  /// policy is `.leave`) and the undo for the toggle.
   struct EnhancedUIRestore {
+    let prior: Bool?
     let run: @WindowActor () -> Void
-    static let none = EnhancedUIRestore(run: {})
+    static let none = EnhancedUIRestore(prior: nil, run: {})
   }
 
-  /// Hook: turn AXEnhancedUserInterface off before the writes. Skips when the policy is `.leave`,
-  /// the attribute is absent or it is already off. No AX calls until T19 fills this in.
+  /// Reads AXEnhancedUserInterface and, when it is on, turns it off before the writes (ADR-0022).
+  /// Skips every call under `.leave`; skips the set when the attribute is absent, off or unreadable.
+  /// The restore always writes `true` and is never retried.
   @WindowActor func prepareEnhancedUI(pid: pid_t, policy: EnhancedUIPolicy) -> EnhancedUIRestore {
-    .none
+    guard policy == .toggle else { return .none }
+    guard case .value(let attribute) = system.enhancedUI(pid: pid) else { return .none }
+    guard attribute == true else { return EnhancedUIRestore(prior: attribute, run: {}) }
+    _ = system.setEnhancedUI(false, pid: pid)
+    return EnhancedUIRestore(prior: true, run: { _ = system.setEnhancedUI(true, pid: pid) })
   }
 
   @WindowActor public func write(
