@@ -1,1 +1,2 @@
 - slice 1: GateScriptTests.ciPipedStepsUsePipefail green — ci.yml job-level defaults.run.shell: bash
+- slice 2: DocumentTests.mergeAndReplace + importValidatesWholeFile green — each filter runs 1 test (moved to @Suite DocumentTests in ImportDocumentTests.swift)
