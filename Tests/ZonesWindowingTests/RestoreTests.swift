@@ -252,4 +252,53 @@ import ZonesTestSupport
       ).get())
     #expect(display2.visibleFrame.contains(shrunk))
   }
+
+  /// ADR-0016 property: for random Display layouts and Original Frames, `plan` either returns the frame
+  /// unchanged (it already meets a Display) or a rect inside some Display's visible frame.
+  @Test @WindowActor func planAlwaysLandsOnADisplay() {
+    var gen = Generator(seed: 0x24_0A11)
+    let key = WindowKey(pid: 77, elementHash: 7)
+    for round in 0..<300 {
+      // Displays laid side by side with random sizes, a menu bar inset on top.
+      var displays: [DisplaySnapshot] = []
+      var x = Double(gen.int(-2000...0))
+      for index in 0..<gen.int(1...3) {
+        let w = Double(gen.int(800...3000)), h = Double(gen.int(600...1800))
+        let frame = CGRect(x: x, y: 0, width: w, height: h)
+        let bar = Double(gen.int(0...40))
+        displays.append(
+          DisplaySnapshot(
+            key: .uuid("D\(round)-\(index)"), frame: frame,
+            visibleFrame: CGRect(x: x, y: bar, width: w, height: h - bar), scale: 1, isMain: index == 0,
+            mirrorOf: nil, name: "D", resolution: frame.size))
+        x += w
+      }
+      let topology = TopologySnapshot(
+        displays: displays, separateSpaces: true, primaryFrame: displays[0].frame)
+      let original = CGRect(
+        x: gen.int(-8000...8000), y: gen.int(-5000...5000), width: gen.int(100...4000),
+        height: gen.int(100...2500))
+      let current = gen.pick(displays).frame.insetBy(dx: 10, dy: 10)
+      let ref = ZonesCore.WindowRef(
+        id: WindowID(rawValue: 1), pid: 77, bundleID: nil, frame: current, layer: 0)
+      let planned = RestorePlanner.plan(
+        OriginalFrameEntry(key: key, frame: original, via: .mouse), window: ref, facts: Self.facts(),
+        topology: topology)
+      guard case .success(let target) = planned else {
+        Issue.record("round \(round): plan failed for a non-full-screen window")
+        continue
+      }
+      let intersects = displays.contains {
+        let overlap = original.intersection($0.frame)
+        return !overlap.isNull && overlap.width * overlap.height > 0
+      }
+      if intersects {
+        #expect(target == original, "round \(round): an on-Display frame must not move")
+      } else {
+        #expect(
+          displays.contains { $0.visibleFrame.contains(target) },
+          "round \(round): \(target) is outside every visible frame")
+      }
+    }
+  }
 }
