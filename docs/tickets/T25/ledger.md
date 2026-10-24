@@ -4,3 +4,4 @@
 - slice 1: stormCoalescesAndResizes part 1 green — debounce reducer, harness (test passed on first run: reducer written with the types)
 - slice 2: stormCoalescesAndResizes part 2 green — resize commits topologyChanged+resizePanels, identical snapshot no effects
 - slice 3: assignmentsSurviveReconnect green — passed with the slice-1 reducer (it never touches records, no move effect case exists)
+- slice 4: persistsNameFrameScale green — one persistAssignment per drifted known UUID, before topologyChanged

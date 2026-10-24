@@ -187,4 +187,39 @@ private struct Harness {
     #expect(AssignmentLookup.layoutID(for: Self.c.key, in: records, session: afterNew.session) == LayoutID(rawValue: "builtin:priorityGrid:3"))
     #expect(!newEffects.contains { if case .persistAssignment = $0 { true } else { false } })
   }
+
+  @Test func persistsNameFrameScale() {
+    let seen = Date(timeIntervalSince1970: 1_000)
+    let known = Self.record(Self.a, layout: "builtin:focus:1", lastSeen: seen)
+    let records = [Self.uuid(Self.a): known]
+    let key = PersistentDisplayKey(uuid: Self.uuid(Self.a))
+
+    // Unchanged Display, no persist (first commit includes the record already matching).
+    let (state, first) = Self.commit(TopologyState(), Self.topology([Self.a]), assignments: records)
+    #expect(!first.contains { if case .persistAssignment = $0 { true } else { false } })
+
+    // Name, visible frame and scale changed: one persist with the new values and the old layout/lastSeen.
+    var changed = Self.a
+    changed.name = "Renamed"
+    changed.visibleFrame = CGRect(x: 0, y: 0, width: 1920, height: 1000)
+    changed.scale = 2
+    let (_, effects) = Self.commit(state, Self.topology([changed]), assignments: records)
+    let expected = Assignment(
+      layout: known.layout, displayName: "Renamed", lastVisibleFrame: changed.visibleFrame, lastScale: 2,
+      lastSeen: seen)
+    let persists = effects.filter { if case .persistAssignment = $0 { true } else { false } }
+    #expect(persists == [.persistAssignment(key, expected)])
+
+    // Persist comes before topologyChanged.
+    #expect(effects == [.persistAssignment(key, expected), .topologyChanged(Self.topology([changed])), .resizePanels(Self.topology([changed]))])
+
+    // No record: nothing. Unstable key: nothing.
+    var unstable = Self.b
+    unstable.key = .unstable("nil:7")
+    let stray = Self.topology([changed, unstable])
+    let (_, strayEffects) = Self.commit(state, stray, assignments: records.filter { _ in false })
+    #expect(!strayEffects.contains { if case .persistAssignment = $0 { true } else { false } })
+    let (_, unstableEffects) = Self.commit(state, Self.topology([Self.a, unstable]), assignments: records)
+    #expect(!unstableEffects.contains { if case .persistAssignment = $0 { true } else { false } })
+  }
 }

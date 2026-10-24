@@ -80,6 +80,26 @@ public enum TopologyMonitor {
     guard snapshot != state.current else { return (state, []) }
     state.previous = state.current
     state.current = snapshot
-    return (state, [.topologyChanged(snapshot), .resizePanels(snapshot)])
+    let effects = persistEffects(for: snapshot, assignments: assignments) + [
+      .topologyChanged(snapshot), .resizePanels(snapshot),
+    ]
+    return (state, effects)
+  }
+
+  /// A known UUID whose name, visible frame or scale drifted gets one write; layout and lastSeen are untouched.
+  private static func persistEffects(
+    for snapshot: TopologySnapshot, assignments: [String: Assignment]
+  ) -> [TopologyEffect] {
+    snapshot.displays.compactMap { display in
+      guard case .uuid(let uuid) = display.key, var record = assignments[uuid] else { return nil }
+      guard
+        record.displayName != display.name || record.lastVisibleFrame != display.visibleFrame
+          || record.lastScale != display.scale
+      else { return nil }
+      record.displayName = display.name
+      record.lastVisibleFrame = display.visibleFrame
+      record.lastScale = display.scale
+      return .persistAssignment(PersistentDisplayKey(uuid: uuid), record)
+    }
   }
 }
