@@ -1,1 +1,2 @@
 - slice 1: codesign -d -r- check green — Zones Dev signed shell has designated requirement identifier "com.dganesh.zones" and certificate leaf, 0 cdhash (SPK-005.md part 1)
+- slice 3: swift build --package-path Spikes/WriteProbe green — skeleton parses args, --trust prints true here (inherited from responsible parent process, see SPK-005)
