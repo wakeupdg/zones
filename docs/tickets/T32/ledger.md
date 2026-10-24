@@ -1,3 +1,4 @@
 - slice 1: WindowPlacementTests.opensOnCursorDisplay green — WindowPlacement (cursorDisplay, settingsFrame, editorFrame, style mask raws)
 - slice 2: LoginItemToggleTests.derivationTable green — LoginItemToggleModel.derive table (error beats status; isOn from status only)
 - slice 3: LoginItemToggleTests.registerOnlyOnUserAction green — LoginItemToggleCoordinator (@Observable; register only in setOn; refresh clears error); slices 2-3 share one commit because the test file would not compile otherwise
+- slice 4: AboutModelTests.fieldsAndSingleAttributionLine green — AboutModel(bundle:), MIT, one attribution line
