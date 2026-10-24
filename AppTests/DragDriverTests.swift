@@ -140,4 +140,113 @@ struct DragWorld {
     let entry = await root.worker.registry.entry(w.handle.key)
     #expect(entry?.frame == w.ref.frame)
   }
+
+  @Test func frameSamplingOnlyWhilePressed() async {
+    let w = DragWorld()
+    let root = w.root
+    let clock = w.h.clock
+    #expect(!clock.pending.contains(.frameSample))  // idle
+
+    w.h.enumerator.enqueue(.candidates([w.ref]))
+    await root.drag.handle(w.event(.leftDown, CGPoint(x: 200, y: 200)))
+    #expect(!clock.pending.contains(.frameSample))  // pressed, before the first drag event
+
+    await root.drag.handle(w.event(.leftDragged, CGPoint(x: 205, y: 205)))
+    if case .pressed = root.drag.state {} else { Issue.record("expected pressed") }
+    #expect(clock.pending.filter { $0 == .frameSample }.count == 1)  // pressed and polling
+
+    _ = w.scriptMove()
+    await root.drag.handle(.tick)
+    guard case .armed = root.drag.state else {
+      Issue.record("expected armed, got \(root.drag.state)")
+      return
+    }
+    #expect(!clock.pending.contains(.frameSample))  // armed (and moving before it)
+
+    await root.drag.handle(w.event(.leftUp, CGPoint(x: 205, y: 205), []))
+    #expect(root.drag.state == .idle)
+    #expect(!clock.pending.contains(.frameSample))
+  }
+
+  @Test func sampleTimerStopsWhenPressedEndsWithoutAMove() async {
+    let w = DragWorld()
+    w.h.enumerator.enqueue(.candidates([w.ref]))
+    await w.root.drag.handle(w.event(.leftDown, CGPoint(x: 200, y: 200)))
+    await w.root.drag.handle(w.event(.leftDragged, CGPoint(x: 205, y: 205)))
+    #expect(w.h.clock.pending.contains(.frameSample))
+    await w.root.drag.handle(w.event(.leftUp, CGPoint(x: 205, y: 205), []))
+    #expect(w.root.drag.state == .idle)
+    #expect(w.h.clock.pending.isEmpty)
+  }
+
+  @Test func armContextAnsweredFromTopologyAndStore() async throws {
+    let w = DragWorld()
+    let root = w.root
+    // The window already has an Original Frame: the reply must say so.
+    w.h.enumerator.enqueue(.candidates([w.ref]))
+    await root.drag.handle(w.event(.leftDown, CGPoint(x: 200, y: 200)))
+    await root.drag.handle(w.event(.leftDragged, CGPoint(x: 205, y: 205)))
+    _ = w.scriptMove()
+    // Resolve the handle first (a tick would arm); seed the registry for the same key through a second probe.
+    await root.worker.capture(OriginalFrameEntry(key: w.handle.key, frame: CGRect(x: 5, y: 5, width: 50, height: 50), via: .mouse))
+    await root.drag.handle(.tick)
+    guard case .armed(_, _, _, _, let context, _, _, _) = root.drag.state else {
+      Issue.record("expected armed, got \(root.drag.state)")
+      return
+    }
+    #expect(context.topology == w.topology)
+    #expect(context.layouts == root.state.resolvedLayouts(for: w.topology, session: [:]))
+    #expect(Set(context.layouts.keys) == Set(w.topology.displays.map(\.key)))
+    #expect(context.hasOriginalFrame)
+    #expect(context.appearance == Preferences.defaults.appearance)
+    #expect(context.options == AccessibilityOptions(reduceTransparency: false, reduceMotion: false))
+  }
+
+  @Test func armContextWithoutEntryHasNoOriginalFrame() async {
+    let w = DragWorld()
+    w.h.enumerator.enqueue(.candidates([w.ref]))
+    await w.root.drag.handle(w.event(.leftDown, CGPoint(x: 200, y: 200)))
+    await w.root.drag.handle(w.event(.leftDragged, CGPoint(x: 205, y: 205)))
+    _ = w.scriptMove()
+    await w.root.drag.handle(.tick)
+    guard case .armed(_, _, _, _, let context, _, _, _) = w.root.drag.state else {
+      Issue.record("expected armed")
+      return
+    }
+    #expect(!context.hasOriginalFrame)
+  }
+
+  @Test func restoreOnDropOverNoZone() async {
+    let w = DragWorld()
+    let root = w.root
+    let original = CGRect(x: 300, y: 300, width: 500, height: 350)
+    w.h.enumerator.enqueue(.candidates([w.ref]))
+    await root.drag.handle(w.event(.leftDown, CGPoint(x: 200, y: 200)))
+    await root.drag.handle(w.event(.leftDragged, CGPoint(x: 205, y: 205)))
+    let moved = w.scriptMove()
+    await root.worker.capture(OriginalFrameEntry(key: w.handle.key, frame: original, via: .mouse))
+    await root.drag.handle(.tick)
+    // The menu-bar strip of the primary Display lies outside every Zone and outside the visible frame.
+    let strip = CGPoint(x: 500, y: 1070)
+    await root.drag.handle(w.event(.leftDragged, strip))
+    w.h.windows.enqueue(.frame(.value(moved)))  // restore: current frame
+    w.h.windows.enqueue(.facts(.value(DragWorld.standard)))
+    w.h.windows.enqueue(.frame(.value(original)))  // the read-back
+    await root.drag.handle(w.event(.leftUp, strip))
+    #expect(root.drag.state == .idle)
+    let writes = w.h.windows.calls.filter {
+      switch $0 {
+      case .setPosition, .setSize: true
+      default: false
+      }
+    }
+    #expect(
+      writes == [
+        .setSize(original.size, w.handle), .setPosition(original.origin, w.handle),
+        .setSize(original.size, w.handle),
+      ])
+    // Restore forgets the entry.
+    #expect(await root.worker.registry.entry(w.handle.key) == nil)
+    #expect(w.spy.writesAtHide.withLock { $0 } == [0])
+  }
 }
