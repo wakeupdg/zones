@@ -61,4 +61,55 @@ import ZonesWindowing
     #expect(ws.completed == [.frame(h)])
     #expect(ws.inFlight == 0)
   }
+
+  private static func ref(_ id: UInt32, x: Double = 0) -> ZonesCore.WindowRef {
+    ZonesCore.WindowRef(
+      id: WindowID(rawValue: id), pid: 100, bundleID: "com.example.app",
+      frame: CGRect(x: x, y: 0, width: 100, height: 100), layer: 0)
+  }
+
+  @Test func windowEnumerator() {
+    let clock = FakeClock()
+    let en = FakeWindowEnumerator(clock: clock)
+    let a = Self.ref(1), b = Self.ref(2, x: 50)
+
+    // Queue: lists come back FIFO per method, then the neutral default.
+    en.enqueue(.onScreen([a, b]))
+    en.enqueue(.onScreen([b]))
+    #expect(en.onScreenWindows() == [a, b])
+    #expect(en.onScreenWindows() == [b])
+    #expect(en.onScreenWindows().isEmpty)
+
+    en.enqueue(.windows([a]))
+    #expect(en.windows(ids: [a.id]) == [a])
+
+    // candidates(under:hint:) is logged with its hint.
+    en.enqueue(.candidates([b, a]))
+    let point = CGPoint(x: 60, y: 10)
+    #expect(en.candidates(under: point, hint: b.id) == [b, a])
+    #expect(en.candidates(under: point, hint: nil).isEmpty)
+    #expect(
+      en.calls == [
+        .onScreenWindows, .onScreenWindows, .onScreenWindows, .windows(ids: [a.id]),
+        .candidates(under: point, hint: b.id), .candidates(under: point, hint: nil),
+      ])
+
+    // Latency 2 completes at the second advance(by: 1), not the first.
+    en.reset()
+    #expect(en.calls.isEmpty)
+    en.latency = 2
+    _ = en.onScreenWindows()
+    clock.advance(by: 1)
+    #expect(en.completed.isEmpty)
+    #expect(en.inFlight == 1)
+    clock.advance(by: 1)
+    #expect(en.completed == [.onScreenWindows])
+    #expect(en.inFlight == 0)
+
+    // reset() drops queued responses too.
+    en.reset()
+    en.enqueue(.onScreen([a]))
+    en.reset()
+    #expect(en.onScreenWindows().isEmpty)
+  }
 }
