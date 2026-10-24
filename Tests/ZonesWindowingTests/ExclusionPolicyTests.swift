@@ -111,4 +111,49 @@ import ZonesWindowing
         == Set(SkipReason.allCases).subtracting([.ambiguousMatch]))
     #expect(Set(phaseOneSkips).isDisjoint(with: phaseTwoSkips))
   }
+
+  @Test func precedence() {
+    var health = AppHealth()
+    health.markUnresponsive(7, now: 0)
+    let dock = "com.apple.dock"
+    // own pid beats systemAgent, excluded and unresponsive
+    #expect(
+      ExclusionPolicy.phaseOne(
+        Self.ref(pid: 7, bundle: dock), ownPid: 7, exclusions: [dock], health: health, now: 1)
+        == .skip(.ownProcess))
+    // systemAgent beats excluded and unresponsive
+    #expect(
+      ExclusionPolicy.phaseOne(
+        Self.ref(pid: 7, bundle: dock), ownPid: 1, exclusions: [dock], health: health, now: 1)
+        == .skip(.systemAgent))
+    // excluded beats unresponsive
+    #expect(
+      ExclusionPolicy.phaseOne(
+        Self.ref(pid: 7, bundle: "x.y"), ownPid: 1, exclusions: ["x.y"], health: health, now: 1)
+        == .skip(.excludedBundle))
+    // nil bundle id skips neither systemAgent nor excludedBundle
+    #expect(
+      ExclusionPolicy.phaseOne(
+        Self.ref(pid: 8, bundle: nil), ownPid: 1, exclusions: [dock, ""], health: AppHealth(), now: 1)
+        == .allow(.full))
+    // but unresponsive still applies to a nil bundle id
+    #expect(
+      ExclusionPolicy.phaseOne(
+        Self.ref(pid: 7, bundle: nil), ownPid: 1, exclusions: [], health: health, now: 1)
+        == .skip(.unresponsive))
+    // fullScreen beats positionNotSettable; sheet beats fullScreen
+    #expect(
+      ExclusionPolicy.phaseTwo(Self.facts(fullScreen: true, position: false)) == .skip(.fullScreen))
+    #expect(
+      ExclusionPolicy.phaseTwo(Self.facts(.sheet, fullScreen: true)) == .skip(.sheetOrPopover))
+    // positionNotSettable beats sizeNotSettable
+    #expect(
+      ExclusionPolicy.phaseTwo(Self.facts(position: false, size: false))
+        == .skip(.positionNotSettable))
+    // a phase-one allow does not depend on WindowFacts: it is decided before any facts exist
+    let allowed = ExclusionPolicy.phaseOne(
+      Self.ref(), ownPid: 1, exclusions: [], health: AppHealth(), now: 0)
+    #expect(allowed == .allow(.full))
+    #expect(ExclusionPolicy.phaseTwo(Self.facts(.sheet)) == .skip(.sheetOrPopover))
+  }
 }
