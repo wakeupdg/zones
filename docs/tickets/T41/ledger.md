@@ -1,0 +1,1 @@
+- slice 1: AppLaunchTests.loginLaunchShowsNoWindow green — withKnownIssue removed (red first); login path now appends badge(true)+grantMenuItem(true) when the result is notGranted and (state changed or probe(false)); trustPoll timer stays silent
