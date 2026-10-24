@@ -21,19 +21,21 @@ public enum RecorderKeyMap {
 
   /// What the recorder does with one key-down. Pure so the keyboard path (no trap) is testable headless.
   public enum Disposition: Hashable, Sendable {
-    case startRecording, stopRecording, moveFocus(forward: Bool), capture(Chord), reject, passThrough
+    case startRecording, stopRecording, moveFocus(forward: Bool), capture(Chord), clear, reject, passThrough
   }
 
   private static let tab: UInt16 = 48
   private static let escape: UInt16 = 53
+  private static let clearKeys: Set<UInt16> = [51, 117]  // Delete, Forward Delete
   private static let armKeys: Set<UInt16> = [49, 36, 76]  // Space, Return, keypad Enter
 
   /// Focus arrival never arms the recorder. Unarmed, Space or Return arms it and Tab or Shift-Tab move on, so a
   /// keyboard-only user can always pass through. Armed, Tab and Shift-Tab still move on (recording ends with
-  /// focus), Escape disarms in place, and any other key is a chord or a rejected key.
+  /// focus), Escape disarms in place, a bare Delete or Forward Delete clears the shortcut (armed or not), and any other key is a chord or a rejected key.
   public static func disposition(keyCode: UInt16, rawFlags: UInt64, recording: Bool) -> Disposition {
     let mods = modifiers(rawFlags: rawFlags)
     if keyCode == tab, mods.isEmpty || mods == [.shift] { return .moveFocus(forward: mods.isEmpty) }
+    if clearKeys.contains(keyCode), mods.isEmpty { return .clear }
     guard recording else {
       return mods.isEmpty && armKeys.contains(keyCode) ? .startRecording : .passThrough
     }

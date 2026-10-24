@@ -122,4 +122,25 @@ import ZonesWindowing
     let centres = try labelInkCentre(of: hosting, beside: field)
     #expect(abs(centres.label - centres.field) <= 2.5, "label centre \(centres.label) vs recorder centre \(centres.field)")
   }
+
+  private func keyDown(_ code: UInt16, flags: NSEvent.ModifierFlags = []) -> NSEvent {
+    NSEvent.keyEvent(
+      with: .keyDown, location: .zero, modifierFlags: flags, timestamp: 0, windowNumber: 0, context: nil,
+      characters: "", charactersIgnoringModifiers: "", isARepeat: false, keyCode: code)!
+  }
+
+  /// QA-2.5: Delete and Forward Delete reach the Clear path, idle or recording.
+  @Test func deleteKeysClearFromTheField() {
+    for code: UInt16 in [51, 117] {
+      let field = RecorderField(frame: NSRect(x: 0, y: 0, width: 150, height: 24))
+      var clears = 0
+      field.onClear = { clears += 1 }
+      field.keyDown(with: keyDown(code))
+      #expect(clears == 1)
+      #expect(field.accessibilityPerformPress())
+      field.keyDown(with: keyDown(code))
+      #expect(clears == 2)
+      #expect(!field.isRecording)
+    }
+  }
 }
