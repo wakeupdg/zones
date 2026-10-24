@@ -1,2 +1,3 @@
 - slice 1: DragSessionReducerTests.sizeLockedSnapsPositionOnly green — phaseTwo SnapMode carried in moving/armed (mode: SnapMode = .full) into the mouseUp SnapPlan
 - slice 2: ShortcutResolverTests.sizeLockedShortcutIsPositionOnly green — resolver maps !facts.sizeSettable to .positionOnly (WindowWorker already passes the facts via FocusedWindow, no change)
+- slice 3: SnapServiceTests.positionOnlyModeNeverWritesSize already green (no setSize in the fake's call log); CONTRACTS.md 3.1 updated for mode on moving/armed and the resolver rule
