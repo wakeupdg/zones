@@ -13,3 +13,4 @@ One line per completed orchestration step. Read this plus docs/tickets/graph.jso
 - P3 run 4 done (wf_b8ec2747-5c4, resumed once after a usage limit): T33 T39 T34 T35 T36 T37 merged; ALL 40 TICKETS DONE; integration gates green (321 tests, xcodebuild, hygiene, ticket-lint); CI blocked by GitHub billing (needs human); Phase 4 starting
 - P4 preflight: app trusted until the required tccutil reset revoked it (human must re-grant); no Screen Recording / System Events on host -> in-process rendering; QA round 1 launched (wf_a78b0c12-d8c, 11 finders)
 - P4 QA round 1 done (wf_a78b0c12-d8c, resumed once after a credit stop; session model now Opus 5.5): 21 raw, 13 confirmed, 8 dropped; 145/157 distinct auto ACs pass in round 1; fix tickets T40-T46 appended; fix run launched (wf_513444d8-6fa)
+- P4 fix run 1 done (wf_513444d8-6fa): T40-T46 merged (47/47 done); hook ~8.48M; Zones relaunched and Accessibility pane opened for the user to re-grant
