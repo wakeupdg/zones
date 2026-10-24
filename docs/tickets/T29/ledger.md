@@ -2,3 +2,4 @@
 - slice 2: AppLifecycleTests.wakeEffectsOrder + quitMatchesPermissionMachine green — wakeEffects; NOTE machine .quit emits cancel(x4)+disableTap only (no invalidateTap/orderPanelsOut/drainEnhancedUI/removeRecoveryRecord), so the consistency test asserts the machine's mapped effects are an ordered subsequence of quitEffects (AC-026 order kept, machine untouched)
 - slice 3: StatusItemModelTests.badgeTable green — StatusItemModel.derive over 15 permission x tap cases
 - slice 4: GeneralPaneModelTests.statusRows green — two rows Accessibility/Event tap; suspect counts as Granted, unavailable as Dead
+- slice 5: MenuModelTests.orderAndStateForDisplayUnderCursor green — MenuModel.build/MenuItem with separators between groups
