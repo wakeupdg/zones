@@ -296,4 +296,27 @@ import ZonesWindowing
     }
     #expect(seedsHit.count >= 50, "non-empty Span forks hit on \(seedsHit.count) seeds (\(forks) forks)")
   }
+
+  // Slice 7 (AC-166): in pressed, before the first sample returns, no AX-bound effect (snap, restore,
+  // requestArmContext) is emitted. Not AX-bound: requestSample, stopSampling, skip, log and the Overlay effects
+  // (a wake in pressed still hides the Overlay).
+  @Test func noAXEffectFromPressedBeforeFirstSample() {
+    var checked = 0
+    var withEffects = 0
+    for seed in Self.seeds {
+      for step in Self.drive(seed: seed) where F.isPressed(step.before) && !step.sampleDelivered {
+        checked += 1
+        if !step.effects.isEmpty { withEffects += 1 }
+        for effect in step.effects {
+          switch effect {
+          case .snap, .restore, .requestArmContext:
+            Issue.record(Self.message(seed, "AX-bound \(effect) from pressed before the first sample, on \(step.event)"))
+          default: break  // overlay effects (a wake's hideOverlay) and requestSample, stopSampling, skip, log
+          }
+        }
+      }
+    }
+    #expect(checked > 300, "pressed steps before a sample: \(checked)")
+    #expect(withEffects > 0, "some of those steps emitted effects: \(withEffects)")
+  }
 }

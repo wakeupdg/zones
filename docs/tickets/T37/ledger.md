@@ -4,3 +4,4 @@
 - slice 4: ReducerInvariantTests.snapOnlyWithActivationAtMouseUp green — snap only on mouseUp with activation in its flags; armed mouseUp without it emits no snap; >50 snaps asserted
 - slice 5: ReducerInvariantTests.restoreNeverFromMoving green — restore only from armed on mouseUp, ends idle; odd seeds have an Original Frame and Generator drops points in the menu-bar strip so restore is exercised
 - slice 6: ReducerInvariantTests.spanReleaseThenRepressPreservesSet green — release then re-press of the Span Modifier keeps the zone set (random + directed-prefix streams); >=50 seeds hit non-empty Span
+- slice 7: ReducerInvariantTests.noAXEffectFromPressedBeforeFirstSample green — pressed before the first sample never emits snap, restore or requestArmContext (AX-bound set = snap, restore, requestArmContext; requestSample/stopSampling/skip/log and Overlay effects are not); >300 steps checked
