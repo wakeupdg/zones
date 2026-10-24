@@ -16,6 +16,14 @@ transcript="$(printf '%s' "$input" | jq -r '.transcript_path // empty')"
 agent_id="$(printf '%s' "$input" | jq -r '.agent_id // .agentId // empty')"
 printf '%s' "$input" | jq -c 'del(.tool_input,.tool_response)' >>"/tmp/zones-hook-debug.jsonl" 2>/dev/null
 id="${ZONES_TICKET_ID:-}"
+# a subagent that ran `scripts/wt.sh add <id>` is that ticket's agent from then on (the hook's cwd never changes)
+if [ -z "$id" ] && [ -n "$agent_id" ]; then
+  mapf="$main/docs/tickets/_subagents/agent-$agent_id.ticket"
+  cmd="$(printf '%s' "$input" | jq -r '.tool_input.command // empty' 2>/dev/null)"
+  t="$(printf '%s' "$cmd" | grep -oE 'wt\.sh (add|path) T[0-9]+[a-z]?' | head -1 | awk '{print $3}')"
+  if [ -n "$t" ]; then mkdir -p "$(dirname "$mapf")"; printf '%s' "$t" >"$mapf"; fi
+  [ -f "$mapf" ] && id="$(cat "$mapf")"
+fi
 if [ -z "$id" ]; then
   case "$branch" in
     ticket/*) id="${branch#ticket/}";;

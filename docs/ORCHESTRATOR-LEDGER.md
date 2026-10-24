@@ -7,3 +7,4 @@ One line per completed orchestration step. Read this plus docs/tickets/graph.jso
 - P1 LOCKED-SPEC committed (169 AC, 146 US); ADR amendments C1,C2,C4,C5,C6,C7 applied; P2 workflow launching
 - P2 graph.json written: 39 tickets (T01 split), 8 waves, width 10; CONTRACTS.md 449 lines; both token metrics recorded in STATUS
 - P3 run 1 launched (wf_727ca359-842): maxTickets 12, maxParallel 6; workflow scripts saved under scripts/workflows/
+- P3 run 1 done: 12/39 merged; spikes T03/T06/T07 merged by orchestrator (verdicts PENDING-HUMAN-RUN); hook+merge-log fixes; run 2 launching
