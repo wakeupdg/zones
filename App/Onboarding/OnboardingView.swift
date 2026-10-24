@@ -2,7 +2,7 @@ import SwiftUI
 import ZonesWindowing
 
 /// Page 1 (why Accessibility, Open System Settings, status, conditional Quit and Reopen) and the Back/Next
-/// paging to the cheat sheet. Next and Back are always enabled.
+/// paging to the cheat sheet. Back is disabled on page 1 and Next on the last page.
 struct OnboardingView: View {
   let model: OnboardingModel
 
@@ -19,11 +19,10 @@ struct OnboardingView: View {
       Divider()
       HStack {
         Button("Back") { model.page = .accessibility }
-          .disabled(false)
-          .opacity(model.page == .accessibility ? 0.4 : 1)
+          .disabled(!model.canGoBack)
         Spacer()
         Button("Next") { model.page = .cheatSheet }
-          .opacity(model.page == .cheatSheet ? 0.4 : 1)
+          .disabled(!model.canGoNext)
       }
       .padding(12)
     }

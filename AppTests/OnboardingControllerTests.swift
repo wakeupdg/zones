@@ -67,4 +67,28 @@ import ZonesWindowing
     #expect(probe.calls.isEmpty)
     controller.dismiss()
   }
+
+  /// QA-1.8: the app quits only once the replacement instance is running; a failed open keeps Zones alive.
+  private func relaunch(openResult: (app: NSRunningApplication?, error: (any Error)?)) async -> Int {
+    var terminated = 0
+    await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in
+      OnboardingWindowController.relaunch(
+        bundleURL: Bundle.main.bundleURL,
+        openApplication: { _, _, completion in completion(openResult.app, openResult.error) },
+        terminate: { terminated += 1 },
+        didFinish: { done.resume() })
+    }
+    return terminated
+  }
+
+  @Test func relaunchFailureKeepsRunning() async {
+    struct Failure: Error {}
+    #expect(await relaunch(openResult: (nil, Failure())) == 0)
+    #expect(await relaunch(openResult: (NSRunningApplication.current, Failure())) == 0)
+    #expect(await relaunch(openResult: (nil, nil)) == 0)
+  }
+
+  @Test func relaunchSuccessTerminatesOnce() async {
+    #expect(await relaunch(openResult: (NSRunningApplication.current, nil)) == 1)
+  }
 }

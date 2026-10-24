@@ -10,17 +10,43 @@ final class StatusItemController {
   private let statusItem: NSStatusItem
   private let onGrant: () -> Void
   private let onEditLayouts: () -> Void
+  /// The red dot, a separate non-template layer over the template glyph (hidden until the model is badged).
+  let badgeView = BadgeView()
+
+  var button: NSStatusBarButton? { statusItem.button }
 
   init(onGrant: @escaping () -> Void, onEditLayouts: @escaping () -> Void) {
     self.onGrant = onGrant
     self.onEditLayouts = onEditLayouts
     statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     statusItem.button?.image = Self.icon(badged: false)
+    installBadge()
+  }
+
+  /// Takes the item off the menu bar (tests).
+  func remove() { NSStatusBar.system.removeStatusItem(statusItem) }
+
+  private func installBadge() {
+    guard let button = statusItem.button else { return }
+    badgeView.isHidden = true
+    badgeView.translatesAutoresizingMaskIntoConstraints = false
+    button.addSubview(badgeView)
+    NSLayoutConstraint.activate([
+      badgeView.widthAnchor.constraint(equalToConstant: 6),
+      badgeView.heightAnchor.constraint(equalToConstant: 6),
+      badgeView.trailingAnchor.constraint(equalTo: button.trailingAnchor, constant: -3),
+      badgeView.topAnchor.constraint(equalTo: button.topAnchor, constant: 3),
+    ])
+  }
+
+  private func render(badged: Bool) {
+    statusItem.button?.image = Self.icon(badged: badged)
+    badgeView.isHidden = !badged
   }
 
   /// Re-renders from the latest model and menu list; call on every permission or tap change.
   func apply(_ model: StatusItemModel, menu items: [MenuItem]) {
-    statusItem.button?.image = Self.icon(badged: Self.badged(model))
+    render(badged: Self.badged(model))
     statusItem.menu = Self.makeMenu(from: items, onGrant: onGrant, onEditLayouts: onEditLayouts)
   }
 
@@ -29,7 +55,7 @@ final class StatusItemController {
 
   /// Icon only, for callers that own the menu (the composition root's `MenuController`).
   func apply(_ model: StatusItemModel) {
-    statusItem.button?.image = Self.icon(badged: Self.badged(model))
+    render(badged: Self.badged(model))
   }
 
   nonisolated static func badged(_ model: StatusItemModel) -> Bool { model.badged }
@@ -71,30 +97,34 @@ final class StatusItemController {
     return menu
   }
 
-  /// A template-style glyph drawn in `labelColor` (so it tints for light and dark menu bars) with a red dot when
-  /// badged.
+  /// The glyph as a template image in every state, so the menu bar tints it for light and dark. The badge is
+  /// drawn by `badgeView`, never into this image (template tinting would erase its red).
   static func icon(badged: Bool) -> NSImage {
-    let base = NSImage(systemSymbolName: "rectangle.split.3x3", accessibilityDescription: "Zones")
-    let image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { rect in
-      if let base {
-        let tinted = base.withSymbolConfiguration(.init(pointSize: 14, weight: .regular)) ?? base
-        tinted.isTemplate = true
-        let glyph = NSRect(x: 1, y: 1, width: 16, height: 16)
-        NSColor.labelColor.set()
-        tinted.draw(in: glyph, from: .zero, operation: .sourceOver, fraction: 1)
-        // Recolour the template glyph with the label colour.
-        glyph.fill(using: .sourceIn)
-      }
-      if badged {
-        NSColor.systemRed.setFill()
-        NSBezierPath(ovalIn: NSRect(x: rect.maxX - 7, y: rect.maxY - 7, width: 6, height: 6)).fill()
-      }
-      return true
-    }
-    image.isTemplate = false
-    image.accessibilityDescription = badged ? "Zones, needs Accessibility access" : "Zones"
+    let description = badged ? "Zones, needs Accessibility access" : "Zones"
+    let symbol = NSImage(systemSymbolName: "rectangle.split.3x3", accessibilityDescription: description)
+    let image = symbol?.withSymbolConfiguration(.init(pointSize: 14, weight: .regular)) ?? symbol ?? NSImage()
+    image.isTemplate = true
+    image.accessibilityDescription = description
     return image
   }
+}
+
+/// A 6 pt red dot that never takes clicks or accessibility focus (the button's image carries the description).
+@MainActor
+final class BadgeView: NSView {
+  init() {
+    super.init(frame: NSRect(x: 0, y: 0, width: 6, height: 6))
+    wantsLayer = true
+    layer?.backgroundColor = NSColor.systemRed.cgColor
+    layer?.cornerRadius = 3
+    setAccessibilityElement(false)
+  }
+
+  required init?(coder: NSCoder) {
+    super.init(coder: coder)
+  }
+
+  override func hitTest(_ point: NSPoint) -> NSView? { nil }
 }
 
 /// Target for a menu item's block action.

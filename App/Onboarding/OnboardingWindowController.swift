@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import os
 import ZonesCore
 import ZonesWindowing
 
@@ -100,12 +101,45 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
     return window
   }
 
+  /// `NSWorkspace.openApplication(at:configuration:completionHandler:)`, as a seam for tests.
+  typealias OpenApplication = (
+    _ url: URL, _ configuration: NSWorkspace.OpenConfiguration,
+    _ completion: @escaping @Sendable (NSRunningApplication?, (any Error)?) -> Void
+  ) -> Void
+
   /// Opens a fresh instance of this bundle, then quits this one.
   static func relaunchApp() {
+    relaunch(
+      bundleURL: Bundle.main.bundleURL,
+      openApplication: { url, configuration, completion in
+        NSWorkspace.shared.openApplication(at: url, configuration: configuration, completionHandler: completion)
+      },
+      terminate: { NSApp.terminate(nil) })
+  }
+
+  /// Terminates only once the new instance is running (`app != nil`, no error). On failure Zones keeps running,
+  /// logs under category `app`, and the Quit and Reopen offer (model state) stays up. `didFinish` fires after
+  /// the decision, on the main actor.
+  static func relaunch(
+    bundleURL: URL, openApplication: OpenApplication, terminate: @escaping @MainActor () -> Void,
+    didFinish: (@MainActor () -> Void)? = nil
+  ) {
     let configuration = NSWorkspace.OpenConfiguration()
     configuration.createsNewApplicationInstance = true
-    NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: configuration) { _, _ in
-      DispatchQueue.main.async { NSApp.terminate(nil) }
+    // The completion arrives on an arbitrary queue; hop to the main actor before deciding.
+    openApplication(bundleURL, configuration) { app, error in
+      let failure = error.map { String(describing: $0) } ?? (app == nil ? "no application returned" : nil)
+      DispatchQueue.main.async {
+        MainActor.assumeIsolated {
+          if let failure {
+            Logger(subsystem: UnifiedLogSink.subsystem, category: LogCategory.app.rawValue)
+              .error("Relaunch failed, staying running: \(failure, privacy: .public)")
+          } else {
+            terminate()
+          }
+          didFinish?()
+        }
+      }
     }
   }
 }
