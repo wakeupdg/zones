@@ -1,1 +1,2 @@
 - slice 1: OnboardingViewTests.inapplicableNavIsDisabled green — model canGoBack/canGoNext drive .disabled, opacity removed
+- slice 2: OnboardingControllerTests.relaunchFailureKeepsRunning (+relaunchSuccessTerminatesOnce) green — relaunch(bundleURL:openApplication:terminate:) seam; terminate only when app != nil and no error, else log .app error
