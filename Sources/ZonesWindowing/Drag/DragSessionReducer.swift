@@ -87,6 +87,14 @@ public enum DragSessionReducer {
   private static func moving(_ s: DragState, _ e: DragEvent) -> (DragState, [DragEffect]) {
     guard case .moving(let window, let downFrame, let flags, let config) = s else { return (s, []) }
     switch e {
+    case .flagsChanged(let f):
+      // The Activation Modifier pressed after the move arms the session too (AC-037).
+      let activation = ModifierSet(config.activation)
+      let newly = f.contains(activation) && !flags.contains(activation)
+      return (
+        .moving(window: window, downFrame: downFrame, flags: f, config: config),
+        newly ? [.requestArmContext(window: window, point: downFrame.origin)] : []
+      )
     case .armContext(let ctx):
       guard flags.contains(ModifierSet(config.activation)) else { return (s, []) }
       let scene = OverlayScene(

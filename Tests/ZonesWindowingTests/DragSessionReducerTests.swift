@@ -135,4 +135,41 @@ import ZonesWindowing
     #expect(F.isPressed(outcome(1.0)))
     #expect(outcome(1.01) == .idle)
   }
+
+  @Test func modifierLateArms() {
+    var (state, fx) = DragSessionReducer.reduce(.idle, F.mouseDown())
+    (state, fx) = DragSessionReducer.reduce(state, F.dragged())
+    (state, fx) = DragSessionReducer.reduce(state, F.moved())
+    #expect(F.isMoving(state))
+    #expect(fx == [.stopSampling])
+    #expect(!fx.contains(where: F.isShowOverlay))
+
+    (state, fx) = DragSessionReducer.reduce(state, .flagsChanged(.shift))
+    #expect(F.isMoving(state))
+    #expect(fx == [.requestArmContext(window: F.window, point: F.downFrame.origin)])
+
+    // Shift already present: a repeated flagsChanged does not ask again.
+    let (again, againFx) = DragSessionReducer.reduce(state, .flagsChanged([.shift, .option]))
+    #expect(again != .idle)
+    #expect(againFx.isEmpty)
+
+    (state, fx) = DragSessionReducer.reduce(state, .armContext(F.context))
+    #expect(F.isArmed(state))
+    #expect(fx.filter(F.isShowOverlay).count == 1)
+
+    let whole = F.run([F.mouseDown(), F.dragged(), F.moved(), .flagsChanged(.shift)])
+    #expect(F.isArmed(whole.state))
+    #expect(whole.effects.filter(F.isShowOverlay).count == 1)
+  }
+
+  @Test func plainDragIsInert() {
+    let r = F.run([F.mouseDown(), F.dragged(), F.moved(), F.dragged(CGPoint(x: 400, y: 300))])
+    #expect(F.isMoving(r.state))
+    let (state, fx) = DragSessionReducer.reduce(r.state, .mouseUp(point: CGPoint(x: 400, y: 300), flags: []))
+    #expect(state == .idle)
+    #expect(fx.isEmpty)
+    #expect(!r.effects.contains(where: F.isShowOverlay))
+    #expect(!r.effects.contains(where: F.isSnap))
+    #expect(!r.effects.contains(where: F.isRestore))
+  }
 }
