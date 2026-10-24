@@ -16,7 +16,9 @@ enum CarbonKeyMap {
     switch key {
     case .digit(let n): digitCodes.indices.contains(n) ? digitCodes[n] : nil
     case .letter(let s):
-      s.count == 1 ? letterCodes[Character(s.uppercased())] : nil
+      // "ß".uppercased() is "SS": Character(String) would trap on more than one grapheme.
+      guard s.count == 1, s.uppercased().count == 1, let c = s.uppercased().first else { return nil }
+      return letterCodes[c]
     case .arrowLeft: 123
     case .arrowRight: 124
     case .arrowDown: 125

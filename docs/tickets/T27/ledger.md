@@ -13,3 +13,4 @@
 - slice 10: ShortcutStoreTests.carbonKeyCodeTable green — CarbonKeyMap keycode and modifier tables
 - slice 11: CarbonHotkeyRegistrar builds clean — import Carbon.HIToolbox worked (no @_silgen_name shims); register-new-then-unregister-old; no deinit cleanup (process-lifetime object)
 - AC-106/AC-107 manual, needs App wiring
+- review fix (AC-105): CarbonKeyMap.keyCode trapped on letter "ß" (uppercases to "SS"); red test added to carbonKeyCodeTable, guard on uppercased count == 1, green

@@ -254,6 +254,7 @@ import ZonesTestSupport
     #expect(CarbonKeyMap.keyCode(for: .digit(-1)) == nil)
     #expect(CarbonKeyMap.keyCode(for: .letter("AB")) == nil)
     #expect(CarbonKeyMap.keyCode(for: .letter("")) == nil)
+    #expect(CarbonKeyMap.keyCode(for: .letter("ß")) == nil)  // uppercases to "SS": must not trap
 
     #expect(CarbonKeyMap.modifiers([.control, .option]) == 4096 + 2048)
     #expect(CarbonKeyMap.modifiers([.command]) == 256)
