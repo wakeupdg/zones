@@ -1,0 +1,6 @@
+- slice 1: codesign -d -r- check green — Zones Dev signed shell has designated requirement identifier "com.dganesh.zones" and certificate leaf, 0 cdhash (SPK-005.md part 1)
+- slice 3: swift build --package-path Spikes/WriteProbe green — skeleton parses args, --trust prints true here (inherited from responsible parent process, see SPK-005)
+- slice 4: WriteProbe run on Calculator green — clamped (-70,+8 size delta) and applied, size write refused (AXError -25200, fixed-size window) but position write ok, original frame restored
+- slice 5: matrix run green — 8 apps x (toggle, leave, toggle+EUI-seeded) x10 recorded (raw: docs/spikes/SPK-010-matrix-runs.txt); IntelliJ not-run: not installed; VoiceOver-on passes and animation observation not-run: needs-human; AXEnhancedUserInterface set returns -25208 but applies
+- slice 6: SIGSTOP run green — TextEdit stopped: 2 write attempts of ~253 ms each then timedOut, wall ~758 ms incl. one 250 ms EUI read; queued writes did not apply after CONT; EUI seeded true was left true (restore timed out), recovered by hand; always CONT via trap
+- slice 7: verdicts written — SPK-010.md PARTIAL, SPK-005.md PARTIAL (part 2 grant needs a human; standin.sh prepared)
