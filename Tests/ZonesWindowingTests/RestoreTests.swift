@@ -72,9 +72,9 @@ import ZonesTestSupport
     }
   }
 
-  /// The three writes of a full-mode write, then the read-back.
+  /// The Enhanced UI read (first write for the app), the three writes of a full-mode write, then the read-back.
   static func writes(_ frame: CGRect, _ h: WindowHandle) -> [FakeWindowSystem.Call] {
-    [.setSize(frame.size, h), .setPosition(frame.origin, h), .setSize(frame.size, h), .frame(h)]
+    [.enhancedUI(h.pid), .setSize(frame.size, h), .setPosition(frame.origin, h), .setSize(frame.size, h), .frame(h)]
   }
 
   /// AC-090: the Original Frame goes out through the write protocol; applied and clamped forget it.
