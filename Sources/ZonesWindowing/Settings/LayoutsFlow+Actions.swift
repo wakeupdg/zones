@@ -13,10 +13,9 @@ extension LayoutsFlow {
     _ id: LayoutID, newID: () -> LayoutID = { LayoutID(rawValue: UUID().uuidString) }
   ) -> Result<LayoutID, DocumentError> {
     guard let source = store.layout(id) else { return fail(.io("no layout with id \(id.rawValue)")) }
-    var copy = source
-    copy.id = newID()
-    copy.builtIn = nil
-    copy.name = Self.uniqueName("\(source.name) copy", among: Set(allNames))
+    // A Template copy takes the current default Margin and Gap explicitly (AC-114); a custom copy keeps its own.
+    var copy = Templates.duplicate(source, insets: source.builtIn == nil ? source.insets : defaults, newID: newID())
+    copy.name = Self.uniqueName(copy.name, among: Set(allNames))
     var next = store
     next.upsert(copy)
     return commit(layouts: next, assignments: assignments, session: session).map { copy.id }

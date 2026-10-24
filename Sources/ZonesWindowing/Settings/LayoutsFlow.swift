@@ -71,6 +71,12 @@ extension LayoutsFlow {
     }
   }
 
+  /// A file that could not be read at all (before it can be decoded).
+  public mutating func reportImportFailure(_ error: DocumentError) {
+    pendingImport = nil
+    importError = error.importText
+  }
+
   /// Dismisses the sheet; nothing is written.
   public mutating func cancelImport() { pendingImport = nil }
 

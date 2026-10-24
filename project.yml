@@ -57,6 +57,8 @@ targets:
     dependencies:
       - target: Zones
       - package: Zones
+        product: ZonesTestSupport
+      - package: Zones
         product: ZonesCore
       - package: Zones
         product: ZonesTestSupport
