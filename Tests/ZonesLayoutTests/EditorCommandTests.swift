@@ -73,6 +73,27 @@ struct EditorCommandTests {
     let cleared = try run(.select(nil), selB).get()
     #expect(cleared.selection == nil)
   }
+
+  @Test func noChordBadgeAndRootMerge() throws {
+    var d = draft()
+    while LayoutMath.unitRects(d.layout.root).count < 10 {
+      // split the largest Zone along its longer side so every split stays valid
+      let biggest = LayoutMath.unitRects(d.layout.root).max { $0.rect.width * $0.rect.height < $1.rect.width * $1.rect.height }!
+      d.selection = biggest.path
+      d = try run(.split(biggest.rect.width >= biggest.rect.height ? .horizontal : .vertical), d).get()
+    }
+    let resolved = LayoutMath.resolve(
+      d.layout, key: .uuid("D1"), visibleFrame: geometry.visibleFrame, scale: geometry.scale)
+    #expect(resolved.zones.count == 10)
+    let labels = LabelModel.labels(resolved, appearance: Preferences.defaults.appearance)
+    #expect(labels.count == 10)
+    for label in labels { #expect(label.noChord == (label.number == 10), "zone \(label.number)") }
+    // the tenth split was accepted, not refused
+    #expect(d.dirty)
+    // merging the root leaf is refused and leaves the draft alone
+    let single = draft()
+    #expect(run(.merge, single) == .failure(.rootMerge))
+  }
 }
 
 extension EditorDraft {

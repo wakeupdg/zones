@@ -1,2 +1,3 @@
 - slice 1: splitKeys green — EditorCommand/EditorDraft/EditorEngine.split; deviation: EditorError gained 'Error' conformance in ZonesCore/Results.swift (Result<_, EditorError> needs it)
 - slice 2: mergeSiblingsOnly green — select and sibling-only merge (root leaf -> rootMerge, selected split -> nothingSelected)
+- slice 3: noChordBadgeAndRootMerge green — passed on first run (split/merge already cover it); Zone 10 accepted, only it is noChord, root merge refused
