@@ -1,0 +1,3 @@
+- decision: Hit enum already lives in Sources/ZonesLayout/ZonesLayout.swift (earlier ticket); kept there, HitTest.swift will not redeclare it.
+- decision: TemplateTests extents use a 1 px tolerance where the share is not a whole number of points (800/3); Grid.round snaps edges to device pixels.
+- slice 1: TemplateTests.countsShapesAndNames green — Templates.builtInID/generate with column, row, grid, priority and focus trees
