@@ -18,6 +18,7 @@ final class CompositionRoot {
   let drag: DragDriver
   let shortcuts: ShortcutDriver
   let lifecycle: LifecycleDriver
+  let diagnostics: DiagnosticsController
   /// The launch steps the root performed, in order (AC-159, AC-076, ADR-0021).
   private(set) var launchTrace: [String] = []
 
@@ -44,6 +45,9 @@ final class CompositionRoot {
     lifecycle = LifecycleDriver(
       input: adapters.input, probe: adapters.probe, overlay: adapters.overlay, recovery: recovery,
       permission: permission, topology: topology)
+    diagnostics = DiagnosticsController(
+      appState: state, topology: topology, permission: permission, presenter: adapters.diagnostics,
+      bundle: adapters.bundleInfo)
     drag.onIdleChange = { [shortcuts] idle in shortcuts.receive(.reducerIdle(idle)) }
     permission.onWindowHotkeys = { [shortcuts] granted in shortcuts.receive(.permission(granted: granted)) }
     topology.onChange = { [drag] snapshot in drag.topologyChanged(snapshot) }
