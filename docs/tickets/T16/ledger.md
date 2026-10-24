@@ -4,3 +4,4 @@
 - slice 3: DragSessionReducerTests.overlayOnlyAfterMovedSample green — pressed dragged/frameSample/flagsChanged, moving armContext to armed
 - slice 4: DragSessionReducerTests.modifierFirstArmsAfterMove green — passed on first run, slice 3 logic already covers it
 - slice 5: DragSessionReducerTests.pauseThenMoveStillArms green — passed on first run, pressed sample loop from slice 3 covers it
+- slice 6: DragSessionReducerTests.resizeFromEveryEdgeEndsSession green — size delta over tolerance ends the session before the origin check

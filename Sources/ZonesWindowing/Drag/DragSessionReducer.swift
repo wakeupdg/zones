@@ -57,6 +57,13 @@ public enum DragSessionReducer {
       // decisive one. `.timedOut` and `.gone` count as unmoved for now.
       for ref in candidates {
         guard case .frame(let r, _)? = results[ref.id], let was = downFrames[ref.id] else { continue }
+        // A size delta over the tolerance is a resize, checked before the origin so a top-left resize that also
+        // shifts the origin still ends the session (AC-048).
+        if abs(r.width - was.width) > Constants.frameTolerance
+          || abs(r.height - was.height) > Constants.frameTolerance
+        {
+          return (.idle, [.stopSampling])
+        }
         if abs(r.origin.x - was.origin.x) > Constants.frameTolerance
           || abs(r.origin.y - was.origin.y) > Constants.frameTolerance
         {

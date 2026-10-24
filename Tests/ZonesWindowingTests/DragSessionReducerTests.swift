@@ -98,4 +98,41 @@ import ZonesWindowing
     ])
     #expect(F.isArmed(whole.state))
   }
+
+  @Test func resizeFromEveryEdgeEndsSession() {
+    let f = F.downFrame
+    let d = 40.0
+    let frames: [(String, CGRect)] = [
+      ("left", CGRect(x: f.minX - d, y: f.minY, width: f.width + d, height: f.height)),
+      ("right", CGRect(x: f.minX, y: f.minY, width: f.width + d, height: f.height)),
+      ("top", CGRect(x: f.minX, y: f.minY, width: f.width, height: f.height + d)),
+      ("bottom", CGRect(x: f.minX, y: f.minY - d, width: f.width, height: f.height + d)),
+      ("top-left", CGRect(x: f.minX - d, y: f.minY, width: f.width + d, height: f.height + d)),
+      ("top-right", CGRect(x: f.minX, y: f.minY, width: f.width + d, height: f.height + d)),
+      ("bottom-left", CGRect(x: f.minX - d, y: f.minY - d, width: f.width + d, height: f.height + d)),
+      ("bottom-right", CGRect(x: f.minX, y: f.minY - d, width: f.width + d, height: f.height + d)),
+    ]
+    for (name, frame) in frames {
+      var (state, _) = DragSessionReducer.reduce(.idle, F.mouseDown(flags: .shift))
+      (state, _) = DragSessionReducer.reduce(state, F.dragged())
+      let (next, fx) = DragSessionReducer.reduce(state, F.sample(frame))
+      #expect(next == .idle, "\(name)")
+      #expect(!fx.contains(where: F.isShowOverlay), "\(name)")
+      #expect(!fx.contains(where: F.isRequestArmContext), "\(name)")
+      #expect(fx == [.stopSampling], "\(name)")
+    }
+  }
+
+  @Test func resizeToleranceIsOnePoint() {
+    func outcome(_ dw: Double) -> DragState {
+      var (state, _) = DragSessionReducer.reduce(.idle, F.mouseDown(flags: .shift))
+      (state, _) = DragSessionReducer.reduce(state, F.dragged())
+      let f = F.downFrame
+      return DragSessionReducer.reduce(
+        state, F.sample(CGRect(x: f.minX, y: f.minY, width: f.width + dw, height: f.height))
+      ).0
+    }
+    #expect(F.isPressed(outcome(1.0)))
+    #expect(outcome(1.01) == .idle)
+  }
 }
