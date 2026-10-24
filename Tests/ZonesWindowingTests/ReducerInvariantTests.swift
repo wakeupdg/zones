@@ -93,7 +93,13 @@ import ZonesWindowing
         default: break
         }
       }
-      if case .armContext = event, let p = lastDragPoint { replies.append(.dragged(point: p, flags: [])) }
+      // The reducer keeps no cursor point outside armed (its documented known gap), so after a new snapshot the
+      // driver re-sends its last `dragged`: after an armContext answer and after a topologyChanged.
+      switch event {
+      case .armContext, .topologyChanged:
+        if let p = lastDragPoint { replies.append(.dragged(point: p, flags: [])) }
+      default: break
+      }
       queue = replies[...] + queue
     }
     return steps
@@ -318,5 +324,53 @@ import ZonesWindowing
     }
     #expect(checked > 300, "pressed steps before a sample: \(checked)")
     #expect(withEffects > 0, "some of those steps emitted effects: \(withEffects)")
+  }
+
+  // Slice 8 (AC-082): in every armed state the highlighted set is the set a mouseUp would snap to, and dimAll
+  // appears only for hit == none with an Original Frame.
+  @Test func highlightEqualsDropSet() {
+    var compared = 0
+    var snapForks = 0
+    var restoreForks = 0
+    var dimmed = 0
+    for seed in Self.seeds {
+      for step in Self.drive(seed: seed) {
+        guard case .armed(_, _, let flags, _, let ctx, _, let hit, _) = step.after else { continue }
+        // Every updateHighlight that dims obeys the rule against the state it produced.
+        for case .updateHighlight(let h) in step.effects where h.dimAll {
+          dimmed += 1
+          #expect(hit == .none && ctx.hasOriginalFrame, Self.message(seed, "dimAll with hit \(hit), original frame \(ctx.hasOriginalFrame)"))
+        }
+        if let h = step.lastHighlight, h.dimAll {
+          #expect(hit == .none && ctx.hasOriginalFrame, Self.message(seed, "stale dimAll with hit \(hit)"))
+        }
+        // The arming and re-arming steps hold no live cursor yet: the driver replays the last dragged right after
+        // them (the reducer's documented known gap), so the state is compared from that replay on.
+        switch step.event {
+        case .armContext where !F.isArmed(step.before), .topologyChanged: continue
+        default: break
+        }
+        let point: CGPoint?
+        if case .dragged(let p, _) = step.event { point = p } else { point = step.lastDragPoint }
+        guard let point else { continue }
+        compared += 1
+        let primary = step.lastHighlight?.primary ?? []
+        let fork = DragSessionReducer.reduce(step.after, .mouseUp(point: point, flags: flags))
+        if let plan = fork.1.compactMap({ e -> SnapPlan? in if case .snap(let p) = e { p } else { nil } }).first {
+          snapForks += 1
+          #expect(plan.zones == primary, Self.message(seed, "highlight \(primary) but a drop snaps \(plan.zones)"))
+        } else {
+          if fork.1.contains(where: F.isRestore) {
+            restoreForks += 1
+            #expect(hit == .none && ctx.hasOriginalFrame, Self.message(seed, "restore with hit \(hit)"))
+          }
+          #expect(primary.isEmpty, Self.message(seed, "highlight \(primary) but a drop snaps nothing"))
+        }
+      }
+    }
+    #expect(compared > 1000, "armed steps compared: \(compared)")
+    #expect(snapForks > 300, "snap forks: \(snapForks)")
+    #expect(restoreForks > 0, "restore forks: \(restoreForks)")
+    #expect(dimmed > 0, "dimAll highlights: \(dimmed)")
   }
 }
