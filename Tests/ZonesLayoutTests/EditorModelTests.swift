@@ -90,4 +90,55 @@ struct EditorModelTests {
     #expect(failed == start)
     #expect(failEffects == [.error(.nothingSelected)])
   }
+
+  /// Labels the Overlay draws for `layout` freshly resolved on the editor's Display; never reads `state.preview`.
+  private func overlayLabels(_ state: EditorState, appearance: Appearance) -> [ZoneLabel] {
+    let fresh = LayoutMath.resolve(
+      state.draft.layout, key: state.display, visibleFrame: state.visibleFrame, scale: state.scale)
+    let scene = OverlayScene(
+      layouts: [fresh], appearance: appearance, options: AccessibilityOptions(reduceTransparency: false, reduceMotion: false))
+    return OverlayModel.panels(scene).flatMap(\.zones).map(\.label).sorted { $0.number < $1.number }
+  }
+
+  private let appearance = Appearance(
+    fill: RGBA(r: 0.2, g: 0.4, b: 0.9, a: 1), opacity: 0.5, defaultInsets: Insets(margin: 0, gap: 0))
+
+  @Test func labelsMatchOverlay() {
+    var state = EditorModel.open(columns(), display: leftKey, topology: topology, assignments: [:])
+    #expect(EditorModel.labels(state, appearance: appearance) == overlayLabels(state, appearance: appearance))
+    let events: [EditorEvent] = [
+      .command(.select(NodePath(steps: []))), .command(.split(.horizontal)), .command(.split(.vertical)),
+      .command(.setGap(12)), .command(.setMargin(20)), .command(.rename("Renamed")), .undo, .redo, .undo, .undo,
+    ]
+    for (i, event) in events.enumerated() {
+      state = step(state, event).0
+      let editor = EditorModel.labels(state, appearance: appearance)
+      #expect(editor == overlayLabels(state, appearance: appearance), "after step \(i): \(event)")
+      #expect(editor.count == state.preview.zones.count, "after step \(i): \(event)")
+    }
+  }
+
+  @Test func labelsMatchOverlayUnderRandomCommands() {
+    for seed in UInt64(1)...5 {
+      var g = Generator(seed: seed)
+      var state = EditorModel.open(columns(3), display: primaryKey, topology: topology, assignments: [:])
+      for i in 0..<50 {
+        let event: EditorEvent
+        switch g.int(0...7) {
+        case 0: event = .command(.select(g.pick(state.preview.zones).path))
+        case 1: event = .command(.split(.horizontal))
+        case 2: event = .command(.split(.vertical))
+        case 3: event = .command(.merge)
+        case 4: event = .command(.setGap(Double(g.int(0...30))))
+        case 5: event = .command(.setMargin(Double(g.int(0...30))))
+        case 6: event = .undo
+        default: event = .redo
+        }
+        state = step(state, event).0
+        #expect(
+          EditorModel.labels(state, appearance: appearance) == overlayLabels(state, appearance: appearance),
+          "seed=\(seed) step=\(i) event=\(event)")
+      }
+    }
+  }
 }
