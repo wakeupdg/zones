@@ -1,0 +1,1 @@
+- slice 1: HitTestTests.gapAndMarginAreNearest green — passed on first run (HitTest.hit already implements AC-080); test committed in ZonesWindowingTests
