@@ -48,6 +48,9 @@ targets:
         CODE_SIGN_IDENTITY: "Zones Dev"
         ENABLE_APP_SANDBOX: NO
         ENABLE_DEBUG_DYLIB: NO
+      configs:
+        Debug:
+          ENABLE_HARDENED_RUNTIME: NO
   AppTests:
     type: bundle.unit-test
     platform: macOS
@@ -55,9 +58,17 @@ targets:
       - AppTests
     dependencies:
       - target: Zones
+      - package: Zones
+        product: ZonesCore
+      - package: Zones
+        product: ZonesLayout
+      - package: Zones
+        product: ZonesWindowing
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.zones.AppTests
+        SWIFT_STRICT_CONCURRENCY: complete
+        SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
         CODE_SIGN_STYLE: Manual
         CODE_SIGN_IDENTITY: "Zones Dev"
         GENERATE_INFOPLIST_FILE: YES
