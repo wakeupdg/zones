@@ -94,7 +94,7 @@ final class MenuController: NSObject, NSMenuDelegate {
     case .settings: return action("Settings…", #selector(openSettings), key: ",")
     case .grantAccessibility: return action("Grant Accessibility…", #selector(grantAccessibility))
     case .about: return action("About Zones", #selector(openAbout))
-    case .quit: return action(AppDelegate.menuTitles[0], #selector(quit), key: "q")
+    case .quit: return action((AppDelegate.menuTitles.last ?? "Quit Zones"), #selector(quit), key: "q")
     }
   }
 

@@ -11,3 +11,6 @@
 - slice 11: MenuControllerTests.rebuiltOnEveryOpen green — MenuController (NSMenuDelegate) calls MenuModel.build on every open from current state (frontmost, exclusions, permission, cursor Display); no window-system or enumerator call; layout pick assigns via TopologyDriver; grant item follows permission
 - slice 12: LifecycleTests.quitAndWakeRunEffectsInOrder green — LifecycleDriver runs AppLifecycle.wakeEffects/quitEffects front to back (recorded in executed), one adapter call each; quit also cancels every driver timer
 - slice 13: DiagnosticsControllerTests.previewBeforeCopy green — DiagnosticsController: Diagnostics.effects order (.preview then .copy), declined preview never copies, report built from live permission/tap/topology/assignments/prefs/ring, no window text
+- production wiring: build + swift test + xcodebuild test green — AppDelegate builds CompositionRoot with productionAdapters (EventTap, AX, CG, Carbon, ScreenDisplayProvider, PanelOverlayPresenter), StatusItemController, wake observer, quit; root runs input/signal/notice loops
+- AC-070 (cross-scale Snap, three Displays, moved windows = 0): manual, pending
+- AC-157 (idle CPU under 1 percent, twenty snapped windows, ten minutes): manual, pending; idle path timer-free except the 5 s healthTick
