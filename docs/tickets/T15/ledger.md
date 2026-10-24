@@ -4,3 +4,5 @@
 - slice 4: SnapServiceTests.sameZoneIsNoOp green — noOp(sameFrame) with zero writes within 1 pt, origin-only in position-only mode
 - slice 5: SnapServiceTests.clampedGetsOneRepositionOnly green — one position-only follow-up on clamped, result stays .clamped with the new read-back
 - slice 6: SnapServiceTests.writesOnlyTargetHandle green — every logged call (clamp follow-up included) names the plan's handle; passed on first run, behaviour already held
+- slice 7: SnapServiceTests.timeoutRetryOnceThenAbort green — retry once then abort, 10 s cooldown on the Clock with zero AX calls, one attempt after; plus recover-on-retry, read-back and first-read timeout cases
+- AC-078 manual, not run

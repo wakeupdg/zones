@@ -147,4 +147,78 @@ import ZonesWindowing
     #expect(handles.allSatisfy { $0 == rig.handle })
     #expect(!handles.contains(other))
   }
+
+  /// AC-077: one immediate retry, then abort, cooldown on the Clock, one attempt afterwards.
+  @Test @WindowActor func timeoutRetryOnceThenAbort() {
+    var rig = Rig()
+    let pid = rig.handle.pid
+    let h = rig.handle
+    rig.script(current: Self.elsewhere)
+    rig.ws.enqueue(.size(.timedOut))
+    rig.ws.enqueue(.size(.timedOut))
+    let outcome = rig.run(rig.plan())
+    #expect(outcome == SnapOutcome(result: .timedOut, readBack: nil))
+    // The first call and its one retry; nothing after (the Enhanced UI restore is the only follow-up).
+    #expect(rig.ws.calls == [.frame(h), .setSize(Self.target.size, h), .setSize(Self.target.size, h)])
+    #expect(rig.health.isUnresponsive(pid, now: rig.clock.now))
+
+    // Cooldown: phase 1 would report skip(unresponsive); the service makes no AX call at all.
+    rig.clock.advance(by: 9.9)
+    let skipped = rig.run(rig.plan())
+    #expect(skipped.result == .timedOut)
+    #expect(rig.ws.calls.count == 3)
+    #expect(rig.health.isUnresponsive(pid, now: rig.clock.now))
+
+    // After the cooldown exactly one attempt goes through.
+    rig.clock.advance(by: 0.1)
+    #expect(!rig.health.isUnresponsive(pid, now: rig.clock.now))
+    rig.script(current: Self.elsewhere, readBack: Self.target)
+    let attempt = rig.run(rig.plan())
+    #expect(attempt.result == .applied(Self.target))
+    #expect(rig.ws.calls.count == 3 + 5)
+    #expect(rig.ws.calls.dropFirst(3).first == .frame(h))
+    var spent = rig.health
+    let again = spent.consumeRetry(pid, now: rig.clock.now)
+    #expect(!again)
+  }
+
+  @Test @WindowActor func timeoutRecoversOnRetry() {
+    var rig = Rig()
+    let h = rig.handle
+    rig.script(current: Self.elsewhere, readBack: Self.target)
+    rig.ws.enqueue(.position(.timedOut))
+    let outcome = rig.run(rig.plan())
+    #expect(outcome.result == .applied(Self.target))
+    #expect(
+      rig.ws.calls == [
+        .frame(h),
+        .setSize(Self.target.size, h), .setPosition(Self.target.origin, h),
+        .setPosition(Self.target.origin, h),
+        .setSize(Self.target.size, h), .frame(h),
+      ])
+    #expect(!rig.health.isUnresponsive(h.pid, now: rig.clock.now))
+  }
+
+  @Test @WindowActor func timeoutOnReadBackAborts() {
+    var rig = Rig()
+    let h = rig.handle
+    rig.script(current: Self.elsewhere)
+    rig.ws.enqueue(.frame(.timedOut))
+    rig.ws.enqueue(.frame(.timedOut))
+    let outcome = rig.run(rig.plan())
+    #expect(outcome.result == .timedOut)
+    #expect(rig.ws.calls.suffix(2) == [.frame(h), .frame(h)])
+    #expect(rig.health.isUnresponsive(h.pid, now: rig.clock.now))
+  }
+
+  @Test @WindowActor func timeoutOnFirstReadAborts() {
+    var rig = Rig()
+    let h = rig.handle
+    rig.ws.enqueue(.frame(.timedOut))
+    rig.ws.enqueue(.frame(.timedOut))
+    let outcome = rig.run(rig.plan())
+    #expect(outcome == SnapOutcome(result: .timedOut, readBack: nil))
+    #expect(rig.ws.calls == [.frame(h), .frame(h)])
+    #expect(rig.health.isUnresponsive(h.pid, now: rig.clock.now))
+  }
 }

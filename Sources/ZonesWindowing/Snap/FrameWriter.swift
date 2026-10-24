@@ -36,6 +36,11 @@ public struct FrameWriter: FrameWriting {
     _ target: CGRect, mode: SnapMode, to h: WindowHandle, policy: EnhancedUIPolicy,
     health: inout AppHealth, now: TimeInterval
   ) -> FrameWriteResult {
+    // Cooldown gate: no AX call at all while the app is unresponsive. The first call after the
+    // cooldown consumes the one allowed attempt.
+    if health.isUnresponsive(h.pid, now: now) { return .timedOut }
+    _ = health.consumeRetry(h.pid, now: now)
+
     let restore = prepareEnhancedUI(pid: h.pid, policy: policy)
     defer { restore.run() }
 
@@ -45,16 +50,33 @@ public struct FrameWriter: FrameWriting {
     if mode == .full { steps.append { system.setSize(target.size, h) } }
 
     for step in steps {
-      if let failure = Self.failure(of: step()) { return failure }
+      let status = Self.retryingOnce(step) { $0 == .timedOut }
+      if status == .timedOut {
+        health.markUnresponsive(h.pid, now: now)
+        return .timedOut
+      }
+      if let failure = Self.failure(of: status) { return failure }
     }
-    switch system.frame(h) {
+    let read = Self.retryingOnce({ system.frame(h) }) { $0 == .timedOut }
+    switch read {
     case .value(let readBack):
       return Self.matches(readBack, target, mode: mode) ? .applied(readBack) : .clamped(readBack)
-    case .timedOut: return .timedOut
+    case .timedOut:
+      health.markUnresponsive(h.pid, now: now)
+      return .timedOut
     case .elementGone: return .elementGone
     case .apiDisabled: return .refused(Self.apiDisabledCode)
     case .refused(let code): return .refused(code)
     }
+  }
+
+  /// Runs `call`; a timeout repeats that same call once at once. A second timeout is returned as is,
+  /// and the caller aborts (ADR-0015 amendment C7: worst case 0.5 s).
+  @WindowActor static func retryingOnce<R>(
+    _ call: @WindowActor () -> R, timedOut: (R) -> Bool
+  ) -> R {
+    let first = call()
+    return timedOut(first) ? call() : first
   }
 
   /// kAXErrorAPIDisabled; `FrameWriteResult` has no case of its own for it.

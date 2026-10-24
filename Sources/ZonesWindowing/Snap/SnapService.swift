@@ -33,18 +33,25 @@ public struct SnapService: Sendable {
   @WindowActor public func execute(
     _ plan: SnapPlan, handle: WindowHandle, health: inout AppHealth
   ) -> SnapOutcome {
-    switch system.frame(handle) {
+    let now = clock.now
+    if health.isUnresponsive(handle.pid, now: now) {
+      return SnapOutcome(result: .timedOut, readBack: nil)
+    }
+    _ = health.consumeRetry(handle.pid, now: now)
+    switch FrameWriter.retryingOnce({ system.frame(handle) }, timedOut: { $0 == .timedOut }) {
     case .value(let current):
       if FrameWriter.matches(current, plan.target, mode: plan.mode) {
         return SnapOutcome(result: .noOp(.sameFrame), readBack: current)
       }
-    case .timedOut: return SnapOutcome(result: .timedOut, readBack: nil)
+    case .timedOut:
+      health.markUnresponsive(handle.pid, now: now)
+      return SnapOutcome(result: .timedOut, readBack: nil)
     case .elementGone: return SnapOutcome(result: .elementGone, readBack: nil)
     case .apiDisabled: return SnapOutcome(result: .refused(FrameWriter.apiDisabledCode), readBack: nil)
     case .refused(let code): return SnapOutcome(result: .refused(code), readBack: nil)
     }
     let result = writer.write(
-      plan.target, mode: plan.mode, to: handle, policy: policy, health: &health, now: clock.now)
+      plan.target, mode: plan.mode, to: handle, policy: policy, health: &health, now: now)
     guard case .clamped(let accepted) = result else {
       return SnapOutcome(result: result, readBack: Self.frame(of: result))
     }
