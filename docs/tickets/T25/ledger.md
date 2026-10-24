@@ -8,3 +8,4 @@
 - slice 5: separateSpacesNoticeOnce green — notice first in the commit effects, flag inserted into state.noticed
 - slice 6: mirrorKeyedByMaster green — mirror members collapse into the master, picks (incl. UUID and unstable) route through mirrorMaster
 - slice 7: nilUUIDRetryThenUnstable green — retry up to 3 at 1 s on the Clock, 4th read commits (unstable key session-only), raw mid-retry restarts the debounce
+- slice 8: DocumentTests.rejectsNonUUIDKey green — T10 test existed; filled gaps ("nil:7", lowercase UUID); whole-document refusal already covered
