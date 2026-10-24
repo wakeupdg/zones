@@ -131,7 +131,7 @@ public enum DragSessionReducer {
       let state = DragState.armed(
         window: window, downFrame: downFrame, flags: flags, config: config, context: ctx, display: cursor.display,
         hit: cursor.hit, span: newSpan)
-      return (state, highlightChange(from: s, to: state))
+      return (state, SpanLogic.highlightChange(from: s, to: state))
     case .flagsChanged(let f):
       // Releasing the Activation Modifier hides the overlay and cancels; the Span is dropped (AC-035).
       guard f.contains(ModifierSet(config.activation)) else {
@@ -143,7 +143,7 @@ public enum DragSessionReducer {
       let state = DragState.armed(
         window: window, downFrame: downFrame, flags: f, config: config, context: ctx, display: display, hit: hit,
         span: newSpan)
-      return (state, highlightChange(from: s, to: state))
+      return (state, SpanLogic.highlightChange(from: s, to: state))
     case .mouseUp(let point, let upFlags):
       // The overlay is on screen in armed, so it is always hidden first (AC-053). A snap or restore needs the
       // Activation Modifier in the mouse-up's own flags (LI-007) and a drop recomputed from the mouse-up point,
@@ -170,17 +170,5 @@ public enum DragSessionReducer {
     default:
       return (s, [])
     }
-  }
-
-  /// The `updateHighlight` that moves the overlay from `old` to `new`; nothing when the highlight is unchanged.
-  private static func highlightChange(from old: DragState, to new: DragState) -> [DragEffect] {
-    guard let was = highlight(of: old), let now = highlight(of: new), was != now else { return [] }
-    return [.updateHighlight(now)]
-  }
-
-  /// The highlight an armed state shows: a pure function of its Display, Hit and Span (LI-009).
-  private static func highlight(of state: DragState) -> Highlight? {
-    guard case .armed(_, _, _, _, let ctx, let display, let hit, let span) = state else { return nil }
-    return SpanLogic.drop(at: SpanLogic.Cursor(display: display, hit: hit), span: span, in: ctx).highlight
   }
 }

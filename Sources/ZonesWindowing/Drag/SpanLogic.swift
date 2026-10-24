@@ -81,4 +81,16 @@ enum SpanLogic {
     }
     return Drop(display: span.display, zones: span.zones, secondary: [], restore: false)
   }
+
+  /// The `updateHighlight` that moves the overlay from `old` to `new`; nothing when the highlight is unchanged.
+  static func highlightChange(from old: DragState, to new: DragState) -> [DragEffect] {
+    guard let was = highlight(of: old), let now = highlight(of: new), was != now else { return [] }
+    return [.updateHighlight(now)]
+  }
+
+  /// The highlight an armed state shows: a pure function of its Display, Hit and Span (LI-009).
+  static func highlight(of state: DragState) -> Highlight? {
+    guard case .armed(_, _, _, _, let ctx, let display, let hit, let span) = state else { return nil }
+    return drop(at: Cursor(display: display, hit: hit), span: span, in: ctx).highlight
+  }
 }
