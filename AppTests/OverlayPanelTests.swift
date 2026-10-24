@@ -163,4 +163,73 @@ extension NSColor {
     #expect(filled.secondaryLayer.borderWidth > 0)
     #expect(filled.secondaryLayer.backgroundColor == nil)
   }
+
+  // MARK: presenter
+
+  static let keyA = DisplayKey.uuid("00000000-0000-0000-0000-00000000000A")
+  static let keyB = DisplayKey.uuid("00000000-0000-0000-0000-00000000000B")
+  static let frameA = CGRect(x: 0, y: 0, width: 1440, height: 900)
+  static let frameB = CGRect(x: 1440, y: 0, width: 1920, height: 1080)
+
+  static func display(_ key: DisplayKey, _ frame: CGRect, scale: Double) -> DisplaySnapshot {
+    DisplaySnapshot(
+      key: key, frame: frame, visibleFrame: frame.insetBy(dx: 0, dy: 20), scale: scale, isMain: key == keyA,
+      mirrorOf: nil, name: "test", resolution: frame.size)
+  }
+
+  static func topology(_ displays: [DisplaySnapshot]) -> TopologySnapshot {
+    TopologySnapshot(displays: displays, separateSpaces: true, primaryFrame: frameA)
+  }
+
+  static let twoDisplays = topology([display(keyA, frameA, scale: 2), display(keyB, frameB, scale: 1)])
+
+  static func scene(_ displays: [DisplaySnapshot], zonesPerDisplay: Int = 2) -> OverlayScene {
+    let layouts = displays.map { d -> ResolvedLayout in
+      let width = d.visibleFrame.width / Double(zonesPerDisplay)
+      let zones = (1...zonesPerDisplay).map { n in
+        Zone(
+          number: n, path: NodePath(steps: []),
+          frame: CGRect(
+            x: d.visibleFrame.minX + Double(n - 1) * width, y: d.visibleFrame.minY, width: width,
+            height: d.visibleFrame.height))
+      }
+      return ResolvedLayout(
+        layoutID: LayoutID(rawValue: "grid"), display: d.key, visibleFrame: d.visibleFrame,
+        layoutRect: d.visibleFrame, scale: d.scale, zones: zones)
+    }
+    return OverlayScene(
+      layouts: layouts,
+      appearance: Appearance(
+        fill: RGBA(r: 0.2, g: 0.4, b: 0.8, a: 1), opacity: 0.1, defaultInsets: Insets(margin: 0, gap: 0)),
+      options: AccessibilityOptions(reduceTransparency: false, reduceMotion: false))
+  }
+
+  @Test func presenterOrdersFrontOncePerSession() throws {
+    let topology = Self.twoDisplays
+    let presenter = PanelOverlayPresenter(topology: { topology })
+    presenter.show(Self.scene(topology.displays))
+    for key in [Self.keyA, Self.keyB] {
+      let panel = try #require(presenter.panel(for: key))
+      #expect(panel.orderFrontCount == 1)
+      #expect(panel.isVisible)
+    }
+    for n in 1...5 {
+      presenter.highlight(Highlight(display: Self.keyA, primary: [n % 2 + 1], secondary: [], dimAll: false))
+    }
+    presenter.highlight(Highlight(display: nil, primary: [], secondary: [], dimAll: true))
+    for key in [Self.keyA, Self.keyB] {
+      #expect(try #require(presenter.panel(for: key)).orderFrontCount == 1)
+    }
+    presenter.hide()
+    presenter.show(Self.scene(topology.displays))
+    for key in [Self.keyA, Self.keyB] {
+      #expect(try #require(presenter.panel(for: key)).orderFrontCount == 2)
+    }
+    // reassert re-orders front while the session is active, and only then.
+    presenter.reassert()
+    #expect(try #require(presenter.panel(for: Self.keyA)).orderFrontCount == 3)
+    presenter.hide()
+    presenter.reassert()
+    #expect(try #require(presenter.panel(for: Self.keyA)).orderFrontCount == 3)
+  }
 }
