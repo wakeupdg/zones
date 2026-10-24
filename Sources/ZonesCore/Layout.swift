@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 
 /// A UUID string, or `builtin:<template>:<count>`. Encodes as a bare JSON string.
@@ -139,5 +140,38 @@ public struct Layout: Hashable, Codable, Sendable, Identifiable {
     try c.encode(root, forKey: .root)
     try c.encode(surround, forKey: .surround)
     try c.encode(insets, forKey: .insets)
+  }
+}
+
+/// One resolved Zone. `frame` is in AppKit coordinates, grid-rounded.
+public struct Zone: Hashable, Sendable {
+  public var number: Int
+  public var path: NodePath
+  public var frame: CGRect
+  public init(number: Int, path: NodePath, frame: CGRect) {
+    self.number = number
+    self.path = path
+    self.frame = frame
+  }
+}
+
+/// Zones sorted by number, 1...N.
+public struct ResolvedLayout: Hashable, Sendable {
+  public var layoutID: LayoutID
+  public var display: DisplayKey
+  public var visibleFrame: CGRect
+  public var layoutRect: CGRect
+  public var scale: Double
+  public var zones: [Zone]
+  public init(
+    layoutID: LayoutID, display: DisplayKey, visibleFrame: CGRect, layoutRect: CGRect, scale: Double,
+    zones: [Zone]
+  ) {
+    self.layoutID = layoutID
+    self.display = display
+    self.visibleFrame = visibleFrame
+    self.layoutRect = layoutRect
+    self.scale = scale
+    self.zones = zones
   }
 }
