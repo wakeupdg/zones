@@ -194,6 +194,43 @@ struct EditorCommandTests {
     #expect(apply(.nudge(root, points: 500), h) == .failure(.invalidRatio))
     #expect(apply(.nudge(root, points: .nan), h) == .failure(.invalidRatio))
   }
+
+  @Test func templatePicker() throws {
+    var start = draft(.split(axis: .vertical, ratio: 0.5, first: .leaf, second: .leaf), name: "My Layout")
+    start.layout.insets = Insets(margin: 7, gap: 3)
+    start.layout.builtIn = BuiltInRef(template: .rows, count: 2)
+    let picked = try run(.template(.grid, count: 4), start).get()
+    let grid = Templates.generate(.grid, count: 4, insets: Insets(margin: 7, gap: 3))
+    #expect(picked.layout.root == grid.root)
+    #expect(picked.layout.surround == grid.surround)
+    #expect(picked.layout.name == "My Layout")
+    #expect(picked.layout.id == start.layout.id)
+    #expect(picked.layout.insets == Insets(margin: 7, gap: 3))
+    #expect(picked.layout.builtIn == nil)
+    #expect(picked.selection == nil)
+    #expect(picked.dirty)
+    // Focus brings its surround along
+    let focus = try run(.template(.focus, count: 1), start).get()
+    #expect(focus.layout.root == .leaf)
+    #expect(focus.layout.surround == Templates.generate(.focus, count: 1, insets: zeroInsets).surround)
+    // a count the Template does not offer
+    #expect(run(.template(.grid, count: 5), start) == .failure(.invalidRatio))
+    #expect(run(.template(.columns, count: 1), start) == .failure(.invalidRatio))
+    // rename, margin and gap update their field and dirty the draft
+    let renamed = try run(.rename("  Dev Setup \n"), start).get()
+    #expect(renamed.layout.name == "Dev Setup")
+    #expect(renamed.dirty)
+    #expect(try run(.rename(""), start).get().layout.name == "")
+    let margin = try run(.setMargin(12), start).get()
+    #expect(margin.layout.insets == Insets(margin: 12, gap: 3))
+    #expect(margin.dirty)
+    let gap = try run(.setGap(0), start).get()
+    #expect(gap.layout.insets == Insets(margin: 7, gap: 0))
+    #expect(gap.dirty)
+    #expect(run(.setMargin(-1), start) == .failure(.invalidRatio))
+    #expect(run(.setGap(.nan), start) == .failure(.invalidRatio))
+    #expect(run(.setGap(.infinity), start) == .failure(.invalidRatio))
+  }
 }
 
 extension EditorDraft {

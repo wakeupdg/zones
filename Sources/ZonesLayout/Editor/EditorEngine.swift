@@ -13,7 +13,10 @@ public enum EditorEngine {
     case .merge: merge(d)
     case .setRatio(let path, let ratio, let snap): setRatio(path, ratio, snap: snap, d, geometry)
     case .nudge(let path, let points): nudge(path, points: points, d, geometry)
-    default: .failure(.invalidRatio)
+    case .setMargin(let value): setInsets(value, d) { $0.margin = $1 }
+    case .setGap(let value): setInsets(value, d) { $0.gap = $1 }
+    case .template(let t, let count): template(t, count: count, d)
+    case .rename(let name): rename(name, d)
     }
   }
 
@@ -200,6 +203,35 @@ public enum EditorEngine {
       }
     }
     return best ?? ratio
+  }
+
+  // MARK: insets, template, rename
+
+  private static func setInsets(
+    _ value: Double, _ d: EditorDraft, _ change: (inout Insets, Double) -> Void
+  ) -> Result<EditorDraft, EditorError> {
+    guard value.isFinite, value >= 0 else { return .failure(.invalidRatio) }
+    var next = d
+    change(&next.layout.insets, value)
+    return validated(next)
+  }
+
+  /// Root and surround come from the Template; the draft keeps its id, name and insets.
+  private static func template(_ t: Template, count: Int, _ d: EditorDraft) -> Result<EditorDraft, EditorError> {
+    guard t.counts.contains(count) else { return .failure(.invalidRatio) }
+    let generated = Templates.generate(t, count: count, insets: d.layout.insets)
+    var next = d
+    next.layout.root = generated.root
+    next.layout.surround = generated.surround
+    next.layout.builtIn = nil
+    next.selection = nil
+    return validated(next)
+  }
+
+  private static func rename(_ name: String, _ d: EditorDraft) -> Result<EditorDraft, EditorError> {
+    var next = d
+    next.layout.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+    return validated(next)
   }
 
   // MARK: warnings
