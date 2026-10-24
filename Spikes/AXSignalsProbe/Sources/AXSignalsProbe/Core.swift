@@ -116,7 +116,7 @@ final class JSONLog: @unchecked Sendable {
     var obj = fields
     lock.lock()
     defer { lock.unlock() }
-    obj["t"] = (((now() - start) * 1000).rounded()) / 1000
+    obj["t"] = Decimal(string: String(format: "%.3f", now() - start)) ?? 0
     guard let data = try? JSONSerialization.data(withJSONObject: obj, options: [.sortedKeys]),
       var line = String(data: data, encoding: .utf8)
     else { return }
