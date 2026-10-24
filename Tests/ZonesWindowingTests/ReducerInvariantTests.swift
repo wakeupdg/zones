@@ -32,6 +32,13 @@ import ZonesWindowing
 
   static let movedResult = SampleResult.frame(F.downFrame.offsetBy(dx: 30, dy: 10), F.standardFacts)
 
+  /// The 9-Zone context; odd seeds already have an Original Frame, so drops outside the visible frame restore.
+  static func context(for seed: UInt64) -> ArmContext {
+    var ctx = F.context
+    ctx.hasOriginalFrame = seed % 2 == 1
+    return ctx
+  }
+
   static func message(_ seed: UInt64, _ note: String) -> Comment {
     Comment(rawValue: Generator.failureMessage(seed: seed, layout: layout, note: note))
   }
@@ -40,9 +47,10 @@ import ZonesWindowing
   /// context at once, each `requestSample` a moved sample, and each `armContext` is followed by a replay of the
   /// last `dragged` (the app's driver does that after answering a request).
   static func drive(
-    seed: UInt64, context: ArmContext = F.context, config: ModifierConfig = F.config,
+    seed: UInt64, context ctx: ArmContext? = nil, config: ModifierConfig = F.config,
     events: [DragEvent]? = nil
   ) -> [Step] {
+    let context = ctx ?? Self.context(for: seed)
     var generator = Generator(seed: seed)
     let stream = events ?? generator.dragEvents(count: eventCount, context: context, config: config)
     var queue = stream[...]
@@ -223,5 +231,26 @@ import ZonesWindowing
     }
     #expect(snaps > 50, "snaps exercised: \(snaps)")
     #expect(unmodified > 0, "armed mouseUp without activation exercised: \(unmodified)")
+  }
+
+  // Slice 5 (AC-166): restore only ever follows a mouseUp from armed, never anything from moving.
+  @Test func restoreNeverFromMoving() {
+    var restores = 0
+    for seed in Self.seeds {
+      for step in Self.drive(seed: seed) where step.effects.contains(where: F.isRestore) {
+        restores += 1
+        #expect(!F.isMoving(step.before), Self.message(seed, "restore from moving on \(step.event)"))
+        #expect(F.isArmed(step.before), Self.message(seed, "restore from \(step.before) on \(step.event)"))
+        guard case .mouseUp = step.event else {
+          Issue.record(Self.message(seed, "restore on \(step.event)"))
+          continue
+        }
+        #expect(step.after == .idle, Self.message(seed, "restore must end idle"))
+      }
+      for step in Self.drive(seed: seed) where F.isMoving(step.before) {
+        #expect(!step.effects.contains(where: F.isRestore), Self.message(seed, "moving emitted restore"))
+      }
+    }
+    #expect(restores > 0, "restore exercised: \(restores)")
   }
 }

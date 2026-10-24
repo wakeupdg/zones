@@ -142,8 +142,15 @@ public struct Generator: Sendable {
     guard !displays.isEmpty, int(0...9) < 9 else {
       return CGPoint(x: double(4000...6000), y: double(4000...6000))  // beyond every Display
     }
+    // One roll in eight lands on a Display's own frame but outside its visible frame (the menu bar strip): a drop
+    // there is "no Zone" and restores when an Original Frame exists.
+    if int(0...7) == 0, let bar = displays.first(where: { $0.frame.maxY > $0.visibleFrame.maxY }) {
+      return CGPoint(
+        x: double(bar.frame.minX...(bar.frame.maxX - 0.5)),
+        y: double(bar.visibleFrame.maxY...(bar.frame.maxY - 0.5)))
+    }
     let display = pick(displays)
-    let area = int(0...9) < 8 ? display.visibleFrame : display.frame
+    let area = display.visibleFrame
     return CGPoint(
       x: double(area.minX...(area.maxX - 0.5)), y: double(area.minY...(area.maxY - 0.5)))
   }
