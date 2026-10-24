@@ -47,18 +47,44 @@ public enum ShortcutResolver {
     if !focused.facts.positionSettable {
       return noOp(.positionNotSettable, "\(describe(a)): position is not settable", focused)
     }
+    let key = focused.record.handle.key
     switch a {
     case .sendToZone(let n):
-      guard let layout = layout(for: focused, topology: topology, layouts: layouts) else {
-        return noOp(.zoneAbsent, "\(describe(a)): no Zones on this Display", focused)
-      }
+      guard let layout = zones(for: a, focused, topology, layouts) else { return .noOp(.zoneAbsent) }
       guard (1...layout.zones.count).contains(n) else {
         return noOp(.zoneAbsent, "\(describe(a)): Layout has \(layout.zones.count) Zones", focused)
       }
       return .snap(snapPlan(zone: n, layout: layout, focused: focused, mode: mode))
-    default:
-      return .noOp(.windowAbsent)
+    case .cycleRight, .cycleLeft:
+      guard let layout = zones(for: a, focused, topology, layouts) else { return .noOp(.zoneAbsent) }
+      let last = registry.lastSnap(key)
+      let matched = CycleResolver.matchedRecord(last, frame: focused.frame, layout: layout)
+      let base = CycleResolver.base(last, frame: focused.frame, layout: layout)
+      let span = matched.map(\.zones).flatMap { $0.count >= 2 ? $0 : nil }
+      let n = CycleResolver.next(
+        from: base, direction: a == .cycleRight ? .right : .left, count: layout.zones.count, span: span)
+      return .snap(snapPlan(zone: n, layout: layout, focused: focused, mode: mode))
+    case .restore:
+      guard let entry = registry.entry(key) else {
+        return noOp(.noEntry, "restore: no Original Frame", focused)
+      }
+      switch RestorePlanner.plan(entry, window: focused.record.ref, facts: focused.facts, topology: topology) {
+      case .success(let target): return .restore(entry, target: target)
+      case .failure(let reason): return noOp(reason, "restore: \(reason.rawValue)", focused)
+      }
+    case .openEditor, .openSettings:
+      return .noOp(.windowAbsent)  // unreachable: filtered above
     }
+  }
+
+  /// The Layout of the Display the window overlaps most, or the no-op log line when there is none (no Zones).
+  static func zones(
+    for a: ShortcutAction, _ focused: FocusedWindow, _ topology: TopologySnapshot,
+    _ layouts: [DisplayKey: ResolvedLayout]
+  ) -> ResolvedLayout? {
+    if let layout = layout(for: focused, topology: topology, layouts: layouts) { return layout }
+    _ = noOp(.zoneAbsent, "\(describe(a)): no Zones on this Display", focused)
+    return nil
   }
 
   /// The resolved Layout of the Display the window overlaps most; nil when it overlaps none or the Display has no Layout.

@@ -5,3 +5,4 @@
 - slice 5: ShortcutResolverTests.sendToZoneUsesOccupiedDisplay green — send to Zone N on the max-overlap Display's own Layout, keyboard SnapPlan with read-back original frame
 - slice 6: ShortcutResolverTests.absentZoneIsNoOp green — Zone 7/0/-1 is noOp(zoneAbsent), one .shortcuts log line, registry unchanged
 - slice 7: ShortcutResolverTests.gateTable green — gate order nil/verdict/facts, 3 actions x 14 cases, one log line each; non-window actions (openEditor/openSettings) answer noOp(windowAbsent) with no log (dispatcher never routes them)
+- slice 8: ShortcutResolverTests.cyclePlansAndRestore green — cycle Right/Left via matching record, Span, clamped Calculator, hand-move fallback; restore -> .restore(entry,target) or noOp(noEntry)

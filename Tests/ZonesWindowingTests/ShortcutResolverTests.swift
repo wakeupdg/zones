@@ -136,4 +136,82 @@ import ZonesTestSupport
     #expect(sink.events.first?.category == .shortcuts)
     #expect(registry == before)
   }
+
+  // MARK: cycle and restore plans
+
+  static let columns4 = Templates.builtInID(.columns, count: 4)
+
+  func cycle(
+    _ action: ShortcutAction, frame: CGRect, record: ((WindowKey) -> LastSnapRecord)? = nil
+  ) throws -> (SnapPlan, ResolvedLayout) {
+    let layouts = F.layouts(a: Self.columns4, b: Self.grid4)
+    let win = F.focused(frame: frame)
+    var registry = OriginalFrameRegistry()
+    if let record { registry.recordSnap(record(win.record.handle.key)) }
+    let plan = ShortcutResolver.plan(
+      action, focused: win, verdict: .allow(.full), topology: F.topology, layouts: layouts, registry: registry)
+    guard case .snap(let snap) = plan else {
+      Issue.record("expected a snap plan, got \(plan)")
+      throw CancellationError()
+    }
+    return (snap, try #require(layouts[F.displayA]))
+  }
+
+  @Test func cyclePlansAndRestore() throws {
+    let z = F.resolved(.columns, count: 4).zones.map(\.frame)
+
+    // A matching record: Right goes after Zone 1, Left wraps to the last Zone.
+    let rec1: (WindowKey) -> LastSnapRecord = { LastSnapRecord(key: $0, display: F.displayA, zones: [1], frame: z[0]) }
+    let (right, layout) = try cycle(.cycleRight, frame: z[0], record: rec1)
+    #expect(right.zones == [2] && right.target == layout.zones[1].frame)
+    #expect(right.via == .keyboard && right.originalFrame == z[0] && right.display == F.displayA)
+    #expect(try cycle(.cycleLeft, frame: z[0], record: rec1).0.zones == [4])
+
+    // A Span record {1, 2}: Right continues after the highest, Left before the lowest.
+    let union = z[0].union(z[1])
+    let span: (WindowKey) -> LastSnapRecord = { LastSnapRecord(key: $0, display: F.displayA, zones: [1, 2], frame: union) }
+    #expect(try cycle(.cycleRight, frame: union, record: span).0.zones == [3])
+    #expect(try cycle(.cycleLeft, frame: union, record: span).0.zones == [4])
+
+    // A clamped window (Calculator at Zone 3) still cycles to Zone 4.
+    let clamped = CGRect(x: z[2].minX, y: z[2].minY, width: 300, height: 400)
+    let calc: (WindowKey) -> LastSnapRecord = { LastSnapRecord(key: $0, display: F.displayA, zones: [3], frame: clamped) }
+    #expect(try cycle(.cycleRight, frame: clamped, record: calc).0.zones == [4])
+
+    // A hand move: the record no longer matches, so the Zone of maximum intersection is the base.
+    let moved = z[2].insetBy(dx: 20, dy: 20)
+    #expect(try cycle(.cycleRight, frame: moved, record: rec1).0.zones == [4])
+    #expect(try cycle(.cycleLeft, frame: moved, record: rec1).0.zones == [2])
+    // No record at all: same thing.
+    #expect(try cycle(.cycleRight, frame: moved).0.zones == [4])
+
+    checkRestore()
+  }
+
+  func checkRestore() {
+    let sink = Self.installSink()
+    defer { sink.reset() }
+    let layouts = F.layouts(a: Self.columns4, b: Self.grid4)
+    let win = F.focused(frame: CGRect(x: 0, y: 25, width: 480, height: 1055))
+    let key = win.record.handle.key
+    let original = CGRect(x: 300, y: 300, width: 700, height: 500)
+    var registry = OriginalFrameRegistry()
+
+    // No entry: noOp(noEntry) with one log line.
+    let none = ShortcutResolver.plan(
+      .restore, focused: win, verdict: .allow(.full), topology: F.topology, layouts: layouts, registry: registry)
+    #expect(none == .noOp(.noEntry))
+    #expect(sink.events.count == 1)
+
+    // An entry: the plan is the entry and the RestorePlanner target; the registry is not touched.
+    let entry = OriginalFrameEntry(key: key, frame: original, via: .keyboard)
+    _ = registry.capture(entry)
+    let before = registry
+    sink.reset()
+    let plan = ShortcutResolver.plan(
+      .restore, focused: win, verdict: .allow(.full), topology: F.topology, layouts: layouts, registry: registry)
+    #expect(plan == .restore(entry, target: original))
+    #expect(sink.events.isEmpty)
+    #expect(registry == before)
+  }
 }
