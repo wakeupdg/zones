@@ -1,2 +1,3 @@
 - slice 1: ProductionClockTests.scheduleFiresOnceAndCancelIsIdempotent green — ProductionClock over DispatchSourceTimer (token per handle, idempotent cancel, systemUptime now); AppTests now links ZonesTestSupport
 - slice 2: CompositionSmokeTests.rootBuildsWithFakes green — CompositionAdapters (every adapter injected), AppState (prefs/layouts/assignments), WindowActor-owned WindowWorker (registry, health, handle match, snap/restore/shortcut); root construction touches no adapter and leaves no timer
+- slice 3: CompositionSmokeTests.launchSequenceOrder green — start(): AX timeouts, Enhanced UI recovery, probe; PermissionDriver (one adapter call per effect, queued events, per-id timers, tap recovery from signals); only healthTick pending once granted

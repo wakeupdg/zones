@@ -13,6 +13,9 @@ final class CompositionRoot {
   let state: AppState
   let recovery: EnhancedUIRecovery
   let worker: WindowWorker
+  let permission: PermissionDriver
+  /// The launch steps the root performed, in order (AC-159, AC-076, ADR-0021).
+  private(set) var launchTrace: [String] = []
 
   init(adapters: CompositionAdapters) {
     self.adapters = adapters
@@ -23,5 +26,24 @@ final class CompositionRoot {
     worker = WindowWorker(
       system: adapters.windows, enumerator: adapters.enumerator, writer: writer, clock: adapters.clock,
       ownPid: adapters.ownPid, bundleID: adapters.bundleID)
+    permission = PermissionDriver(
+      clock: adapters.clock, input: adapters.input, probe: adapters.probe, worker: worker,
+      surfaces: adapters.surfaces, overlay: adapters.overlay, recovery: recovery)
+  }
+
+  /// The launch sequence: Accessibility timeouts, Enhanced UI recovery, then the permission probe. The tap starts
+  /// only when the probe says granted (the permission machine's `startTap`).
+  func start() async {
+    launchTrace.append("timeouts")
+    await worker.applyLaunchTimeouts()
+    launchTrace.append("enhancedUIRecovery")
+    let restored = recovery.restoreAtLaunch(running: adapters.runningApps())
+    await worker.restoreEnhancedUI(pids: restored.map { pid_t($0.pid) })
+    launchTrace.append("permissionProbe")
+    let trusted = adapters.probe.isTrusted()
+    if !trusted, !adapters.probe.launchedAtLogin {
+      adapters.surfaces.showOnboarding()
+    }
+    permission.receive(.probe(trusted))
   }
 }
