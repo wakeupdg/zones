@@ -1,26 +1,155 @@
 import CoreGraphics
 import Foundation
 import ZonesCore
+import os
 
-/// Creates the Mach port behind the event tap. `userInfo` is the retained callback box. A nil result is the
-/// "no permission" case (ADR-0020), never a crash. Tests inject a maker so no live tap is created.
+/// Creates the Mach port behind the event tap. `userInfo` is the callback box. A nil result is the "no
+/// permission" case (ADR-0020), never a crash. Tests inject a maker so no live tap is created.
 struct TapMaker: Sendable {
   var make: @Sendable (TapConfig, UnsafeMutableRawPointer) -> CFMachPort?
 }
 
-/// Production `InputSource` over a listen-only `CGEvent` tap on its own thread (AC-065).
-public final class EventTapInputSource: Sendable {
-  public let config: TapConfig
-  let tapMaker: TapMaker
+/// What the `@convention(c)` tap callback reaches through `userInfo`. Immutable and `Sendable` by construction.
+final class TapCallbackBox: Sendable {
+  let events: AsyncStream<InputEvent>.Continuation
+  let signals: AsyncStream<TapSignal>.Continuation
   let primaryFrame: @Sendable () -> CGRect
+
+  init(
+    events: AsyncStream<InputEvent>.Continuation, signals: AsyncStream<TapSignal>.Continuation,
+    primaryFrame: @escaping @Sendable () -> CGRect
+  ) {
+    self.events = events
+    self.signals = signals
+    self.primaryFrame = primaryFrame
+  }
+}
+
+/// Production `InputSource` over a listen-only `CGEvent` tap on its own thread (AC-065). The tap never consumes
+/// or modifies an event (AC-066); recovery decisions belong to `TapRecovery`, which the driver feeds from
+/// `signals` before calling `reenable()` or `recreate()`.
+public final class EventTapInputSource: InputSource, Sendable {
+  public let config: TapConfig
+  public let events: AsyncStream<InputEvent>
+  public let signals: AsyncStream<TapSignal>
+
+  let tapMaker: TapMaker
+  private let box: TapCallbackBox
+
+  /// The live tap and the thread that serves it. Present between a successful bring-up and teardown.
+  private struct Runtime {
+    var tap: CFMachPort
+    var runLoop: CFRunLoop
+    var finished: DispatchSemaphore
+  }
+
+  private struct State {
+    /// Handed to the tap thread before it starts; consumed there.
+    var pendingTap: CFMachPort?
+    var runLoop: CFRunLoop?
+    var runtime: Runtime?
+  }
+
+  private let state = OSAllocatedUnfairLock(uncheckedState: State())
+  /// Serializes start, stop and recreate so two callers cannot bring up two taps.
+  private let lifecycle = OSAllocatedUnfairLock()
 
   init(
     config: TapConfig = .production, tapMaker: TapMaker, primaryFrame: @escaping @Sendable () -> CGRect
   ) {
     self.config = config
     self.tapMaker = tapMaker
-    self.primaryFrame = primaryFrame
+    let (events, eventsContinuation) = AsyncStream<InputEvent>.makeStream()
+    let (signals, signalsContinuation) = AsyncStream<TapSignal>.makeStream()
+    self.events = events
+    self.signals = signals
+    box = TapCallbackBox(events: eventsContinuation, signals: signalsContinuation, primaryFrame: primaryFrame)
   }
+
+  deinit {
+    teardown()
+    box.events.finish()
+    box.signals.finish()
+  }
+
+  public func start() -> TapStart {
+    lifecycle.withLock { bringUp() }
+  }
+
+  public func stop() {
+    lifecycle.withLock { teardown() }
+  }
+
+  public func reenable() -> Bool {
+    guard let tap = state.withLockUnchecked({ $0.runtime?.tap }) else { return false }
+    CGEvent.tapEnable(tap: tap, enable: true)
+    return CGEvent.tapIsEnabled(tap: tap)
+  }
+
+  public func recreate() -> TapStart {
+    lifecycle.withLock {
+      teardown()
+      let result = bringUp()
+      box.signals.yield(.recreated(result == .started))
+      return result
+    }
+  }
+
+  // MARK: Lifecycle
+
+  /// Creates the tap and its thread. Idempotent while a tap is live. Callers hold `lifecycle`.
+  private func bringUp() -> TapStart {
+    if state.withLockUnchecked({ $0.runtime != nil }) { return .started }
+    guard let tap = tapMaker.make(config, Unmanaged.passUnretained(box).toOpaque()) else {
+      return .unavailable
+    }
+    state.withLockUnchecked { $0.pendingTap = tap }
+    let ready = DispatchSemaphore(value: 0)
+    let finished = DispatchSemaphore(value: 0)
+    let thread = Thread { [state] in
+      let runLoop = CFRunLoopGetCurrent()!
+      let source = state.withLockUnchecked { s -> CFRunLoopSource? in
+        defer { s.pendingTap = nil }
+        return s.pendingTap.flatMap { CFMachPortCreateRunLoopSource(nil, $0, 0) }
+      }
+      if let source { CFRunLoopAddSource(runLoop, source, .commonModes) }
+      state.withLockUnchecked { $0.runLoop = runLoop }
+      // Signalled from inside the loop, so a later CFRunLoopStop cannot arrive before the loop is running.
+      CFRunLoopPerformBlock(runLoop, CFRunLoopMode.commonModes.rawValue) { ready.signal() }
+      CFRunLoopRun()
+      if let source {
+        CFRunLoopRemoveSource(runLoop, source, .commonModes)
+        CFRunLoopSourceInvalidate(source)
+      }
+      finished.signal()
+    }
+    thread.name = "Zones.EventTap"
+    thread.qualityOfService = .userInteractive
+    thread.start()
+    ready.wait()
+    state.withLockUnchecked { s in
+      s.runtime = Runtime(tap: tap, runLoop: s.runLoop!, finished: finished)
+      s.runLoop = nil
+    }
+    CGEvent.tapEnable(tap: tap, enable: true)
+    return .started
+  }
+
+  /// Invalidates the port (a merely disabled tap stays registered with the window server), stops the thread and
+  /// waits for it. Callers hold `lifecycle`, or are `deinit`.
+  private func teardown() {
+    guard let runtime = state.withLockUnchecked({ s -> Runtime? in
+      defer { s.runtime = nil }
+      return s.runtime
+    }) else { return }
+    CGEvent.tapEnable(tap: runtime.tap, enable: false)
+    CFMachPortInvalidate(runtime.tap)
+    CFRunLoopStop(runtime.runLoop)
+    CFRunLoopWakeUp(runtime.runLoop)
+    runtime.finished.wait()
+  }
+
+  // MARK: Mask
 
   /// The mask has one bit per `CGEventType` in `config.mask`; nothing else is ever observed.
   static func cgEventMask(for config: TapConfig) -> CGEventMask {

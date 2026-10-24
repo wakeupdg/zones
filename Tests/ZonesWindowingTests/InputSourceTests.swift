@@ -1,6 +1,7 @@
 import CoreGraphics
 import Foundation
 import Testing
+import os
 import ZonesCore
 import ZonesTestSupport
 
@@ -86,5 +87,43 @@ import ZonesTestSupport
       if case .cancel(let id) = effect, let handle = handles[id] { clock.cancel(handle) }
     }
     #expect(clock.pending.isEmpty)
+  }
+
+  // AC-011
+  @Test func nilTapReportsUnavailable() async {
+    let source = EventTapInputSource(tapMaker: TapMaker { _, _ in nil }, primaryFrame: { Self.primary })
+    #expect(source.start() == .unavailable)
+    #expect(source.reenable() == false)
+    #expect(source.recreate() == .unavailable)
+    var signals = source.signals.makeAsyncIterator()
+    #expect(await signals.next() == .recreated(false))
+    source.stop()
+
+    var recovery = TapRecovery()
+    #expect(recovery.reduce(.recreated(false), timer: nil, now: 0) == [.tapUnavailable])
+    #expect(recovery.state == .unavailable)
+  }
+
+  /// A plain Mach port stands in for the tap, so the thread, run loop source and teardown run for real.
+  @Test func lifecycleStartsStopsAndRecreates() async {
+    let made = OSAllocatedUnfairLock(initialState: 0)
+    let maker = TapMaker { _, _ in
+      made.withLock { $0 += 1 }
+      return CFMachPortCreate(nil, nil, nil, nil)
+    }
+    let source = EventTapInputSource(tapMaker: maker, primaryFrame: { Self.primary })
+    #expect(source.start() == .started)
+    #expect(source.start() == .started)
+    #expect(made.withLock { $0 } == 1)
+    #expect(source.recreate() == .started)
+    #expect(made.withLock { $0 } == 2)
+    var signals = source.signals.makeAsyncIterator()
+    #expect(await signals.next() == .recreated(true))
+    source.stop()
+    source.stop()
+    #expect(source.reenable() == false)
+    #expect(source.start() == .started)
+    #expect(made.withLock { $0 } == 3)
+    source.stop()
   }
 }

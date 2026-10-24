@@ -1,2 +1,3 @@
 - slice 1: productionTapIsListenOnly green — EventTapInputSource skeleton, config, cgEventMask(for:), TapMaker seam (TapConfig.production already in ZonesCore)
 - slice 2: reenableRateLimitThenTapLost green — pure TapRecovery in Permission/TapRecovery.swift (TapState already existed in PermissionTypes.swift); choices: disables while dead/unavailable return [], recreated(true) from alive/unavailable returns [] and clears reenables, recreated(false) while unavailable returns []
+- slice 3: nilTapReportsUnavailable green — EventTapInputSource conforms to InputSource: start/stop/reenable/recreate, tap thread (.userInteractive) with commonModes source, teardown via CFMachPortInvalidate + run loop stop + join; extra lifecycleStartsStopsAndRecreates test uses a plain Mach port
