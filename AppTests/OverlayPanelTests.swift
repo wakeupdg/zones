@@ -6,6 +6,10 @@ import ZonesWindowing
 
 @testable import Zones
 
+extension NSColor {
+  convenience init(_ c: RGBA) { self.init(srgbRed: c.r, green: c.g, blue: c.b, alpha: c.a) }
+}
+
 @MainActor
 @Suite struct OverlayPanelTests {
   static let screen = CGRect(x: 0, y: 0, width: 1440, height: 900)
@@ -62,5 +66,31 @@ import ZonesWindowing
     #expect(view.layer?.sublayers?.isEmpty == false)
     // CALayer exposes no isAccessibilityElement on macOS: assert none is an AX element and none is a view child.
     for layer in view.allLayers { #expect(!(layer is any NSAccessibilityElementProtocol)) }
+  }
+
+  @Test func layersMatchModel() throws {
+    let frame = CGRect(x: -1440, y: 120, width: 1440, height: 900)  // a Display left of and above the primary
+    let model = Self.model(frame: frame, count: 4, primary: [2], scale: 3)
+    let view = ZoneLayerView(frame: CGRect(origin: .zero, size: frame.size), scale: 2)
+    view.apply(model)
+    #expect(view.layer?.sublayers?.count == 4 * 2 + 2)
+    #expect(view.zoneNumbers == [1, 2, 3, 4])
+    for zone in model.zones {
+      let expected = CoordinateSpace.panelLocal(zone.rect, panelFrame: model.frame)
+      let fill = try #require(view.fillLayer(zone.number))
+      let label = try #require(view.labelLayer(zone.number))
+      #expect(fill.frame == expected)
+      #expect(fill.contentsScale == 2)
+      #expect(fill.backgroundColor == NSColor(zone.fill).cgColor)
+      #expect(Double(label.contentsScale) == zone.label.contentsScale)
+      #expect(label.frame.midX == expected.midX)
+      #expect(label.frame.midY == expected.midY)
+      #expect(label.string as? NSAttributedString != nil)
+    }
+    let first = try #require(model.zones.first)
+    #expect(view.highlightLayer.frame == CoordinateSpace.panelLocal(model.zones[1].rect, panelFrame: model.frame))
+    #expect(view.highlightLayer.opacity == 1)
+    #expect(view.secondaryLayer.opacity == 0)
+    #expect(first.number == 1)
   }
 }
