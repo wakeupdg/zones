@@ -34,14 +34,30 @@ public struct Generator: Sendable {
     return xs[int(0...(xs.count - 1))]
   }
 
-  /// A random split tree no deeper than `maxDepth`; every ratio lies in `minFraction...(1 - minFraction)`.
+  /// A random split tree no deeper than `maxDepth`. Every leaf is at least `minFraction` of the unit square on each
+  /// axis (a split is only offered on an axis whose remaining extent can host two such leaves), so every ratio lies in
+  /// `minFraction...(1 - minFraction)` and the tree is valid however deep it grows.
   public mutating func tree(maxDepth: Int, minFraction: Double = Constants.minFraction) -> SplitNode {
+    tree(maxDepth: maxDepth, minFraction: minFraction, width: 1, height: 1)
+  }
+
+  private mutating func tree(maxDepth: Int, minFraction: Double, width: Double, height: Double) -> SplitNode {
     guard maxDepth > 0, int(0...9) < 7 else { return .leaf }
+    var axes: [SplitAxis] = []
+    if width >= 2 * minFraction { axes.append(.horizontal) }
+    if height >= 2 * minFraction { axes.append(.vertical) }
+    guard !axes.isEmpty else { return .leaf }
+    let axis = pick(axes)
+    let extent = axis == .horizontal ? width : height
+    let ratio = double((minFraction / extent)...(1 - minFraction / extent))
+    let (w1, h1, w2, h2) =
+      axis == .horizontal
+      ? (width * ratio, height, width - width * ratio, height)
+      : (width, height * ratio, width, height - height * ratio)
     return .split(
-      axis: bool() ? .horizontal : .vertical,
-      ratio: double(minFraction...(1 - minFraction)),
-      first: tree(maxDepth: maxDepth - 1, minFraction: minFraction),
-      second: tree(maxDepth: maxDepth - 1, minFraction: minFraction))
+      axis: axis, ratio: ratio,
+      first: tree(maxDepth: maxDepth - 1, minFraction: minFraction, width: w1, height: h1),
+      second: tree(maxDepth: maxDepth - 1, minFraction: minFraction, width: w2, height: h2))
   }
 
   public mutating func layout(maxDepth: Int) -> Layout {
