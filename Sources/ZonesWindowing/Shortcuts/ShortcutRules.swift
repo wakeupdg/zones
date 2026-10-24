@@ -9,5 +9,8 @@ public enum RecorderState: Hashable, Sendable {
 
 public enum ShortcutRules {
   /// AC-097 / ADR-0010. Letters are stored uppercase.
+  /// LI-018: a chord is bindable only with Command or Control.
+  public static func validate(_ c: Chord) -> Bool { c.hasCommandOrControl }
+
   public static let defaults: [Shortcut] = Preferences.defaultShortcuts
 }

@@ -32,4 +32,15 @@ import ZonesTestSupport
     #expect(d.map { $0.action } == ShortcutAction.allCases)
     #expect(d.allSatisfy { $0.chord != nil })
   }
+
+  @Test func requiresCommandOrControl() {
+    #expect(!ShortcutRules.validate(Chord(key: .digit(1), modifiers: [.option])))
+    #expect(!ShortcutRules.validate(Chord(key: .digit(1), modifiers: [.shift, .option])))
+    #expect(!ShortcutRules.validate(Chord(key: .digit(1), modifiers: [.shift])))
+    #expect(!ShortcutRules.validate(Chord(key: .digit(1), modifiers: [])))
+    #expect(ShortcutRules.validate(Chord(key: .digit(1), modifiers: [.control, .option])))
+    #expect(ShortcutRules.validate(Chord(key: .digit(1), modifiers: [.command])))
+    #expect(ShortcutRules.validate(Chord(key: .digit(1), modifiers: [.control])))
+    #expect(ShortcutRules.validate(Chord(key: .digit(1), modifiers: [.command, .option])))
+  }
 }
