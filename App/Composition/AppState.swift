@@ -48,6 +48,45 @@ final class AppState {
     }
   }
 
+  // MARK: Layouts and Assignments
+
+  /// Custom Layouts and every Assignment as one document, the shape the editor and Settings load and write.
+  var document: ZonesDocument {
+    ZonesDocument(version: Constants.documentVersion, layouts: layouts.custom, assignments: assignments)
+  }
+
+  /// Adopts a custom Layout a writer has just persisted (the editor's Save). Built-ins are ignored.
+  func upsertLayout(_ layout: Layout) { layouts.upsert(layout) }
+
+  /// Drops a custom Layout and moves every Assignment that used it to `replacement`. Returns false (nothing
+  /// changed) for a built-in, an unknown id, a missing or invalid replacement.
+  @discardableResult
+  func deleteLayout(_ id: LayoutID, replacement: LayoutID?) -> Bool {
+    var nextLayouts = layouts
+    var nextAssignments = assignments
+    guard case .success = nextLayouts.delete(id, replacement: replacement, assignments: &nextAssignments) else {
+      return false
+    }
+    layouts = nextLayouts
+    assignments = nextAssignments
+    return true
+  }
+
+  /// Adopts the document a writer (the editor, Settings > Layouts) has just persisted: the next drag arm,
+  /// shortcut and menu build read it with no relaunch.
+  func replaceDocument(_ document: ZonesDocument) {
+    layouts = LayoutStore(document: document, defaults: preferences.appearance.defaultInsets)
+    assignments = document.assignments
+  }
+
+  /// Re-reads layouts.json and assignments.json, for a writer that cannot hand its document over.
+  func reload() {
+    replaceDocument(
+      ZonesDocument(
+        version: Constants.documentVersion, layouts: Self.document(documents.load(.layouts)).layouts,
+        assignments: Self.document(documents.load(.assignments)).assignments))
+  }
+
   // MARK: Writes
 
   func setPreferences(_ new: Preferences) {

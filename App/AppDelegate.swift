@@ -39,8 +39,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // Built from the root's own store, Displays and registrar: a second Carbon registrar would install a handler
     // that swallows every 'ZONE' hotkey event before the root's sees it.
     editor = EditorLauncher(
-      documents: root.documents, provider: root.adapters.displays, registrar: root.adapters.hotkeys,
-      preferences: root.state.preferences)
+      documents: root.documents, state: root.state, provider: root.adapters.displays,
+      registrar: root.adapters.hotkeys)
     statusItem = status
     self.onboarding = onboarding
     status.attach(root.menu.menu)
@@ -57,6 +57,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let settingsEnvironment = SettingsEnvironment.live(
       topology: topology, permission: permission, registrar: root.adapters.hotkeys)
     settingsEnvironment.preferences.onChange = { [weak root] in root?.state.setPreferences($0) }
+    // Settings > Layouts reads and writes through the root's AppState, the one owner of Layouts and Assignments.
+    settingsEnvironment.layouts.bind(to: root.state)
     settings = SettingsWindowController(
       topology: topology, cursor: { NSEvent.mouseLocation }, permission: permission,
       tap: { [weak root] in root?.permission.tap ?? .alive }, environment: settingsEnvironment,

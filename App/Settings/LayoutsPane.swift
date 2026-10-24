@@ -60,6 +60,7 @@ struct LayoutsPane: View {
       }
     }
     .formStyle(.grouped)
+    .onAppear { controller.refresh() }
     .sheet(item: $renaming.asIdentifiable) { item in renameSheet(item.id) }
     .sheet(item: $deleting.asIdentifiable) { item in deleteSheet(item.id) }
     .sheet(isPresented: Binding(get: { flow.pendingImport != nil }, set: { if !$0 { controller.cancelImport() } })) {

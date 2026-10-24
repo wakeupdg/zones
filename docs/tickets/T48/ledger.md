@@ -1,0 +1,4 @@
+- slice 1: AppStateOwnershipTests.editorSaveReachesDragContext green — AppState owns Layouts/Assignments (upsertLayout/deleteLayout/replaceDocument/reload); EditorLauncher routes editor load/save/upsert through it via EditorStateHooks
+- slice 2: AppStateOwnershipTests.topologyPersistKeepsEditorAssignment green — red proven with documentChanged stubbed out; editor re-reads AppState's document before each event
+- slice 3: AppStateOwnershipTests.settingsImportReachesMenu green — ImportExportController.bind(to: AppState) adopts the owner's document before and publishes after every Layouts action; LayoutsFlow.adopt; pane refreshes on appear
+- slice 3b: AppStateOwnershipTests.deleteLayoutMovesItsAssignmentsToTheReplacement green — AppState.deleteLayout covered; full swift test (328), AppTests (88), xcodebuild, hygiene 0/0/0

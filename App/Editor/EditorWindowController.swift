@@ -50,7 +50,7 @@ final class EditorWindowController: EditorEffectSink {
 
   /// `store` and `loadDocument` are the app's `DocumentStore` and its current in-memory document;
   /// `documentChanged` receives the document after each write, and `upsertLive` is the live
-  /// `LayoutStore.upsert`. The caller owns all of them; the editor consumes them.
+  /// `AppState.upsertLayout`. `loadDocument` is re-read before every event so a write by another owner is never overwritten. The caller owns all of them; the editor consumes them.
   init(
     topology: @escaping () -> TopologySnapshot?, cursor: @escaping () -> CGPoint, store: DocumentStore,
     loadDocument: @escaping () -> ZonesDocument, documentChanged: @escaping (ZonesDocument) -> Void,
@@ -133,6 +133,9 @@ final class EditorWindowController: EditorEffectSink {
   func send(_ event: EditorEvent) {
     guard let current = state, let router else { return }
     lastMessage = nil
+    // Another writer (a topology pick, Settings) may have moved the owner's document since the last event; an
+    // Assignment write built on a stale copy would erase its change.
+    document = loadDocument()
     let (next, effects) = EditorModel.reduce(current, event, context: (currentTopology(), document))
     state = next
     if next.display != current.display, let snapshot = currentTopology().display(next.display) {

@@ -42,6 +42,10 @@ final class ImportExportController {
   @ObservationIgnored private let panels: FilePanels
   @ObservationIgnored private let attached: () -> Set<String>
   @ObservationIgnored private let now: () -> TimeInterval
+  /// The app's one owner of Layouts and Assignments (`AppState`): read before every action so the flow never
+  /// writes a stale copy, and told after every action so the running app sees the change (QA-2.7).
+  @ObservationIgnored private var source: (() -> ZonesDocument)?
+  @ObservationIgnored private var onChange: ((ZonesDocument) -> Void)?
 
   init(
     flow: LayoutsFlow, fs: any FileSystem, panels: FilePanels = .system,
@@ -54,6 +58,20 @@ final class ImportExportController {
     self.attached = attached
     self.now = now
   }
+
+  /// Makes `state` the owner this controller reads from and writes through.
+  func bind(to state: AppState) {
+    source = { state.document }
+    onChange = { state.replaceDocument($0) }
+    refresh()
+  }
+
+  /// Re-reads the owner's document, for a pane that appears after the editor or a topology pick wrote.
+  func refresh() {
+    if let document = source?() { flow.adopt(document) }
+  }
+
+  private func published() { onChange?(flow.currentDocument) }
 
   /// The production controller: documents from ~/Library/Application Support/Zones.
   static func live(defaults: Insets, topology: @escaping () -> TopologySnapshot?) -> ImportExportController {
@@ -97,6 +115,7 @@ final class ImportExportController {
 
   /// Opens the panel, reads the file and decodes it; a readable file opens the Merge/Replace sheet.
   func startImport() {
+    refresh()
     exportStatus = nil
     guard let url = panels.chooseImport() else { return }
     do {
@@ -111,17 +130,29 @@ final class ImportExportController {
   var replaceBackupName: String? { flow.replaceBackupName(now: now()) }
 
   func applyImport(_ mode: ImportMode) {
+    refresh()
     flow.applyImport(mode, attached: attached(), now: now())
+    published()
   }
 
   // MARK: Layout and Display actions
 
-  func duplicate(_ id: LayoutID) { flow.duplicate(id) }
-  func rename(_ id: LayoutID, to name: String) -> Bool { succeeded(flow.rename(id, to: name)) }
-  func delete(_ id: LayoutID, replacement: LayoutID?) -> Bool { succeeded(flow.delete(id, replacement: replacement)) }
-  func copyAssignment(from key: String, to target: DisplaySnapshot) { flow.copyAssignment(from: key, to: target) }
-  func forget(_ key: String) { flow.forget(key) }
-  func pick(_ layout: LayoutID, for display: DisplaySnapshot) { flow.pick(layout, for: display) }
+  func duplicate(_ id: LayoutID) { act { $0.duplicate(id) } }
+  func rename(_ id: LayoutID, to name: String) -> Bool { succeeded(act { $0.rename(id, to: name) }) }
+  func delete(_ id: LayoutID, replacement: LayoutID?) -> Bool {
+    succeeded(act { $0.delete(id, replacement: replacement) })
+  }
+  func copyAssignment(from key: String, to target: DisplaySnapshot) { act { $0.copyAssignment(from: key, to: target) } }
+  func forget(_ key: String) { act { $0.forget(key) } }
+  func pick(_ layout: LayoutID, for display: DisplaySnapshot) { act { $0.pick(layout, for: display) } }
+
+  /// One Layout or Display action: on the owner's latest document, then published back to it.
+  @discardableResult
+  private func act<T>(_ body: (inout LayoutsFlow) -> T) -> T {
+    refresh()
+    defer { published() }
+    return body(&flow)
+  }
 
   /// Changing the default Margin and Gap regenerates the built-ins (AC-117).
   func setDefaultInsets(_ insets: Insets) { flow.setDefaultInsets(insets) }
