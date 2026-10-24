@@ -1,2 +1,3 @@
 - slice 1: ringBoundedAndSinks green — EventRing (cumulative skipCounts; eviction never decrements), Log facade, UnifiedLogSink; reused ZonesTestSupport ArrayLogSink (T02); no stubs needed, all consumed types exist
 - slice 2: skipReasonsCounted green — Log.skip (instance + static) was already implemented in slice 1, test written after; covers counts per bundle, unknown, message text
+- slice 3: reportNamesSigningIdentity green — BundleInfo.make/current (Security), DiagnosticsReport.render, Diagnostics.report/effects (slice 4 pieces landed early to build the report)

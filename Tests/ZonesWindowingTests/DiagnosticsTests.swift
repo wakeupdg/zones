@@ -77,4 +77,35 @@ import ZonesWindowing
     #expect(shared.events.first?.skip == .systemAgent)
     #expect(Log.shared.ring().skipCounts["com.example.c"]?[.systemAgent] == 1)
   }
+
+  static func emptyReport(_ bundle: BundleInfo) -> DiagnosticsReport {
+    Diagnostics.report(
+      bundle: bundle, permission: .granted, tap: .alive, topology: nil, assignments: [:],
+      prefs: .defaults, ring: EventRing())
+  }
+
+  @Test func reportNamesSigningIdentity() {
+    let os = OperatingSystemVersion(majorVersion: 14, minorVersion: 5, patchVersion: 1)
+    let info: [String: Any] = ["CFBundleShortVersionString": "1.2.3", "CFBundleVersion": "45"]
+    let named = BundleInfo.make(
+      infoDictionary: info, signingCommonName: "Developer ID Application: Example (TEAM123)", osVersion: os)
+    #expect(named.signingIdentity == "Developer ID Application: Example (TEAM123)")
+    #expect(named.version == "1.2.3")
+    #expect(named.build == "45")
+    #expect(named.macOS == "14.5.1")
+    let lines = Self.emptyReport(named).render().split(separator: "\n").map(String.init)
+    #expect(lines.contains("signingIdentity: Developer ID Application: Example (TEAM123)"))
+
+    for name in [nil, ""] as [String?] {
+      let adhoc = BundleInfo.make(infoDictionary: info, signingCommonName: name, osVersion: os)
+      #expect(adhoc.signingIdentity == "ad-hoc")
+      #expect(Self.emptyReport(adhoc).render().split(separator: "\n").contains("signingIdentity: ad-hoc"))
+    }
+
+    let missing = BundleInfo.make(infoDictionary: nil, signingCommonName: nil, osVersion: os)
+    #expect(missing.version == "unknown")
+    #expect(missing.build == "unknown")
+
+    #expect(!BundleInfo.current().signingIdentity.isEmpty)
+  }
 }
