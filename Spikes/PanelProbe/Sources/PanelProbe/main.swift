@@ -1,5 +1,7 @@
 import AppKit
 import ApplicationServices
+import Observation
+import SwiftUI
 import Foundation
 
 // PanelProbe: throwaway spike for T03 (SPK-002, SPK-009, SPK-001). Not part of the Zones packages.
@@ -617,6 +619,63 @@ func frameTimeVerdict(_ s: Stats) -> Bool { s.p99 <= frameBudgetMs && s.shareOve
   }
 }
 
+/// The same load through NSHostingView: 12 zone views plus a highlight view driven by observable state.
+@Observable @MainActor final class OverlayState {
+  var hit: Int?
+}
+
+struct SwiftUIOverlay: View {
+  let state: OverlayState
+  let zones: [CGRect]
+  let size: CGSize
+
+  var body: some View {
+    ZStack(alignment: .topLeading) {
+      ForEach(zones.indices, id: \.self) { i in
+        let z = zones[i]
+        RoundedRectangle(cornerRadius: 8)
+          .fill(Color.blue.opacity(0.25))
+          .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.blue.opacity(0.6), lineWidth: 1))
+          .frame(width: z.width, height: z.height)
+          .opacity(state.hit == i ? 1 : 0.6)
+          .offset(x: z.minX, y: size.height - z.maxY)
+      }
+      if let hit = state.hit {
+        let z = zones[hit]
+        RoundedRectangle(cornerRadius: 8)
+          .fill(Color.blue.opacity(0.55))
+          .frame(width: z.width, height: z.height)
+          .offset(x: z.minX, y: size.height - z.maxY)
+      }
+    }
+    .frame(width: size.width, height: size.height, alignment: .topLeading)
+    .accessibilityHidden(true)
+  }
+}
+
+@MainActor final class SwiftUIRenderer: HighlightRenderer {
+  let name = "SwiftUI"
+  let zones: [CGRect]
+  private let state = OverlayState()
+  private let host: NSHostingView<SwiftUIOverlay>
+
+  init(panel: NSPanel, zones: [CGRect]) {
+    self.zones = zones
+    host = NSHostingView(rootView: SwiftUIOverlay(state: state, zones: zones, size: panel.frame.size))
+    host.frame = NSRect(origin: .zero, size: panel.frame.size)
+    panel.contentView = host
+  }
+
+  func update(at point: CGPoint) { state.hit = hitZone(point, zones: zones) }
+
+  /// SwiftUI applies state on the next layout pass, so the timed path forces layout plus a transaction flush.
+  func commit(flush: Bool) {
+    host.layoutSubtreeIfNeeded()
+    host.displayIfNeeded()
+    CATransaction.flush()
+  }
+}
+
 enum EndPoint: String { case commit, flush }
 
 struct FrameTimeResult {
@@ -744,7 +803,7 @@ let frameTimeHeader = [
   let screen: NSScreen =
     value("--display").flatMap(Int.init).flatMap { screens.indices.contains($0) ? screens[$0] : nil }
     ?? screens.max { $0.maximumFramesPerSecond < $1.maximumFramesPerSecond } ?? NSScreen.main!
-  let variant = value("--variant") ?? "layers"
+  let variant = value("--variant") ?? (args.contains("--synthetic") ? "all" : "layers")
   let endPoint = EndPoint(rawValue: value("--endpoint") ?? "commit") ?? .commit
   report.emit("- load screen: \(screen.localizedName) at \(screen.maximumFramesPerSecond) Hz; events per run: \(events); budget \(String(format: "%.2f", frameBudgetMs)) ms")
 
@@ -756,7 +815,8 @@ let frameTimeHeader = [
       var configs: [(String, EndPoint)] = []
       switch variant {
       case "layers": configs = [("layers", .commit), ("layers", .flush)]
-      default: configs = [("layers", .commit), ("layers", .flush)]
+      case "swiftui": configs = [("swiftui", .flush)]
+      default: configs = [("layers", .commit), ("layers", .flush), ("swiftui", .flush)]
       }
       var drivers: [Double?] = [nil]
       if let hz = value("--timer-hz").flatMap(Double.init) { drivers.append(hz) }
@@ -810,7 +870,7 @@ let frameTimeHeader = [
 }
 
 @MainActor func makeRenderer(_ variant: String, panel: ProbePanel, zones: [CGRect]) -> HighlightRenderer {
-  LayerRenderer(panel: panel, zones: zones)
+  variant == "swiftui" ? SwiftUIRenderer(panel: panel, zones: zones) : LayerRenderer(panel: panel, zones: zones)
 }
 
 @MainActor func selfTest() -> Bool {
@@ -883,6 +943,6 @@ case "--self-test": exit(selfTest() ? 0 : 1)
 case "panel": runPanelMode(Array(args.dropFirst()))
 case "frametime": runFrameTimeMode(Array(args.dropFirst()))
 default:
-  print("usage: PanelProbe --self-test | panel [--synthetic] [--join-all-apps] [--reassert] [--hold] [--label L] [--duration S] | frametime [--synthetic] [--variant layers|swiftui] [--endpoint commit|flush] [--events N] [--display I] | witness")
+  print("usage: PanelProbe --self-test | panel [--synthetic] [--join-all-apps] [--reassert] [--hold] [--label L] [--duration S] | frametime [--synthetic] [--variant layers|swiftui|all] [--endpoint commit|flush] [--events N] [--display I] | witness")
   exit(64)
 }
