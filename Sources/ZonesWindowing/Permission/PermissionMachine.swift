@@ -8,7 +8,15 @@ public enum PermissionMachine {
   public static func reduce(
     _ s: PermissionState, _ e: PermissionEvent, config: PermissionConfig, now: TimeInterval
   ) -> (PermissionState, [PermissionEffect]) {
-    let (next, effects) = step(s, e, config: config, now: now)
+    let (next, effects): (PermissionState, [PermissionEffect])
+    switch e {
+    case .wake: (next, effects) = (s, [.revalidateTap, .probe, .forceTopologySnapshot, .orderPanelsOut])
+    case .quit:
+      (next, effects) = (
+        s, [.cancel(.trustPoll), .cancel(.healthTick), .cancel(.suspectResolve), .cancel(.relaunchGate), .disableTap]
+      )
+    default: (next, effects) = step(s, e, config: config, now: now)
+    }
     guard config.launchedAtLogin else { return (next, effects) }
     // Launched at login: no window effects. The badge and the "Grant Accessibility" item carry the message.
     return (next, effects.filter { $0 != .showOnboarding && $0 != .dismissOnboarding })

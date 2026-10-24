@@ -258,7 +258,7 @@ final class PermissionHarness: Sendable {
       let config = PermissionConfig(launchedAtLogin: false, heartbeatEnabled: true, reducerIdle: true)
       for step in 0..<200 {
         now += g.double(0...4)
-        let event = randomEvent(&g, timers: timers, outstanding: outstanding)
+        let event = randomEvent(&g, state: state, timers: timers, outstanding: outstanding)
         if case .probe(let p) = event { lastProbe = p }
         let (next, fx) = PermissionMachine.reduce(state, event, config: config, now: now)
         let note = Comment(rawValue: "seed \(seed) step \(step) \(state) --\(event)--> \(next) \(fx)")
@@ -288,7 +288,15 @@ final class PermissionHarness: Sendable {
     #expect(entries > 0, "the walk never reached needsRelaunch, so the property proved nothing")
   }
 
-  private static func randomEvent(_ g: inout Generator, timers: [TimerID], outstanding: Int) -> PermissionEvent {
+  private static func randomEvent(
+    _ g: inout Generator, state: PermissionState, timers: [TimerID], outstanding: Int
+  ) -> PermissionEvent {
+    // Most of the time in revoked, push on the relaunch gate so the walk reaches needsRelaunch.
+    if case .revoked = state, g.int(0...9) < 7 {
+      var steer: [PermissionEvent] = [.probe(true), .probe(true), .probe(true), .probe(false)]
+      if outstanding > 0 { steer += [.tapRecreated(false), .tapRecreated(false), .tapRecreated(false), .tapRecreated(true)] }
+      return g.pick(steer + timers.map { .timer($0) })
+    }
     let statuses: [AXStatus] = [.ok, .timedOut, .elementGone, .apiDisabled, .refused(-25200)]
     var pool: [PermissionEvent] = [
       .probe(true), .probe(true), .probe(false), .apiDisabled, .tapNil, .trivialRead(g.pick(statuses)),
@@ -325,5 +333,27 @@ final class PermissionHarness: Sendable {
     h.probe.enqueue(.trusted(true))
     h.clock.advance(by: 1)
     #expect(h.state == .granted)
+  }
+
+  static let everyState: [PermissionState] = [
+    .notGranted, .granted, .suspect(since: 4), .revoked(failures: 0, firstFailure: nil),
+    .revoked(failures: 2, firstFailure: 1), .needsRelaunch,
+  ]
+
+  // AC-024, machine half
+  @Test(arguments: everyState) func wakeEffects(state: PermissionState) {
+    let (next, fx) = PermissionMachine.reduce(
+      state, .wake, config: PermissionConfig(launchedAtLogin: false, heartbeatEnabled: true, reducerIdle: true),
+      now: 9)
+    #expect(next == state)
+    #expect(fx == [.revalidateTap, .probe, .forceTopologySnapshot, .orderPanelsOut])
+  }
+
+  @Test(arguments: everyState) func quitCancelsTimersAndDisablesTap(state: PermissionState) {
+    let (next, fx) = PermissionMachine.reduce(
+      state, .quit, config: PermissionConfig(launchedAtLogin: false, heartbeatEnabled: true, reducerIdle: true),
+      now: 9)
+    #expect(next == state)
+    #expect(fx == [.cancel(.trustPoll), .cancel(.healthTick), .cancel(.suspectResolve), .cancel(.relaunchGate), .disableTap])
   }
 }
