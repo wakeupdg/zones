@@ -421,4 +421,61 @@ final class PermissionHarness: Sendable {
     // Nothing here can reach AppHealth: it is not an input, an output or a state of the machine.
     #expect(health == healthBefore)
   }
+
+  @Test func launchedAtLoginEmitsNoWindowEffects() {
+    func noWindow(_ log: [PermissionEffect], _ note: String) {
+      #expect(!log.contains(.showOnboarding) && !log.contains(.dismissOnboarding), Comment(rawValue: note))
+    }
+
+    // Slice 1: poll, first grant.
+    let grant = PermissionHarness(launchedAtLogin: true)
+    grant.probe.enqueue(.trusted(true))
+    grant.arm(.trustPoll, after: 1)
+    grant.clock.advance(by: 1)
+    #expect(grant.state == .granted)
+    #expect(grant.log.contains(.startTap) && grant.log.contains(.badge(false)))
+    noWindow(grant.log, "grant")
+
+    // Slice 2: suspect -> revoked keeps the badge and the menu item.
+    let lost = PermissionHarness(state: .granted, launchedAtLogin: true)
+    lost.send(.apiDisabled)
+    lost.send(.tapRecreated(false))
+    lost.clock.advance(by: 3)
+    #expect(lost.state == .revoked(failures: 0, firstFailure: nil))
+    #expect(lost.log.contains(.badge(true)) && lost.log.contains(.grantMenuItem(true)))
+    #expect(lost.log.contains(.unregisterWindowHotkeys) && lost.log.contains(.drainEnhancedUI))
+    noWindow(lost.log, "revoked")
+
+    // Slice 3: the relaunch gate and both recoveries.
+    let gate = PermissionHarness(state: .revoked(failures: 0, firstFailure: nil), launchedAtLogin: true)
+    for _ in 1...3 { gate.send(.tapRecreated(false)) }
+    gate.clock.advance(by: 10)
+    #expect(gate.state == .needsRelaunch)
+    #expect(gate.log.contains(.offerRelaunch(true)))
+    gate.send(.tapRecreated(true))
+    #expect(gate.state == .granted)
+    noWindow(gate.log, "gate")
+    let back = PermissionHarness(state: .revoked(failures: 1, firstFailure: 0), launchedAtLogin: true)
+    back.send(.tapRecreated(true))
+    #expect(back.log.contains(.badge(false)) && back.log.contains(.grantMenuItem(false)))
+    noWindow(back.log, "recovery")
+
+    // Re-onboarding and polling from a not-granted state.
+    let again = PermissionHarness(state: .granted, launchedAtLogin: true)
+    again.send(.reonboard)
+    #expect(again.state == .notGranted)
+    noWindow(again.log, "reonboard")
+    for state in [PermissionState.revoked(failures: 0, firstFailure: nil), .needsRelaunch] {
+      let h = PermissionHarness(state: state, launchedAtLogin: true)
+      h.send(.reonboard)
+      noWindow(h.log, "reonboard \(state)")
+    }
+
+    // Slice 5: wake.
+    for state in Self.everyState {
+      let h = PermissionHarness(state: state, launchedAtLogin: true)
+      h.send(.wake)
+      noWindow(h.log, "wake \(state)")
+    }
+  }
 }
