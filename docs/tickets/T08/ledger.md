@@ -1,0 +1,1 @@
+- slice 1: swift build --package-path Spikes/HardwareProbe green — skeleton parses subcommand and prints usage
