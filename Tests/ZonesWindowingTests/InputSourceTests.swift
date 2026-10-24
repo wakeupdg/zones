@@ -126,4 +126,81 @@ import ZonesTestSupport
     #expect(made.withLock { $0 } == 3)
     source.stop()
   }
+
+  // AC-050
+  @Test func otherButtonsFiltered() throws {
+    func mouse(_ type: CGEventType, _ button: CGMouseButton) throws -> CGEvent {
+      try #require(
+        CGEvent(
+          mouseEventSource: nil, mouseType: type, mouseCursorPosition: CGPoint(x: 100, y: 200),
+          mouseButton: button))
+    }
+    func translate(_ type: CGEventType, _ event: CGEvent) -> InputEvent? {
+      EventTapInputSource.translate(type: type, event: event, primaryFrame: Self.primary)
+    }
+
+    for type in [CGEventType.rightMouseDown, .rightMouseDragged, .rightMouseUp] {
+      #expect(translate(type, try mouse(type, .right)) == nil, "\(type)")
+    }
+    for type in [CGEventType.otherMouseDown, .otherMouseDragged, .otherMouseUp] {
+      #expect(translate(type, try mouse(type, .center)) == nil, "\(type)")
+    }
+    for type in [CGEventType.mouseMoved, .keyDown, .scrollWheel, .tapDisabledByTimeout] {
+      #expect(translate(type, try mouse(.leftMouseDown, .left)) == nil, "\(type)")
+    }
+
+    let expected: [(CGEventType, InputKind)] = [
+      (.leftMouseDown, .leftDown), (.leftMouseDragged, .leftDragged), (.leftMouseUp, .leftUp),
+    ]
+    for (type, kind) in expected {
+      let event = try mouse(type, .left)
+      event.flags = [.maskShift, .maskAlphaShift, .maskSecondaryFn, .maskControl]
+      event.timestamp = 5_000_000_000
+      event.setIntegerValueField(.mouseEventWindowUnderMousePointerThatCanHandleThisEvent, value: 4242)
+      let input = try #require(translate(type, event))
+      #expect(input.kind == kind)
+      // CG space has its origin top-left; AppKit's is bottom-left of the primary display.
+      #expect(input.point == CGPoint(x: 100, y: 700))
+      #expect(input.flags == [.shift, .control])
+      #expect(input.windowUnderPointer == WindowID(rawValue: 4242))
+      #expect(input.time == 5.0)
+
+      event.setIntegerValueField(.mouseEventWindowUnderMousePointerThatCanHandleThisEvent, value: 0)
+      #expect(translate(type, event)?.windowUnderPointer == nil)
+    }
+
+    let flagsEvent = try mouse(.leftMouseDown, .left)
+    flagsEvent.flags = [.maskShift, .maskAlphaShift, .maskSecondaryFn]
+    let flagsInput = try #require(translate(.flagsChanged, flagsEvent))
+    #expect(flagsInput.kind == .flagsChanged)
+    #expect(flagsInput.flags == [.shift])
+  }
+
+  /// The callback body: tap-disabled types become signals, mouse events become `InputEvent`s, and the event is
+  /// handed back untouched.
+  @Test func callbackBoxYieldsSignalsAndEvents() async throws {
+    let source = EventTapInputSource(tapMaker: TapMaker { _, _ in nil }, primaryFrame: { Self.primary })
+    let box = source.callbackBox
+    let down = try #require(
+      CGEvent(
+        mouseEventSource: nil, mouseType: .leftMouseDown, mouseCursorPosition: CGPoint(x: 10, y: 20),
+        mouseButton: .left))
+    let right = try #require(
+      CGEvent(
+        mouseEventSource: nil, mouseType: .rightMouseDown, mouseCursorPosition: CGPoint(x: 10, y: 20),
+        mouseButton: .right))
+    box.handle(type: .tapDisabledByTimeout, event: down)
+    box.handle(type: .tapDisabledByUserInput, event: down)
+    box.handle(type: .rightMouseDown, event: right)
+    box.handle(type: .leftMouseDown, event: down)
+
+    var signals = source.signals.makeAsyncIterator()
+    #expect(await signals.next() == .disabledByTimeout)
+    #expect(await signals.next() == .disabledByUserInput)
+    var events = source.events.makeAsyncIterator()
+    let first = await events.next()
+    #expect(first?.kind == .leftDown)
+    #expect(first?.point == CGPoint(x: 10, y: 880))
+    #expect(down.flags == [])  // not modified
+  }
 }

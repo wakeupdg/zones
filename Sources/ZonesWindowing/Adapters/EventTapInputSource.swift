@@ -23,6 +23,41 @@ final class TapCallbackBox: Sendable {
     self.signals = signals
     self.primaryFrame = primaryFrame
   }
+
+  /// The callback body, O(1): turn the event into a value and yield it. Never consumes or modifies `event`, and
+  /// never re-enables the tap here: `TapRecovery` decides, and the driver calls `reenable()` (AC-011).
+  func handle(type: CGEventType, event: CGEvent) {
+    switch type {
+    case .tapDisabledByTimeout: signals.yield(.disabledByTimeout)
+    case .tapDisabledByUserInput: signals.yield(.disabledByUserInput)
+    default:
+      if let input = EventTapInputSource.translate(type: type, event: event, primaryFrame: primaryFrame()) {
+        events.yield(input)
+      }
+    }
+  }
+}
+
+extension TapMaker {
+  /// A session-level tap at the tail of the chain, serviced by `eventTapCallback`.
+  static let live = TapMaker { config, info in
+    CGEvent.tapCreate(
+      tap: .cgSessionEventTap, place: .tailAppendEventTap,
+      options: config.listenOnly ? .listenOnly : .defaultTap,
+      eventsOfInterest: EventTapInputSource.cgEventMask(for: config), callback: eventTapCallback,
+      userInfo: info)
+  }
+}
+
+/// `@convention(c)`: no captures, so state arrives through `userInfo`. Listen-only taps ignore the returned
+/// event, but it is always handed back unretained and unmodified (AC-066).
+private func eventTapCallback(
+  _ proxy: CGEventTapProxy, _ type: CGEventType, _ event: CGEvent, _ info: UnsafeMutableRawPointer?
+) -> Unmanaged<CGEvent>? {
+  if let info {
+    Unmanaged<TapCallbackBox>.fromOpaque(info).takeUnretainedValue().handle(type: type, event: event)
+  }
+  return Unmanaged.passUnretained(event)
 }
 
 /// Production `InputSource` over a listen-only `CGEvent` tap on its own thread (AC-065). The tap never consumes
@@ -35,6 +70,7 @@ public final class EventTapInputSource: InputSource, Sendable {
 
   let tapMaker: TapMaker
   private let box: TapCallbackBox
+  var callbackBox: TapCallbackBox { box }
 
   /// The live tap and the thread that serves it. Present between a successful bring-up and teardown.
   private struct Runtime {
@@ -53,6 +89,11 @@ public final class EventTapInputSource: InputSource, Sendable {
   private let state = OSAllocatedUnfairLock(uncheckedState: State())
   /// Serializes start, stop and recreate so two callers cannot bring up two taps.
   private let lifecycle = OSAllocatedUnfairLock()
+
+  /// `primaryFrame` runs on the tap thread and must be safe to call from any thread.
+  public convenience init(primaryFrame: @escaping @Sendable () -> CGRect) {
+    self.init(tapMaker: .live, primaryFrame: primaryFrame)
+  }
 
   init(
     config: TapConfig = .production, tapMaker: TapMaker, primaryFrame: @escaping @Sendable () -> CGRect
@@ -147,6 +188,28 @@ public final class EventTapInputSource: InputSource, Sendable {
     CFRunLoopStop(runtime.runLoop)
     CFRunLoopWakeUp(runtime.runLoop)
     runtime.finished.wait()
+  }
+
+  // MARK: Translation
+
+  /// Pure. Left down, dragged, up and flagsChanged only: right and other buttons (and anything else) give nil.
+  /// `CGEvent.location` has its origin top-left, which is AX space, so `CoordinateSpace` flips it to AppKit.
+  static func translate(type: CGEventType, event: CGEvent, primaryFrame: CGRect) -> InputEvent? {
+    let kind: InputKind
+    switch type {
+    case .leftMouseDown: kind = .leftDown
+    case .leftMouseDragged: kind = .leftDragged
+    case .leftMouseUp: kind = .leftUp
+    case .flagsChanged: kind = .flagsChanged
+    default: return nil
+    }
+    let point = CoordinateSpace.appKitRect(CGRect(origin: event.location, size: .zero), primaryFrame: primaryFrame)
+      .origin
+    let windowField = event.getIntegerValueField(.mouseEventWindowUnderMousePointerThatCanHandleThisEvent)
+    let window = UInt32(exactly: windowField).flatMap { $0 == 0 ? nil : WindowID(rawValue: $0) }
+    return InputEvent(
+      kind: kind, point: point, flags: ModifierSet.masked(event.flags.rawValue), windowUnderPointer: window,
+      time: Double(event.timestamp) / 1_000_000_000)
   }
 
   // MARK: Mask
