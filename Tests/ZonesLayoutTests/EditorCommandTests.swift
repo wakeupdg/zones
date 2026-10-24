@@ -310,6 +310,69 @@ struct EditorCommandTests {
     #expect(stack.redo.isEmpty)
     #expect(stack.undo == [a])
   }
+
+  /// SPK-015, test-local only: nothing here is in Sources. A pair is a node `A | (B | C)`: a split on `axis` whose
+  /// first child is a leaf A and whose second child is a split on the same axis with a leaf first child B.
+  struct ChainPair {
+    var path: NodePath
+    var axis: SplitAxis
+    var r1: Double
+    var r2: Double
+    var third: SplitNode
+    var merged: Double { r1 + (1 - r1) * r2 }
+    var replacement: SplitNode { .split(axis: axis, ratio: merged, first: .leaf, second: third) }
+  }
+
+  static func chainPairs(_ node: SplitNode, steps: [Bool] = []) -> [ChainPair] {
+    guard case .split(let axis, let r1, let first, let second) = node else { return [] }
+    var out: [ChainPair] = []
+    if first == .leaf, case .split(let axis2, let r2, .leaf, let third) = second, axis2 == axis {
+      out.append(ChainPair(path: NodePath(steps: steps), axis: axis, r1: r1, r2: r2, third: third))
+    }
+    return out + chainPairs(first, steps: steps + [false]) + chainPairs(second, steps: steps + [true])
+  }
+
+  @Test func spk015Formula() {
+    let frame = CGRect(x: 0, y: 0, width: 1920, height: 1080)
+    func resolve(_ l: Layout) -> ResolvedLayout { LayoutMath.resolve(l, key: .uuid("D1"), visibleFrame: frame, scale: 1) }
+    func close(_ a: CGRect, _ b: CGRect) -> Bool {
+      abs(a.minX - b.minX) < 1e-6 && abs(a.minY - b.minY) < 1e-6 && abs(a.width - b.width) < 1e-6
+        && abs(a.height - b.height) < 1e-6
+    }
+    var pairsSeen = 0
+    for layout in Templates.all(insets: zeroInsets) {
+      let before = resolve(layout)
+      for pair in Self.chainPairs(layout.root) {
+        pairsSeen += 1
+        let note = Comment(rawValue: "\(layout.id.rawValue) at \(pair.path.steps)")
+        // Zones A and B are the pair's two leaves: [] + [false] and [] + [true, false]
+        let aPath = NodePath(steps: pair.path.steps + [false])
+        let bPath = NodePath(steps: pair.path.steps + [true, false])
+        guard let a = before.zones.first(where: { $0.path == aPath }),
+          let b = before.zones.first(where: { $0.path == bPath })
+        else {
+          Issue.record(note)
+          continue
+        }
+        var merged = layout
+        merged.root = EditorEngine.replacing(pair.path.steps[...], in: layout.root, with: pair.replacement)
+        let after = resolve(merged)
+        #expect(after.zones.count == before.zones.count - 1, note)
+        #expect(after.zones.contains { close($0.frame, a.frame.union(b.frame)) }, note)
+        var remaining = before.zones.map(\.frame).filter { !close($0, a.frame) && !close($0, b.frame) }
+        var others = after.zones.map(\.frame).filter { !close($0, a.frame.union(b.frame)) }
+        #expect(remaining.count == others.count, note)
+        for f in remaining {
+          if let i = others.firstIndex(where: { close($0, f) }) { others.remove(at: i) } else { Issue.record(note) }
+        }
+        remaining.removeAll()
+        #expect(others.isEmpty, note)
+        // the ratio is the documented closed form, the divider keeps its absolute position
+        #expect(abs(pair.merged - (pair.r1 + (1 - pair.r1) * pair.r2)) < 1e-15)
+      }
+    }
+    #expect(pairsSeen > 0)
+  }
 }
 
 extension EditorDraft {

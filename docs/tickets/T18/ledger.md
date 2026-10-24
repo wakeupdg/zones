@@ -5,3 +5,4 @@
 - slice 5: dividerSnapAndNudge green — setRatio snapping, nudge, snappedRatio; deviation: brief's 0.34->1/3 on a 1000 pt axis is 6.7 pt (no snap), so the test uses a vertical divider (800 pt, 5.3 pt) for it
 - slice 6: templatePicker green — template replacement keeps id/name/insets, rename trims, setMargin/setGap
 - slice 7: undoRedoRoundTrip green — UndoStack (record/undo/redo) and a 6-seed property test of 100 accepted commands each
+- slice 8: spk015Formula green — test-local pair finder over Templates.all; docs/spikes/SPK-015.md written with 12-tree golden table
