@@ -1,0 +1,68 @@
+name: Zones
+options:
+  bundleIdPrefix: dev.zones
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+packages:
+  Zones:
+    path: .
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+targets:
+  Zones:
+    type: application
+    platform: macOS
+    sources:
+      - App
+    dependencies:
+      - package: Zones
+        product: ZonesCore
+      - package: Zones
+        product: ZonesLayout
+      - package: Zones
+        product: ZonesWindowing
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleName: Zones
+        CFBundleDisplayName: Zones
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "1"
+        LSUIElement: true
+        LSMinimumSystemVersion: "14.0"
+    entitlements:
+      path: App/Zones.entitlements
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.zones.Zones
+        ENABLE_HARDENED_RUNTIME: YES
+        SWIFT_STRICT_CONCURRENCY: complete
+        SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: "Zones Dev"
+        ENABLE_APP_SANDBOX: NO
+        ENABLE_DEBUG_DYLIB: NO
+  AppTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - AppTests
+    dependencies:
+      - target: Zones
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.zones.AppTests
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: "Zones Dev"
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  Zones:
+    build:
+      targets:
+        Zones: all
+    test:
+      targets:
+        - AppTests

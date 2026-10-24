@@ -10,9 +10,13 @@ public enum FrameWriteResult: Hashable, Sendable {
 
 public enum AXStatus: Hashable, Sendable { case ok, timedOut, elementGone, apiDisabled, refused(Int32) }
 
-public enum AXRead<T: Hashable & Sendable>: Hashable, Sendable {
+public enum AXRead<T: Sendable>: Sendable {
   case value(T), timedOut, elementGone, apiDisabled, refused(Int32)
 }
+
+// Conditional, so `AXRead<CGRect>` can appear in seam signatures: CGRect is Hashable only from macOS 15.
+extension AXRead: Equatable where T: Equatable {}
+extension AXRead: Hashable where T: Hashable {}
 
 public enum SkipReason: String, Codable, CaseIterable, Sendable {
   // Phase 1
