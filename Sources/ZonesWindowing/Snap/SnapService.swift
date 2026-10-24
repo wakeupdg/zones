@@ -34,7 +34,10 @@ public struct SnapService: Sendable {
     _ plan: SnapPlan, handle: WindowHandle, health: inout AppHealth
   ) -> SnapOutcome {
     switch system.frame(handle) {
-    case .value: break
+    case .value(let current):
+      if FrameWriter.matches(current, plan.target, mode: plan.mode) {
+        return SnapOutcome(result: .noOp(.sameFrame), readBack: current)
+      }
     case .timedOut: return SnapOutcome(result: .timedOut, readBack: nil)
     case .elementGone: return SnapOutcome(result: .elementGone, readBack: nil)
     case .apiDisabled: return SnapOutcome(result: .refused(FrameWriter.apiDisabledCode), readBack: nil)

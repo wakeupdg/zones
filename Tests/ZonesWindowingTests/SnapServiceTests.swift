@@ -76,4 +76,28 @@ import ZonesWindowing
     #expect(outcome.readBack == accepted)
     #expect(outcome.readBack != Self.target)
   }
+
+  /// AC-079: the window is already in the Zone, so nothing is written.
+  @Test @WindowActor func sameZoneIsNoOp() {
+    var rig = Rig()
+    let nearly = Self.target.offsetBy(dx: 0.9, dy: -1.0)
+    rig.script(current: nearly)
+    let outcome = rig.run(rig.plan())
+    #expect(outcome == SnapOutcome(result: .noOp(.sameFrame), readBack: nearly))
+    #expect(rig.ws.calls == [.frame(rig.handle)])
+
+    // Position-only compares the origin and ignores the size.
+    rig.ws.reset()
+    let sameOrigin = CGRect(origin: Self.target.origin, size: CGSize(width: 900, height: 700))
+    rig.script(current: sameOrigin)
+    let positionOnly = rig.run(rig.plan(mode: .positionOnly))
+    #expect(positionOnly.result == .noOp(.sameFrame))
+    #expect(rig.ws.calls == [.frame(rig.handle)])
+
+    // Just past the tolerance is a real move.
+    rig.ws.reset()
+    rig.script(current: Self.target.offsetBy(dx: 1.5, dy: 0), readBack: Self.target)
+    let moved = rig.run(rig.plan())
+    #expect(moved.result == .applied(Self.target))
+  }
 }
