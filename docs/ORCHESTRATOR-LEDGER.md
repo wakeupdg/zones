@@ -16,3 +16,5 @@ One line per completed orchestration step. Read this plus docs/tickets/graph.jso
 - P4 fix run 1 done (wf_513444d8-6fa): T40-T46 merged (47/47 done); hook ~8.48M; Zones relaunched and Accessibility pane opened for the user to re-grant
 - 7:55 AM PT: user reports Accessibility re-granted to Zones (System Settings). Not machine-verifiable here: TCC.db needs Full Disk Access, tccd log lines are redacted. User's instance pid 43679 shows one 640x544 layer-0 window.
 - P4 QA round 2 done (wf_a7535752-7aa): 11 raw, 10 confirmed, 1 dropped; fix tickets T47-T51; hook ~9.37M so no round 3 (10M rule) — after T47-T51 go to Phase 5
+- T52 (CI triggers, ADR-0026, C11, AC-160 amended) built on ticket/T52 by the orchestrator per user decision; merges after the T47-T51 run ends. Repo goes public at release; fallback: public early with a pre-release/buggy README banner
+- P4 fix run 2 done (wf_ece33885-a2e): T47-T51 merged
