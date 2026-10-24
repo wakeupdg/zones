@@ -2,3 +2,4 @@
 - slice 2: WindowActorTests.timeoutsSetAtLaunch green — WindowActor.applyLaunchTimeouts(to:) calls setTimeouts with Constants (WindowActor and WindowHandle already existed from T01)
 - slice 3: AXMappingTests.statusFromAXErrorCode green — AXStatus(axErrorCode:) and AXRead.failure(axErrorCode:) in Adapters/AXWindowSystem.swift
 - slice 4: AXMappingTests.subroleMapping green — Subrole(axSubrole:axRole:) in Adapters/AXWindowSystem.swift
+- slice 5: AXMappingTests.coordinateRoundTrip green — AXGeometry.ax/appKit wrap CoordinateSpace (only callers); 200 seeded rects x 2 primaries round-trip

@@ -55,3 +55,14 @@ extension Subrole {
     }
   }
 }
+
+/// The only callers of `CoordinateSpace.axRect` / `appKitRect` outside tests (AC-164).
+enum AXGeometry {
+  static func ax(_ appKit: CGRect, primaryFrame: CGRect) -> CGRect {
+    CoordinateSpace.axRect(appKit, primaryFrame: primaryFrame)
+  }
+
+  static func appKit(_ ax: CGRect, primaryFrame: CGRect) -> CGRect {
+    CoordinateSpace.appKitRect(ax, primaryFrame: primaryFrame)
+  }
+}
