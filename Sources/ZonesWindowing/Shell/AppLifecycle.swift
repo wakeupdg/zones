@@ -5,4 +5,9 @@ public enum AppLifecycle {
   public static func quitEffects() -> [LifecycleEffect] {
     [.disableTap, .invalidateTap, .orderPanelsOut, .drainEnhancedUI, .removeRecoveryRecord]
   }
+
+  /// Wake from sleep: re-validate the tap, probe permission, rebuild the topology, hide stale panels.
+  public static func wakeEffects() -> [LifecycleEffect] {
+    [.revalidateTap, .probe, .forceTopologySnapshot, .orderPanelsOut]
+  }
 }
