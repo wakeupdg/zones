@@ -11,6 +11,8 @@ settings:
   base:
     SWIFT_VERSION: "6.0"
     MACOSX_DEPLOYMENT_TARGET: "14.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
 targets:
   Zones:
     type: application
@@ -40,8 +42,6 @@ targets:
         CURRENT_PROJECT_VERSION: "1"
         CODE_SIGN_ENTITLEMENTS: App/Zones.entitlements
         ENABLE_HARDENED_RUNTIME: YES
-        SWIFT_STRICT_CONCURRENCY: complete
-        SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
         CODE_SIGN_STYLE: Manual
         CODE_SIGN_IDENTITY: "Zones Dev"
         ENABLE_APP_SANDBOX: NO
@@ -67,8 +67,6 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.zones.AppTests
-        SWIFT_STRICT_CONCURRENCY: complete
-        SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
         CODE_SIGN_STYLE: Manual
         CODE_SIGN_IDENTITY: "Zones Dev"
         GENERATE_INFOPLIST_FILE: YES
