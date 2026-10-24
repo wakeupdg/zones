@@ -87,3 +87,10 @@ final class Harness {
 
   func makeRoot() -> CompositionRoot { CompositionRoot(adapters: adapters) }
 }
+
+/// Polls (yielding to the main actor) until `condition` holds or a second has passed.
+@MainActor
+func waitUntil(_ condition: @MainActor () -> Bool) async {
+  let deadline = Date().addingTimeInterval(1)
+  while !condition(), Date() < deadline { try? await Task.sleep(nanoseconds: 1_000_000) }
+}
