@@ -3,3 +3,4 @@
 - slice 3: candidateTableBatchedRead green — T16 already issues one requestSample(ids) in z-order from the first dragged; test pins it; fixtures: sample() now carries standard WindowFacts by default
 - slice 4: candidateTableFirstMoverWins green — T16 loop already resolved the first z-order mover with its own downFrame; test pins it (no code change)
 - slice 5: candidateTableTwoMoversSettle green — new CandidateTick.classify (CandidateResolution.swift); frameSample: one mover wins, 2+ movers on returned sample >= settleSamples -> idle+skip(ambiguousMatch); `samples` stays "requests issued" = number of the returned sample; timeout/gone handling landed here too (slice 6 test pins it)
+- slice 6: candidateTableTimeoutRetry green — behavior landed in slice 5 helper; test pins retry-once (retried never reset), gone dropped, empty -> idle. AC-057 manual (four identical terminals, SPK-008): candidate path implemented, no test

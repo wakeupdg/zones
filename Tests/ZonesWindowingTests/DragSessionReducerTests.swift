@@ -167,6 +167,52 @@ import ZonesWindowing
     #expect(thirdFx == [.stopSampling, .skip(.ambiguousMatch, nil)])
   }
 
+  @Test func candidateTableTimeoutRetry() {
+    let (state, refs) = Self.stackedPressed(2)
+    let ids = refs.map(\.id)
+
+    // First timeout: one retry, still pressed.
+    let (retry, fx1) = DragSessionReducer.reduce(state, Self.tick([1: Self.stayed, 2: .timedOut]))
+    guard case .pressed(_, _, _, _, _, let n1, let r1) = retry else {
+      Issue.record("not pressed: \(retry)")
+      return
+    }
+    #expect(r1)
+    #expect(n1 == 2)
+    #expect(fx1 == [.requestSample(ids)])
+
+    // A clean tick in between does not reset `retried`; the next timeout gives up.
+    let (clean, cleanFx) = DragSessionReducer.reduce(retry, Self.tick([1: Self.stayed, 2: Self.stayed]))
+    #expect(cleanFx == [.requestSample(ids)])
+    if case .pressed(_, _, _, _, _, _, let r) = clean { #expect(r) } else { Issue.record("not pressed") }
+    let (idle, fx2) = DragSessionReducer.reduce(clean, Self.tick([1: .timedOut, 2: .timedOut]))
+    #expect(idle == .idle)
+    #expect(fx2 == [.stopSampling, .skip(.unresponsive, refs[0])])
+
+    // Immediately on the second tick as well.
+    let (idle2, fx3) = DragSessionReducer.reduce(retry, Self.tick([2: .timedOut]))
+    #expect(idle2 == .idle)
+    #expect(fx3 == [.stopSampling, .skip(.unresponsive, refs[1])])
+
+    // A mover wins over a timeout in the same tick.
+    let (win, _) = DragSessionReducer.reduce(retry, Self.tick([1: .timedOut, 2: Self.shifted]))
+    #expect(F.isMoving(win))
+
+    // Gone candidates are dropped from the list; the rest keep being read.
+    let (dropped, droppedFx) = DragSessionReducer.reduce(state, Self.tick([1: .gone, 2: Self.stayed]))
+    #expect(droppedFx == [.requestSample([refs[1].id])])
+    if case .pressed(let left, _, let frames, _, _, _, _) = dropped {
+      #expect(left == [refs[1]])
+      #expect(Set(frames.keys) == [refs[1].id])
+    } else {
+      Issue.record("not pressed")
+    }
+    // None left: idle.
+    let (empty, emptyFx) = DragSessionReducer.reduce(state, Self.tick([1: .gone, 2: .gone]))
+    #expect(empty == .idle)
+    #expect(emptyFx == [.stopSampling])
+  }
+
   @Test func ignoresSecondMouseDownCore() {
     let (pressed, _) = DragSessionReducer.reduce(.idle, F.mouseDown())
     let (s, fx) = DragSessionReducer.reduce(
