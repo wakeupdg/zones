@@ -297,6 +297,67 @@ import ZonesWindowing
     #expect(overFx == [.updateHighlight(Highlight(display: nil, primary: [], secondary: [], dimAll: true))])
   }
 
+  @Test func straddlingWindowSnapsOnCursorDisplay() throws {
+    // A is the primary (0..1920), B the 2x display to its left (-1440..0): different Layouts on each.
+    var context = F.context(displays: [0, 1])
+    let a = F.topology.displays[0].key
+    let b = F.topology.displays[1].key
+    var twoColumns = Fixtures.nineZone
+    twoColumns.id = LayoutID(rawValue: "test:two-columns")
+    twoColumns.root = .split(axis: .vertical, ratio: 0.5, first: .leaf, second: .leaf)
+    context.layouts[b] = LayoutMath.resolve(twoColumns, display: F.topology.displays[1])
+    let layoutA = try #require(context.layouts[a])
+    let layoutB = try #require(context.layouts[b])
+    #expect(layoutA.zones.count != layoutB.zones.count)
+
+    // Window frame spans the seam at x = 0 with most of its area on A.
+    let w = F.ref(1, frame: CGRect(x: -300, y: 200, width: 1200, height: 300))
+    func drop(at cursor: CGPoint) -> (armed: DragState, step: [DragEffect]) {
+      let r = F.run(
+        [F.mouseDown(flags: .shift, candidates: [w], point: CGPoint(x: 100, y: 300)), F.dragged(cursor),
+         F.sample(w.frame.offsetBy(dx: 30, dy: 10))],
+        context: context)
+      return (r.state, DragSessionReducer.reduce(r.state, .mouseUp(point: cursor, flags: .shift)).1)
+    }
+
+    let onB = CGPoint(x: -1000, y: 300)
+    let (armedB, stepB) = drop(at: onB)
+    guard case .armed(_, _, _, _, _, let displayB, let hitB, _) = armedB else {
+      Issue.record("not armed: \(armedB)")
+      return
+    }
+    #expect(displayB == b)
+    #expect(hitB == HitTest.hit(onB, in: layoutB))
+    guard case .snap(let planB)? = stepB.last else {
+      Issue.record("no snap in \(stepB)")
+      return
+    }
+    #expect(planB.display == b)
+    #expect(planB.window == w)
+    #expect(layoutB.visibleFrame.contains(planB.target))
+    #expect(planB.target == Span.rect(planB.zones, in: layoutB))
+    #expect(planB.zones.count == 1)
+    let zoneRect = try #require(layoutB.zones.first { planB.zones.contains($0.number) }).frame
+    #expect(planB.target == zoneRect)
+
+    // The same window with the cursor on A: the choice follows the cursor, not the window.
+    let onA = CGPoint(x: 300, y: 300)
+    let (armedA, stepA) = drop(at: onA)
+    guard case .armed(_, _, _, _, _, let displayA, let hitA, _) = armedA else {
+      Issue.record("not armed: \(armedA)")
+      return
+    }
+    #expect(displayA == a)
+    #expect(hitA == HitTest.hit(onA, in: layoutA))
+    guard case .snap(let planA)? = stepA.last else {
+      Issue.record("no snap in \(stepA)")
+      return
+    }
+    #expect(planA.display == a)
+    #expect(layoutA.visibleFrame.contains(planA.target))
+    #expect(planA.target != planB.target)
+  }
+
   @Test func ignoresSecondMouseDownCore() {
     let (pressed, _) = DragSessionReducer.reduce(.idle, F.mouseDown())
     let (s, fx) = DragSessionReducer.reduce(
