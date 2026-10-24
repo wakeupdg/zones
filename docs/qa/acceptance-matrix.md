@@ -1,19 +1,19 @@
 # Acceptance matrix (Zones 0.1.0, 2026-10-24)
 
-Source: QA round 1 (all auto ACs walked) and QA round 2 (11 re-walked after fixes). Auto: 139; pass 139; fail 0; fixed-after-fail or not walked 0. Manual: 30 (listed for a human; never marked pass).
+Source: QA round 1 (all auto ACs walked) and QA round 2 (11 re-walked after fixes). Auto: 139; pass 139; fail 0; fixed-after-fail or not walked 0. Manual: 30 (never marked pass by an agent). Human run 2026-10-24: 4 pass (AC-004, AC-010, AC-057, AC-066); 26 still need a human run.
 
 | AC | kind | title | tickets | result |
 |---|---|---|---|---|
 | AC-001 | auto | Menu-bar only | T01b | pass (QA round 1) |
 | AC-002 | auto | Hardened runtime, no sandbox | T38 | pass (QA round 1) |
 | AC-003 | auto | Only Accessibility, no private symbols | T38 | pass (QA round 1) |
-| AC-004 | manual | Onboarding window | T33,T40 | manual — needs a human run |
+| AC-004 | manual | Onboarding window | T33,T40 | pass (human run 2026-10-24, macOS 27.0.1) |
 | AC-005 | manual | Grant noticed without relaunch | T33 | manual — needs a human run |
 | AC-006 | auto | Poll schedule per permission state | T20 | pass (QA round 1) |
 | AC-007 | auto | Revocation via runtime signals | T20 | pass (QA round 1) |
 | AC-008 | auto | Relaunch gate | T20 | pass (QA round 1) |
 | AC-009 | manual | Revocation on a real Mac | T20 | manual — needs a human run |
-| AC-010 | manual | Re-grant recovery | T20,T40 | manual — needs a human run |
+| AC-010 | manual | Re-grant recovery | T20,T40 | pass (human run 2026-10-24, macOS 27.0.1) |
 | AC-011 | auto | Tap re-enable rate limit | T23 | pass (QA round 1) |
 | AC-012 | auto | Launched-at-login path | T29,T41 | pass (QA round 2) |
 | AC-013 | auto | Stable dev signing | T38 | pass (QA round 1) |
@@ -60,7 +60,7 @@ Source: QA round 1 (all auto ACs walked) and QA round 2 (11 re-walked after fixe
 | AC-054 | auto | Window gone mid-drag | T16 | pass (QA round 1) |
 | AC-055 | auto | Pause keeps the press | T16 | pass (QA round 1) |
 | AC-056 | auto | Candidate resolution | T21 | pass (QA round 1) |
-| AC-057 | manual | Four identical terminals | T21 | manual — needs a human run |
+| AC-057 | manual | Four identical terminals | T21 | pass (human run 2026-10-24, macOS 27.0.1) |
 | AC-058 | auto | Accessibility settings in the model | T31 | pass (QA round 1) |
 | AC-059 | auto | Zones inside the visible frame | T26 | pass (QA round 1) |
 | AC-060 | auto | Topology change mid-session | T21 | pass (QA round 1) |
@@ -69,7 +69,7 @@ Source: QA round 1 (all auto ACs walked) and QA round 2 (11 re-walked after fixe
 | AC-063 | auto | Label model | T26 | pass (QA round 1) |
 | AC-064 | manual | Accessibility on screen | T31 | manual — needs a human run |
 | AC-065 | auto | Listen-only tap configuration | T23 | pass (QA round 1) |
-| AC-066 | manual | Modifier never consumed | T23 | manual — needs a human run |
+| AC-066 | manual | Modifier never consumed | T23 | pass (human run 2026-10-24, macOS 27.0.1) |
 | AC-067 | auto | Excluded at phase 1 | T21 | pass (QA round 1) |
 | AC-068 | auto | Overlay and Snap share one geometry | T09 | pass (QA round 1) |
 | AC-069 | auto | Divider rounding | T09 | pass (QA round 1) |
