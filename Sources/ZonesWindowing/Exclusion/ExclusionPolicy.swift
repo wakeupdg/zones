@@ -23,4 +23,19 @@ public enum ExclusionPolicy {
     if health.isUnresponsive(ref.pid, now: now) { return .skip(.unresponsive) }
     return .allow(.full)
   }
+
+  /// Order: sheet or popover, system dialog, other non-standard subroles, full screen, position not
+  /// settable, then size not settable (position-only Snap, ADR-0018 amendment C4).
+  public static func phaseTwo(_ facts: WindowFacts) -> Verdict {
+    switch facts.subrole {
+    case .sheet, .popover: return .skip(.sheetOrPopover)
+    case .systemDialog, .systemFloatingWindow: return .skip(.systemDialog)
+    case .dialog, .floating, .unknown: return .skip(.nonStandardSubrole)
+    case .standard: break
+    }
+    if facts.isFullScreen { return .skip(.fullScreen) }
+    if !facts.positionSettable { return .skip(.positionNotSettable) }
+    if !facts.sizeSettable { return .allow(.positionOnly) }
+    return .allow(.full)
+  }
 }

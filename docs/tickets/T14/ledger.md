@@ -2,3 +2,4 @@
 - Note for resume: AC-144 is manual (Save sheet, popover and Zones Settings show no Overlay on Shift-drag; Calculator snaps position-only at the Zone's top-left); needs a human run, no test.
 - RESOLVED by orchestrator (run 2 end): T15 merged AppHealth.swift with markUnresponsive/isUnresponsive/consumeRetry; T15 added to blocked_by; ticket reset to todo for run 3.
 - slice 1: ExclusionPolicyTests.table (phase one) green — ExclusionPolicy.systemAgents and phaseOne
+- slice 2: ExclusionPolicyTests.table (phase two, reason coverage) green — ExclusionPolicy.phaseTwo

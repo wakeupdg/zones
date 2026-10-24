@@ -44,6 +44,38 @@ import ZonesWindowing
     ]
   }
 
+  struct PhaseTwoRow: Sendable {
+    var name: String
+    var facts: WindowFacts
+    var expected: Verdict
+  }
+
+  static func facts(
+    _ subrole: Subrole = .standard, fullScreen: Bool = false, position: Bool = true,
+    size: Bool = true
+  ) -> WindowFacts {
+    WindowFacts(
+      subrole: subrole, isFullScreen: fullScreen, positionSettable: position, sizeSettable: size)
+  }
+
+  static var phaseTwoRows: [PhaseTwoRow] {
+    [
+      PhaseTwoRow(name: "nonStandardSubrole dialog", facts: facts(.dialog), expected: .skip(.nonStandardSubrole)),
+      PhaseTwoRow(name: "nonStandardSubrole floating", facts: facts(.floating), expected: .skip(.nonStandardSubrole)),
+      PhaseTwoRow(name: "nonStandardSubrole unknown", facts: facts(.unknown), expected: .skip(.nonStandardSubrole)),
+      PhaseTwoRow(name: "sheetOrPopover sheet", facts: facts(.sheet), expected: .skip(.sheetOrPopover)),
+      PhaseTwoRow(name: "sheetOrPopover popover", facts: facts(.popover), expected: .skip(.sheetOrPopover)),
+      PhaseTwoRow(name: "systemDialog", facts: facts(.systemDialog), expected: .skip(.systemDialog)),
+      PhaseTwoRow(
+        name: "systemDialog floating", facts: facts(.systemFloatingWindow), expected: .skip(.systemDialog)),
+      PhaseTwoRow(name: "fullScreen", facts: facts(fullScreen: true), expected: .skip(.fullScreen)),
+      PhaseTwoRow(
+        name: "positionNotSettable", facts: facts(position: false), expected: .skip(.positionNotSettable)),
+      PhaseTwoRow(name: "positionOnly", facts: facts(size: false), expected: .allow(.positionOnly)),
+      PhaseTwoRow(name: "allow", facts: facts(), expected: .allow(.full)),
+    ]
+  }
+
   /// AC-143
   @Test func table() {
     var phaseOneSkips: [SkipReason] = []
@@ -64,5 +96,19 @@ import ZonesWindowing
         Self.ref(bundle: id), ownPid: 1, exclusions: [], health: AppHealth(), now: 0)
       #expect(got == .skip(.systemAgent), "\(id)")
     }
+
+    var phaseTwoSkips: [SkipReason] = []
+    for row in Self.phaseTwoRows {
+      let got = ExclusionPolicy.phaseTwo(row.facts)
+      #expect(got == row.expected, "phase two row \(row.name)")
+      if case .skip(let reason) = row.expected, !phaseTwoSkips.contains(reason) {
+        phaseTwoSkips.append(reason)
+      }
+    }
+    // every reason the policy can produce is covered; a future SkipReason fails here
+    #expect(
+      Set(phaseOneSkips).union(phaseTwoSkips)
+        == Set(SkipReason.allCases).subtracting([.ambiguousMatch]))
+    #expect(Set(phaseOneSkips).isDisjoint(with: phaseTwoSkips))
   }
 }
