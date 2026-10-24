@@ -88,7 +88,9 @@ final class EditorToolbarView: NSVisualEffectView {
 
     displayPopup.target = self
     displayPopup.action = #selector(displayPicked)
+    // AppKit exposes the cell, not the control, so the label must be set on the cell to reach VoiceOver.
     displayPopup.setAccessibilityLabel("Display")
+    displayPopup.cell?.setAccessibilityLabel("Display")
 
     templatePopup.addItem(withTitle: "Template")
     for (index, choice) in EditorToolbarModel.templateChoices.enumerated() {
@@ -110,6 +112,8 @@ final class EditorToolbarView: NSVisualEffectView {
     gapSlider.action = #selector(gapMoved)
     marginSlider.setAccessibilityLabel("Margin")
     gapSlider.setAccessibilityLabel("Gap")
+    marginSlider.cell?.setAccessibilityLabel("Margin")
+    gapSlider.cell?.setAccessibilityLabel("Gap")
 
     let assign = NSButton(title: "Assign", target: self, action: #selector(assignPressed))
     let save = NSButton(title: "Save", target: self, action: #selector(savePressed))

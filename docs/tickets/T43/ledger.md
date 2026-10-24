@@ -1,0 +1,1 @@
+- slice 1: EditorAccessibilityTests.toolbarControlsLabelled green — Display/Margin/Gap labels set on the popup and slider cells
