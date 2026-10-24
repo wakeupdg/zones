@@ -1,1 +1,2 @@
 - slice 1: GateScriptTests.realSourcesHaveAXImportsOnlyInAdapters green — WindowHandle is opaque in Seams (AnyObject box); AXUIElement init/accessor moved to Adapters/WindowHandle+AX.swift; full swift test otherwise green
+- slice 2: GateScriptTests.sourcesAXImportOutsideAdaptersFails green — hygiene-gate scans Sources outside Adapters/ and prints sources-ax-imports: N only when N>0 (clean output stays the three AC-162 lines)

@@ -115,6 +115,34 @@ func write(_ text: String, to url: URL) throws {
     #expect(result.status == 0)
   }
 
+  @Test func sourcesAXImportOutsideAdaptersFails() throws {
+    let result = try hygiene(
+      "import ApplicationServices\n", file: "Sources/ZonesWindowing/Seams/X.swift")
+    #expect(result.stdout == Self.zeroLines + "sources-ax-imports: 1\n")
+    #expect(result.status == 1)
+  }
+
+  @Test func sourcesAXImportInAdaptersIsAllowed() throws {
+    let result = try hygiene(
+      "import ApplicationServices\n", file: "Sources/ZonesWindowing/Adapters/X.swift")
+    #expect(result.stdout == Self.zeroLines)
+    #expect(result.status == 0)
+  }
+
+  @Test func realSourcesHaveAXImportsOnlyInAdapters() throws {
+    let sources = repoRoot().appendingPathComponent("Sources")
+    let walker = try #require(FileManager.default.enumerator(at: sources, includingPropertiesForKeys: nil))
+    var offenders: [String] = []
+    for case let url as URL in walker where url.pathExtension == "swift" {
+      let text = try String(contentsOf: url, encoding: .utf8)
+      let hasImport = text.split(separator: "\n").contains {
+        $0.trimmingCharacters(in: .whitespaces).hasPrefix("import ApplicationServices")
+      }
+      if hasImport && !url.path.contains("/Adapters/") { offenders.append(url.path) }
+    }
+    #expect(offenders.isEmpty, "\(offenders)")
+  }
+
   @Test func hygieneMissingAppDirExitsTwo() throws {
     let dir = try makeScratchDir()
     defer { try? FileManager.default.removeItem(at: dir) }

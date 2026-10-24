@@ -2,7 +2,10 @@
 # hygiene-gate.sh — AC-162. Scans ROOT/App/**/*.swift (default: repo root) and prints
 #   unsafe-ops: N / ax-imports: N / cgwindowlist-uses: N
 # Exit 1 if any count is non-zero, 2 when ROOT/App is missing.
-# Sources/ZonesWindowing/Adapters and Seams are never scanned: that is the exemption.
+# Sources/ZonesWindowing/Adapters is never scanned: that is the exemption.
+# Second scan (QA-2.9): `import ApplicationServices` anywhere under ROOT/Sources outside an Adapters/
+# directory also fails. It adds a fourth line, `sources-ax-imports: N`, only when N > 0, so the
+# clean output stays exactly the three lines AC-162 specifies.
 # Lines are counted strictly, comments included. A line with the zones:allow marker is exempt
 # from the unsafe-ops class only.
 set -euo pipefail
@@ -30,8 +33,17 @@ count() { # count <grep -E pattern> [exclude-marker]
 unsafe=$(count 'try!|(^|[^A-Za-z0-9_])as!|fatalError\(' 'zones:allow')
 ax=$(count '^[[:space:]]*import[[:space:]]+ApplicationServices')
 cgw=$(count 'CGWindowList')
+
+src_ax=0
+if [ -d "$root/Sources" ]; then
+  while IFS= read -r f; do
+    n=$({ grep -E '^[[:space:]]*(@preconcurrency[[:space:]]+)?import[[:space:]]+ApplicationServices' "$f" || true; } | wc -l | tr -d ' ')
+    src_ax=$((src_ax + n))
+  done < <(find "$root/Sources" -type f -name '*.swift' -not -path '*/Adapters/*' | sort)
+fi
 echo "unsafe-ops: $unsafe"
 echo "ax-imports: $ax"
 echo "cgwindowlist-uses: $cgw"
-if [ "$unsafe" -gt 0 ] || [ "$ax" -gt 0 ] || [ "$cgw" -gt 0 ]; then exit 1; fi
+if [ "$src_ax" -gt 0 ]; then echo "sources-ax-imports: $src_ax"; fi
+if [ "$unsafe" -gt 0 ] || [ "$ax" -gt 0 ] || [ "$cgw" -gt 0 ] || [ "$src_ax" -gt 0 ]; then exit 1; fi
 exit 0
