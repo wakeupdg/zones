@@ -369,4 +369,61 @@ import ZonesWindowing
     #expect(!probe.launchedAtLogin)
     #expect(!probe.isTrusted())
   }
+
+  @Test func fileSystem() throws {
+    let clock = FakeClock()
+    let fs = FakeFileSystem(clock: clock)
+    let a = URL(fileURLWithPath: "/fake/a.json")
+    let b = URL(fileURLWithPath: "/fake/b.json")
+
+    // Round trip, exists, move, remove; each call is logged.
+    #expect(!fs.exists(a))
+    try fs.writeAtomic(Data("one".utf8), to: a)
+    #expect(fs.exists(a))
+    #expect(try fs.read(a) == Data("one".utf8))
+    try fs.move(a, to: b)
+    #expect(!fs.exists(a))
+    #expect(try fs.read(b) == Data("one".utf8))
+    try fs.remove(b)
+    #expect(!fs.exists(b))
+    #expect(throws: FakeFileSystemError.notFound(b)) { try fs.read(b) }
+    #expect(throws: FakeFileSystemError.notFound(a)) { try fs.move(a, to: b) }
+    #expect(throws: FakeFileSystemError.notFound(b)) { try fs.remove(b) }
+    #expect(
+      fs.calls == [
+        .exists(a), .writeAtomic(a, byteCount: 3), .exists(a), .read(a), .move(a, to: b), .exists(a),
+        .read(b), .remove(b), .exists(b), .read(b), .move(a, to: b), .remove(b),
+      ])
+
+    // A scripted error fails the next call, once.
+    fs.reset()
+    fs.enqueue(.error(.diskFull))
+    #expect(throws: FakeFileSystemError.diskFull) { try fs.writeAtomic(Data("x".utf8), to: a) }
+    #expect(!fs.exists(a))
+    try fs.writeAtomic(Data("x".utf8), to: a)
+
+    // failAfterBytes: 8 bytes fit, the next 5-byte write is refused and the old content survives.
+    let tight = FakeFileSystem(failAfterBytes: 10, clock: clock)
+    let eight = Data("12345678".utf8)
+    try tight.writeAtomic(eight, to: a)
+    #expect(throws: FakeFileSystemError.diskFull) { try tight.writeAtomic(Data("abcde".utf8), to: a) }
+    #expect(try tight.read(a) == eight)
+    #expect(tight.calls.contains(.writeAtomic(a, byteCount: 5)))
+
+    // reset() clears files, the byte counter and the log, so the disk has room again.
+    tight.reset()
+    #expect(tight.calls.isEmpty)
+    #expect(!tight.exists(a))
+    try tight.writeAtomic(Data("abcde".utf8), to: a)
+    #expect(try tight.read(a) == Data("abcde".utf8))
+
+    // Latency 2 completes at the second advance(by: 1).
+    fs.reset()
+    fs.latency = 2
+    _ = fs.exists(a)
+    clock.advance(by: 1)
+    #expect(fs.completed.isEmpty)
+    clock.advance(by: 1)
+    #expect(fs.completed == [.exists(a)])
+  }
 }
