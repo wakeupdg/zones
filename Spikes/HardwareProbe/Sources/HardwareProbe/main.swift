@@ -1,4 +1,5 @@
 import AppKit
+import Carbon.HIToolbox
 import ApplicationServices
 import ColorSync
 import Foundation
@@ -25,7 +26,7 @@ let usage = """
 
   login      [status|register|unregister|open-settings]   SPK-011
   displays                                                SPK-012
-  hotkey     [--activate|--no-activate]                   SPK-014
+  hotkey     [--activate|--no-activate] [--simulate] [--exit-after S]  SPK-014
   sleepwake                                               SPK-018
   post-wake                                               SPK-018 (re-print state)
   """
@@ -192,6 +193,148 @@ func runDisplays() -> Int32 {
   return 0
 }
 
+// MARK: hotkey (SPK-014)
+
+/// Mirrors CONTRACTS `HotkeyRegistration`.
+enum HotkeyRegistration { case registered, inUse, invalid }
+
+/// A plain titled window that echoes typed characters, so "typing lands" is observable.
+final class ProbeWindow: NSWindow {
+  var typed = ""
+  var onType: ((String) -> Void)?
+  override var canBecomeKey: Bool { true }
+  override func keyDown(with event: NSEvent) {
+    let chars = event.characters ?? ""
+    typed += chars
+    onType?(typed)
+    log("hotkey keyDown reached window: chars=\"\(chars)\" typed=\"\(typed)\"")
+  }
+}
+
+@MainActor
+final class HotkeyProbe {
+  static let shared = HotkeyProbe()
+  var activateFirst = true
+  var window: ProbeWindow?
+  var label: NSTextField?
+  var presses = 0
+  var hotKeyRef: EventHotKeyRef?
+
+  func register() -> HotkeyRegistration {
+    var spec = EventTypeSpec(
+      eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
+    let installStatus = InstallEventHandler(
+      GetApplicationEventTarget(),
+      { _, _, _ in
+        MainActor.assumeIsolated { HotkeyProbe.shared.handlerFired() }
+        return noErr
+      }, 1, &spec, nil, nil)
+    guard installStatus == noErr else {
+      log("hotkey InstallEventHandler failed: \(installStatus)")
+      return .invalid
+    }
+    let id = EventHotKeyID(signature: OSType(0x5A4F4E45), id: 1)  // 'ZONE'
+    let status = RegisterEventHotKey(
+      UInt32(kVK_ANSI_Comma), UInt32(controlKey | optionKey), id,
+      GetApplicationEventTarget(), 0, &hotKeyRef)
+    switch status {
+    case noErr: return .registered
+    case OSStatus(eventHotKeyExistsErr): return .inUse
+    default:
+      log("hotkey RegisterEventHotKey status=\(status)")
+      return .invalid
+    }
+  }
+
+  func snapshot(_ label: String) {
+    let w = window
+    let front = NSWorkspace.shared.frontmostApplication?.localizedName ?? "nil"
+    log(
+      "hotkey[\(label)] isVisible=\(w?.isVisible ?? false) isKeyWindow=\(w?.isKeyWindow ?? false) isMainWindow=\(w?.isMainWindow ?? false) NSApp.isActive=\(NSApp.isActive) frontmost=\"\(front)\" onActiveSpace=\(w?.isOnActiveSpace ?? false)"
+    )
+  }
+
+  func handlerFired() {
+    presses += 1
+    let front = NSWorkspace.shared.frontmostApplication?.localizedName ?? "nil"
+    log("hotkey PRESS #\(presses) in handler; frontmost-before=\"\(front)\" mode=\(activateFirst ? "--activate" : "--no-activate")")
+    if window == nil { makeWindow() }
+    guard let w = window else { return }
+    w.typed = ""
+    label?.stringValue = "type here (mode \(activateFirst ? "activate" : "no-activate"))"
+    if activateFirst { NSApp.activate() }
+    w.orderFrontRegardless()
+    snapshot("immediately after orderFront")
+    for (ms, name) in [(150, "+150ms"), (600, "+600ms")] {
+      DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(ms)) {
+        MainActor.assumeIsolated { HotkeyProbe.shared.snapshot(name) }
+      }
+    }
+  }
+
+  func makeWindow() {
+    let w = ProbeWindow(
+      contentRect: NSRect(x: 200, y: 400, width: 420, height: 140),
+      styleMask: [.titled, .closable], backing: .buffered, defer: false)
+    w.title = "HardwareProbe hotkey"
+    w.isReleasedWhenClosed = false
+    let field = NSTextField(labelWithString: "type here")
+    field.frame = NSRect(x: 16, y: 50, width: 388, height: 40)
+    w.contentView?.addSubview(field)
+    w.onType = { text in field.stringValue = "typed: \(text)" }
+    label = field
+    window = w
+  }
+}
+
+/// Post Control+Option+Comma from this process so the run can be driven without a human.
+/// Needs Accessibility trust to reach other apps' event queue; the result is logged either way.
+func postSyntheticChord() {
+  let source = CGEventSource(stateID: .hidSystemState)
+  for down in [true, false] {
+    let e = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(kVK_ANSI_Comma), keyDown: down)
+    e?.flags = [.maskControl, .maskAlternate]
+    e?.post(tap: .cghidEventTap)
+  }
+  log("hotkey --simulate: posted Control+Option+Comma (trusted=\(AXIsProcessTrusted()))")
+}
+
+/// Post a plain key after the chord: it lands in the window only if the window is key.
+func postSyntheticKey(_ key: CGKeyCode) {
+  let source = CGEventSource(stateID: .hidSystemState)
+  for down in [true, false] {
+    let e = CGEvent(keyboardEventSource: source, virtualKey: key, keyDown: down)
+    e?.flags = []
+    e?.post(tap: .cghidEventTap)
+  }
+  log("hotkey --simulate: posted plain key 'z'")
+}
+
+@MainActor
+func runHotkey(_ args: [String]) -> Int32 {
+  let app = NSApplication.shared
+  app.setActivationPolicy(.accessory)  // mimics ADR 0019 LSUIElement
+  HotkeyProbe.shared.activateFirst = !args.contains("--no-activate")
+  log("hotkey macOS=\(ProcessInfo.processInfo.operatingSystemVersionString) mode=\(HotkeyProbe.shared.activateFirst ? "--activate" : "--no-activate")")
+  let result = HotkeyProbe.shared.register()
+  log("hotkey registration: \(result)")
+  guard result == .registered else { return 1 }
+  log("hotkey ready: bring TextEdit frontmost, press Control+Option+Comma, then type. Ctrl-C to quit.")
+  if args.contains("--simulate") {
+    DispatchQueue.main.asyncAfter(deadline: .now() + 4) { postSyntheticChord() }
+    DispatchQueue.main.asyncAfter(deadline: .now() + 6) { postSyntheticKey(CGKeyCode(kVK_ANSI_Z)) }
+  }
+  if let seconds = args.firstIndex(of: "--exit-after").flatMap({ Double(args[safe: $0 + 1] ?? "") }) {
+    DispatchQueue.main.asyncAfter(deadline: .now() + seconds) { exit(0) }
+  }
+  app.run()
+  return 0
+}
+
+extension Array {
+  subscript(safe index: Int) -> Element? { indices.contains(index) ? self[index] : nil }
+}
+
 @MainActor
 func run(_ args: [String]) -> Int32 {
   guard let command = args.first else {
@@ -206,6 +349,8 @@ func run(_ args: [String]) -> Int32 {
     return runLogin(Array(args.dropFirst()))
   case "displays":
     return runDisplays()
+  case "hotkey":
+    return runHotkey(Array(args.dropFirst()))
   default:
     FileHandle.standardError.write(Data("unknown command: \(command)\n\(usage)\n".utf8))
     return 64

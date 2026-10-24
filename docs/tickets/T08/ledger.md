@@ -1,3 +1,4 @@
 - slice 1: swift build --package-path Spikes/HardwareProbe green — skeleton parses subcommand and prints usage
 - slice 2: swift build + `HardwareProbe login status` green — login subcommand (status/register/unregister/open-settings); bare binary reports notFound, manual protocol needs .app bundle on clean account (untested here)
 - slice 3: swift build + `HardwareProbe displays` green — displays subcommand; 3 Displays distinct UUIDs PASS, identical-model untested; SPK-012.md written
+- slice 4: swift build + `HardwareProbe hotkey --simulate` green — Carbon hotkey probe; macOS 27 only (activate: key+typing yes, no-activate: front only); 14/15 untested; SPK-014.md written
