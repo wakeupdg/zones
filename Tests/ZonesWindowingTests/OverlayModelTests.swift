@@ -65,4 +65,42 @@ import ZonesWindowing
       }
     }
   }
+
+  @Test func applyPaintsPrimarySecondaryDim() {
+    let base = OverlayModel.panels(Self.scene(opacity: 0.5), topology: Self.topology)
+    let keys = Self.topology.displays.map(\.key)
+    let h = Highlight(display: keys[0], primary: [3], secondary: [5, 7], dimAll: false)
+    let out = OverlayModel.apply(h, to: base)
+    let s = base[0].style
+    for z in out[0].zones {
+      switch z.number {
+      case 3: #expect(z.fill == s.highlight)
+      case 5, 7: #expect(z.fill == s.secondary)
+      default: #expect(z.fill == s.idle)
+      }
+    }
+    for i in 1...2 { for z in out[i].zones { #expect(z.fill == out[i].style.idle) } }
+
+    let both = OverlayModel.apply(
+      Highlight(display: keys[0], primary: [4], secondary: [4], dimAll: false), to: base)
+    #expect(both[0].zones.first { $0.number == 4 }?.fill == s.highlight)
+
+    let dim = OverlayModel.apply(Highlight(display: keys[1], primary: [1], secondary: [], dimAll: true), to: base)
+    for p in dim { for z in p.zones { #expect(z.fill == p.style.dim) } }
+
+    let none = OverlayModel.apply(Highlight(display: nil, primary: [], secondary: [], dimAll: false), to: base)
+    #expect(none == base)
+    let nilDisplay = OverlayModel.apply(Highlight(display: nil, primary: [1], secondary: [2], dimAll: false), to: base)
+    #expect(nilDisplay == base)
+
+    for p in [out, dim] {
+      for (a, b) in zip(p, base) {
+        #expect(a.frame == b.frame && a.style == b.style && a.spanOutline == b.spanOutline)
+        #expect(a.zones.map(\.rect) == b.zones.map(\.rect) && a.zones.map(\.label) == b.zones.map(\.label))
+        #expect(a.zones.map(\.number) == b.zones.map(\.number))
+      }
+    }
+    #expect(OverlayModel.apply(h, to: out) == out)
+    #expect(OverlayModel.apply(Highlight(display: nil, primary: [], secondary: [], dimAll: false), to: out) == base)
+  }
 }

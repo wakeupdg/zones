@@ -3,5 +3,6 @@ decision | TopologySnapshot.display(_:) is not declared yet (Display.swift says 
 decision | KNOWN LIMIT: Highlight has one display, so a Span suspended on Display A while the highlight sits on Display B cannot be drawn on A by apply. AC-085 (manual) and the reducer's choice of Highlight.display decide later.
 decision | ZoneDrawing, PanelStyle, PanelModel were undeclared by T01, so they are declared in OverlayModel.swift with public memberwise inits.
 decision | ZonesWindowingTests depends on ZonesTestSupport, so the slice-6 property test is in scope.
-2:36 AM PT | slice 1 | zonesWithinVisibleFrame | green | 41066d7
-2:36 AM PT | slice 2 | highlightDistinctAtLowOpacity | green | pending
+2:36 AM PT | slice 1 | zonesWithinVisibleFrame | green | d20ca62
+2:36 AM PT | slice 2 | highlightDistinctAtLowOpacity | green | 3ac63cc
+2:37 AM PT | slice 3 | applyPaintsPrimarySecondaryDim | green | pending

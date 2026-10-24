@@ -62,8 +62,29 @@ public enum OverlayModel {
     return build(s) { frames[$0.display] ?? $0.visibleFrame }
   }
 
+  /// Repaints every Zone from `style`: dim everywhere when `dimAll`; else the panel for `h.display` paints primary,
+  /// then secondary, then idle, and every other panel is all idle. Geometry, labels, style and `spanOutline` are
+  /// untouched, so the result is a pure function of the arguments.
   public static func apply(_ h: Highlight, to panels: [PanelModel]) -> [PanelModel] {
-    panels
+    panels.map { panel in
+      var out = panel
+      let style = panel.style
+      let active = !h.dimAll && h.display == panel.display
+      out.zones = panel.zones.map { zone in
+        var z = zone
+        if h.dimAll {
+          z.fill = style.dim
+        } else if active, h.primary.contains(zone.number) {
+          z.fill = style.highlight
+        } else if active, h.secondary.contains(zone.number) {
+          z.fill = style.secondary
+        } else {
+          z.fill = style.idle
+        }
+        return z
+      }
+      return out
+    }
   }
 
   private static func build(_ s: OverlayScene, frame: (ResolvedLayout) -> CGRect) -> [PanelModel] {
