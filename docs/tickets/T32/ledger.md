@@ -1,0 +1,1 @@
+- slice 1: WindowPlacementTests.opensOnCursorDisplay green — WindowPlacement (cursorDisplay, settingsFrame, editorFrame, style mask raws)
