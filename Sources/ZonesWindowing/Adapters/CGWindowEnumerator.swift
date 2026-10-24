@@ -8,12 +8,47 @@ import ZonesCore
 /// Reads only window number, owner pid, bounds and layer. It never reads a window or owner name
 /// (LI-003, ADR-0020): doing so is what would require Screen Recording permission. CG bounds are
 /// top-left global, so each is converted to AppKit global with `CoordinateSpace.appKitRect`.
-public struct CGWindowEnumerator: Sendable {
+public struct CGWindowEnumerator: WindowEnumerator {
   private let primaryFrame: @Sendable () -> CGRect
 
   /// `primaryFrame` supplies the primary display frame (AppKit global) at call time.
   public init(primaryFrame: @escaping @Sendable () -> CGRect) {
     self.primaryFrame = primaryFrame
+  }
+
+  // MARK: WindowEnumerator (thin wrappers over the CG calls)
+
+  /// Layer-0 windows currently on screen, front to back. Empty when there is no GUI session.
+  public func onScreenWindows() -> [ZonesCore.WindowRef] {
+    let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
+    guard let list = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]]
+    else { return [] }
+    return Self.refs(from: list, primaryFrame: primaryFrame(), bundleID: Self.runningBundleID)
+  }
+
+  /// The layer-0 windows among `ids`, in the order of `ids`. Ids that no longer exist are dropped.
+  public func windows(ids: [WindowID]) -> [ZonesCore.WindowRef] {
+    guard !ids.isEmpty else { return [] }
+    // The array holds raw CGWindowID values, not objects, hence no retain/release callbacks.
+    var pointers: [UnsafeRawPointer?] = ids.map { UnsafeRawPointer(bitPattern: UInt($0.rawValue)) }
+    guard
+      let array = CFArrayCreate(kCFAllocatorDefault, &pointers, pointers.count, nil),
+      let descriptions = CGWindowListCreateDescriptionFromArray(array) as? [[String: Any]]
+    else { return [] }
+    let found = Self.refs(
+      from: descriptions, primaryFrame: primaryFrame(), bundleID: Self.runningBundleID)
+    let byID = Dictionary(found.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    return ids.compactMap { byID[$0] }
+  }
+
+  /// `point` is AppKit global. The CGEvent window-id `hint` comes first, then a z-ordered hit test.
+  public func candidates(under point: CGPoint, hint: WindowID?) -> [ZonesCore.WindowRef] {
+    let hinted = hint.map { windows(ids: [$0]) } ?? []
+    return Self.hitTest(onScreenWindows(), at: point, hint: hint, hinted: hinted)
+  }
+
+  private static func runningBundleID(_ pid: pid_t) -> String? {
+    NSRunningApplication(processIdentifier: pid)?.bundleIdentifier
   }
 
   // MARK: Pure helpers (no window server)

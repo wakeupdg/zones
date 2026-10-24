@@ -101,4 +101,12 @@ import ZonesCore
     let hits = CGWindowEnumerator.hitTest(stack, at: CGPoint(x: 10, y: 10), hint: nil, hinted: [])
     #expect(hits == stack)
   }
+
+  /// Compile check only: no automated test touches the live window server.
+  @Test func conformsToWindowEnumerator() {
+    let make: @Sendable () -> any WindowEnumerator = {
+      CGWindowEnumerator(primaryFrame: { .zero })
+    }
+    _ = make
+  }
 }

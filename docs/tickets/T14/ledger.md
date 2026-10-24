@@ -8,3 +8,5 @@
 - slice 5: ExclusionsPaneModelTests.addFromFileURL green — bundleID(forAppAt:) and add(appAt:to:)
 - slice 6: CGWindowEnumeratorTests.parseKeepsLayerZeroAndNoNames green — CGWindowEnumerator.refs(from:primaryFrame:bundleID:)
 - slice 7: CGWindowEnumeratorTests.hitTestOrder green — CGWindowEnumerator.hitTest
+- slice 8: CGWindowEnumeratorTests.conformsToWindowEnumerator green — CG wrappers onScreenWindows/windows(ids:)/candidates; no live window-server test
+- AC-144 is manual: needs a human run (Save sheet, popover and Zones Settings show no Overlay on Shift-drag; Calculator Snaps position-only at the Zone's top-left); policy implemented, no test.
