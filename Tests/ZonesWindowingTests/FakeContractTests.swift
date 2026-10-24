@@ -284,4 +284,47 @@ import ZonesWindowing
     #expect(keys.calls.isEmpty)
     #expect(keys.bound(.restore) == nil)
   }
+
+  @Test @MainActor func loginItemService() throws {
+    let clock = FakeClock()
+    let login = FakeLoginItemService(clock: clock)
+
+    // Without a script the status follows register and unregister.
+    #expect(login.status() == .notRegistered)
+    try login.register()
+    #expect(login.status() == .enabled)
+    try login.unregister()
+    #expect(login.status() == .notRegistered)
+
+    // Queue: a scripted status wins once; register() can be scripted to throw.
+    login.enqueue(.status(.requiresApproval))
+    #expect(login.status() == .requiresApproval)
+    #expect(login.status() == .notRegistered)
+    login.enqueue(.register(.launchDeniedByUser))
+    #expect(throws: LoginItemError.launchDeniedByUser) { try login.register() }
+    #expect(login.status() == .notRegistered)
+    login.enqueue(.unregister(.other("boom")))
+    #expect(throws: LoginItemError.other("boom")) { try login.unregister() }
+    login.openLoginItemsSettings()
+    #expect(login.calls.last == .openLoginItemsSettings)
+    #expect(login.calls.contains(.register))
+    #expect(login.calls.contains(.unregister))
+
+    // Latency 2 completes at the second advance(by: 1).
+    login.reset()
+    #expect(login.calls.isEmpty)
+    login.latency = 2
+    login.openLoginItemsSettings()
+    clock.advance(by: 1)
+    #expect(login.completed.isEmpty)
+    clock.advance(by: 1)
+    #expect(login.completed == [.openLoginItemsSettings])
+
+    // reset() clears the queue and the tracked status.
+    login.reset()
+    login.enqueue(.status(.notFound))
+    try login.register()
+    login.reset()
+    #expect(login.status() == .notRegistered)
+  }
 }
