@@ -1,0 +1,9 @@
+- slice 1: spk004 stub red (exit 1 unimplemented), swift build green — Spikes/WindowIDProbe package skeleton
+- slice 2: spk004 identity green — windowNumber==kCGWindowNumber 50/50 and optionIncludingWindow alone 50/50 on macOS 27.0.1
+- slice 3: spk004 event field green — field matches 50/50 at cgAnnotatedSessionEventTap, 0/50 at plain cgSessionEventTap (synthetic events)
+- slice 4: docs/spikes/SPK-004.md written — verdict PARTIAL (macOS 27.0.1 50/50 all checks; 14 and 15 not run)
+- slice 5: spk008 green — 4 stacked windows, 20 trials: CG sample at tick 1 changes exactly the top window 20/20 under a 125 Hz dragged stream; AX lags to tick 6-7 (same-pid); a single dragged event moves nothing (0/20); events must be posted off the main thread
+- slice 6: docs/spikes/SPK-008.md written — PASS on CG sample (20/20), AX tick-1 FAIL (0/20), same-pid caveat
+- slice 7: spk016 confirmation green — child-process window move confirmed by CG description at sample 1 in 20/20 (AX also 1 in 20/20), elapsed p50 19.9 ms
+- slice 8: spk016 SIGSTOP cost ran to completion (4 runs) — 0 errors, AX times out 250 ms 3/3 while stopped, child always CONTed; predeclared 2x-live latency criterion FAILs in 4 of 4 runs (stopped p95 2.9-3.8 ms vs live 0.8-3.4 ms)
+- slice 9: docs/spikes/SPK-016.md written — FAIL on predeclared latency criterion (4 of 4 runs), confirmation PASS 20/20, AX stands, no ADR proposed
