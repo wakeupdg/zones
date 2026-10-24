@@ -1,0 +1,1 @@
+- slice 1: GateScriptTests.realSourcesHaveAXImportsOnlyInAdapters green — WindowHandle is opaque in Seams (AnyObject box); AXUIElement init/accessor moved to Adapters/WindowHandle+AX.swift; full swift test otherwise green

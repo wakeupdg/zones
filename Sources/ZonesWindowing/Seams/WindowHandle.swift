@@ -1,19 +1,20 @@
 import CoreGraphics
-import ApplicationServices
 import Foundation
 import ZonesCore
 
-/// Wraps an AXUIElement. This is the package's only unchecked box (AC-161): the element is
-/// immutable, and every call that uses it runs on `WindowActor` (ADR-0015).
+/// Opaque box around a platform window element. This is the package's only unchecked box (AC-161):
+/// the element is immutable, and every call that uses it runs on `WindowActor` (ADR-0015).
+/// The seam never names the element's type: Adapters/WindowHandle+AX.swift builds a handle from an
+/// AXUIElement and reads it back, so `import ApplicationServices` stays under Adapters (AC-162).
 public final class WindowHandle: @unchecked Sendable, Hashable {
   public let pid: pid_t
   public var key: WindowKey
-  public let element: AXUIElement
+  let opaqueElement: AnyObject
 
-  public init(element: AXUIElement, pid: pid_t) {
-    self.element = element
+  init(opaqueElement: AnyObject, pid: pid_t, elementHash: Int) {
+    self.opaqueElement = opaqueElement
     self.pid = pid
-    self.key = WindowKey(pid: pid, elementHash: Int(CFHash(element)))
+    self.key = WindowKey(pid: pid, elementHash: elementHash)
   }
 
   public static func == (lhs: WindowHandle, rhs: WindowHandle) -> Bool { lhs.key == rhs.key }
