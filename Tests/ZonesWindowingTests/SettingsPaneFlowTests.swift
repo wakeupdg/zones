@@ -143,4 +143,41 @@ func makeFlow(
     // The backup is written first.
     #expect(writes(fs).first?.lastPathComponent == name)
   }
+
+  @Test func importErrorsInline() throws {
+    let (made, fs) = makeFlow()
+    var flow = made
+    let before = flow.currentDocument
+
+    func refuse(_ data: Data, expecting parts: [String], _ comment: Comment) {
+      flow.beginImport(data, fileName: "bad.json")
+      #expect(flow.pendingImport == nil, comment)
+      let text = flow.importError ?? ""
+      for part in parts { #expect(text.contains(part), comment) }
+      #expect(flow.currentDocument == before, comment)
+      #expect(fs.files.isEmpty, comment)
+    }
+
+    // A newer file names both numbers.
+    refuse(Data(#"{"version": 9, "layouts": [], "assignments": {}}"#.utf8), expecting: ["9", "\(Constants.documentVersion)"], "newer")
+
+    // The first offending Layout, in document order, is named.
+    var badRatio = flowLayout("B1", "Skewed")
+    badRatio.root = .split(axis: .horizontal, ratio: 1.5, first: .leaf, second: .leaf)
+    var noName = flowLayout("B2", "  ")
+    noName.name = "  "
+    let invalid = ZonesDocument(layouts: [flowLayout("OK", "Fine"), badRatio, noName])
+    refuse(try invalid.encoded(for: nil), expecting: ["Skewed"], "invalid layout")
+    #expect(!(flow.importError ?? "").contains("Fine"))
+
+    refuse(Data("not json".utf8), expecting: ["unreadable"], "corrupt")
+    refuse(
+      Data(#"{"version": 1, "layouts": [], "assignments": {"not-a-uuid": {}}}"#.utf8), expecting: ["not-a-uuid"],
+      "non-UUID key")
+
+    // The next successful import clears the error.
+    flow.beginImport(try ZonesDocument(layouts: [flowLayout("N1", "Fresh")]).encoded(for: nil), fileName: "ok.json")
+    #expect(flow.importError == nil)
+    #expect(flow.pendingImport != nil)
+  }
 }

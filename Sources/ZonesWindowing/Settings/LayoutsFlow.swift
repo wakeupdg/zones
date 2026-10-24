@@ -52,13 +52,20 @@ extension LayoutsFlow {
   /// Decodes `data` with the one document decoder. A readable file becomes `pendingImport`, waiting for the
   /// Merge or Replace choice; a refusal sets `importError` and changes nothing else (AC-151).
   public mutating func beginImport(_ data: Data, fileName: String) {
+    pendingImport = nil
     switch Migrator.migrate(data) {
     case .success(let (document, _)):
-      pendingImport = PendingImport(document: document, fileName: fileName)
-      importError = nil
+      // Whole-file validation up front, so a bad Layout is named before the sheet asks for a mode.
+      if case .refused(let error) = ImportExport.importDocument(
+        document, into: currentDocument, mode: .merge, attached: [], newID: { LayoutID(rawValue: "") }, now: 0)
+      {
+        importError = error.importText
+      } else {
+        pendingImport = PendingImport(document: document, fileName: fileName)
+        importError = nil
+      }
     case .failure(let error):
-      pendingImport = nil
-      importError = error.message
+      importError = error.importText
     }
   }
 
@@ -89,7 +96,7 @@ extension LayoutsFlow {
       pending.document, into: currentDocument, mode: mode, attached: attached, newID: newID, now: now)
     {
     case .refused(let error):
-      importError = error.message
+      importError = error.importText
       return false
     case .applied(let document, let backup, let dormant):
       do {
@@ -99,7 +106,7 @@ extension LayoutsFlow {
         importError = error.message
         return false
       } catch {
-        importError = DocumentError.io(String(describing: error)).message
+        importError = DocumentError.io(String(describing: error)).importText
         return false
       }
       store = LayoutStore(document: document, defaults: defaults)
@@ -112,7 +119,7 @@ extension LayoutsFlow {
   }
 
   /// Custom Layouts and every Assignment as one document, the shape Import compares against.
-  var currentDocument: ZonesDocument {
+  public var currentDocument: ZonesDocument {
     ZonesDocument(version: Constants.documentVersion, layouts: store.custom, assignments: assignments)
   }
 
@@ -141,4 +148,19 @@ public struct ImportReport: Hashable, Sendable {
   public var backup: String?
   /// Imported Assignment keys whose Display is not attached; kept dormant, not dropped.
   public var dormant: [String]
+}
+
+extension DocumentError {
+  /// The inline sentence the Layouts pane shows when an import or a write is refused.
+  public var importText: String {
+    switch self {
+    case .newerVersion(let found, let supported):
+      "This file is version \(found); this Zones reads up to version \(supported). Nothing was imported."
+    case .invalidLayout(let name, let fault):
+      "Layout \"\(name)\" is invalid (\(fault)). Nothing was imported."
+    case .corrupt(let detail): "This file is unreadable: \(detail). Nothing was imported."
+    case .nonUUIDKey(let key): "Display key \"\(key)\" is not a Display UUID. Nothing was imported."
+    case .io(let detail): "File error: \(detail). Nothing was changed."
+    }
+  }
 }
