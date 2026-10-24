@@ -1,1 +1,2 @@
 - slice 1: spk004 stub red (exit 1 unimplemented), swift build green — Spikes/WindowIDProbe package skeleton
+- slice 2: spk004 identity green — windowNumber==kCGWindowNumber 50/50 and optionIncludingWindow alone 50/50 on macOS 27.0.1
