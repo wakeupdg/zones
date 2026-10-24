@@ -126,7 +126,7 @@ final class PermissionDriver {
     receive(.tapRecreated(started))
   }
 
-  private func revalidateTap() {
+  func revalidateTap() {
     if !input.reenable() { recreateTap() }
   }
 
@@ -154,6 +154,11 @@ final class PermissionDriver {
 
   private func cancel(_ id: TimerID) {
     if let handle = timers.removeValue(forKey: id) { clock.cancel(handle) }
+  }
+
+  /// Quit: no timer may fire after the tap is down.
+  func cancelAllTimers() {
+    for id in Array(timers.keys) { cancel(id) }
   }
 
   /// Waits for the reads still in flight (tests, and quit).
