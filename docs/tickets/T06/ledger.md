@@ -1,3 +1,4 @@
 - slice 1: skeleton build + no-arg usage exit 64 green — standalone Spikes/AXSignalsProbe package
 - slice 2: selftest green — AXStatus mapping, interval stats, JSON-lines logger
 - slice 3: thread --idle 2 Part A green — custom source callbacks at t=0 and t=2 on ax-observer, run loop alive without keepalive
+- slice 4: thread --idle 60 Part A+B green — Calculator AXObserver callbacks on ax-observer at t=0 and after 60 s; SPK-013.md written (PASS)
