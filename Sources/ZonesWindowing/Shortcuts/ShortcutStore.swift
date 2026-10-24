@@ -67,6 +67,8 @@ public enum ShortcutStore {
           effects.append(.unregister(a))
         }
       }
+    case .set where !s.idle:
+      s.queued.append(e)
     case .set(let a, nil):
       s.commit(nil, for: a)
       s.pending[a] = nil
@@ -90,8 +92,17 @@ public enum ShortcutStore {
     case .registration(let a, let failure):
       s.pending[a] = nil
       effects = [.failed(a, failure)]
-    case .reducerIdle:
-      break
+    case .reducerIdle(false):
+      s.idle = false
+    case .reducerIdle(true):
+      s.idle = true
+      let queued = s.queued
+      s.queued = []
+      for event in queued {
+        let (next, more) = reduce(s, event)
+        s = next
+        effects += more
+      }
     }
     return (s, effects)
   }
