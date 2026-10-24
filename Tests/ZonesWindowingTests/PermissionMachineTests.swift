@@ -114,4 +114,50 @@ final class PermissionHarness: Sendable {
     #expect(h.probeCalls == probesBefore)
     #expect(h.events.filter { $0 == .timer(.trustPoll) }.count == 4)
   }
+
+  // AC-007
+  @Test func suspectResolvesToGrantedOrRevoked() {
+    let suspectEntry: [PermissionEffect] = [
+      .cancel(.healthTick), .recreateTap, .cancel(.suspectResolve), .schedule(.suspectResolve, 3),
+    ]
+    for signal in [PermissionEvent.apiDisabled, .tapNil, .heartbeat(.apiDisabled), .probe(false)] {
+      let h = PermissionHarness(state: .granted)
+      h.arm(.healthTick, after: Constants.healthTick)
+      h.clock.advance(by: 7)  // one health tick, then idle in granted
+      let at = h.clock.now
+      #expect(h.send(signal) == suspectEntry, "\(signal)")
+      #expect(h.state == .suspect(since: at))
+      #expect(h.clock.pending == [.suspectResolve])
+      // Repeat signals, a failed recreation and an unrelated read change nothing.
+      for noise in [PermissionEvent.apiDisabled, .tapNil, .tapRecreated(false), .trivialRead(.timedOut), .reonboard] {
+        #expect(h.send(noise).isEmpty, "\(noise)")
+        #expect(h.state == .suspect(since: at))
+      }
+    }
+
+    // Path A: recreation succeeds, one trivial read comes back ok -> granted with one health tick.
+    let a = PermissionHarness(state: .granted)
+    a.send(.tapNil)
+    #expect(a.send(.tapRecreated(true)) == [.heartbeat])
+    #expect(a.state == .suspect(since: 0))
+    #expect(a.send(.trivialRead(.ok)) == [.cancel(.suspectResolve), .cancel(.healthTick), .schedule(.healthTick, 5)])
+    #expect(a.state == .granted)
+    #expect(a.clock.pending == [.healthTick])
+
+    // Path B: recreation fails; the timer at +2.9 s is ignored, at +3 s the state is revoked.
+    let b = PermissionHarness(state: .granted)
+    b.send(.apiDisabled)
+    b.send(.tapRecreated(false))
+    b.clock.advance(by: 2.9)
+    #expect(b.send(.timer(.suspectResolve)).isEmpty)
+    #expect(b.state == .suspect(since: 0))
+    b.clock.advance(by: 0.2)  // the real timer fires at exactly 3.0
+    #expect(b.state == .revoked(failures: 0, firstFailure: nil))
+    #expect(
+      b.log.suffix(8) == [
+        .cancel(.healthTick), .badge(true), .grantMenuItem(true), .showOnboarding, .unregisterWindowHotkeys,
+        .drainEnhancedUI, .cancel(.trustPoll), .schedule(.trustPoll, 1),
+      ])
+    #expect(b.clock.pending == [.trustPoll])
+  }
 }
