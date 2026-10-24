@@ -483,4 +483,50 @@ import ZonesWindowing
     #expect(fromIdle != .idle)
     #expect(F.isPressed(fromIdle))
   }
+
+  /// Armed over Zone 2, with the Original Frame flag set as asked.
+  static func armed(hasOriginalFrame: Bool) -> DragState {
+    var context = F.context
+    context.hasOriginalFrame = hasOriginalFrame
+    let w = windowCentered(in: 2)
+    return F.run(
+      [
+        F.mouseDown(flags: .shift, candidates: [w], point: F.center(2)), F.dragged(F.center(2)),
+        F.sample(w.frame.offsetBy(dx: 30, dy: 10)),
+      ], context: context
+    ).state
+  }
+
+  @Test func nearestSnaps() throws {
+    let z1 = F.zoneFrame(1)
+    let gap = CGPoint(x: z1.maxX + 4, y: z1.midY)
+    let visible = F.layout().visibleFrame
+    let margin = CGPoint(x: visible.minX + 1, y: z1.midY)
+    for hasOriginalFrame in [false, true] {
+      let armed = Self.armed(hasOriginalFrame: hasOriginalFrame)
+      for (point, zone) in [(gap, 1), (margin, 1)] {
+        // The highlight already shows the nearest Zone, undimmed.
+        let (next, light) = DragSessionReducer.reduce(armed, .dragged(point: point, flags: .shift))
+        #expect(
+          light == [
+            .updateHighlight(Highlight(display: F.primaryKey, primary: [zone], secondary: [], dimAll: false))
+          ])
+        guard case .armed(_, _, _, _, _, _, let hit, _) = next else {
+          Issue.record("not armed")
+          return
+        }
+        #expect(hit == .nearest(zone))
+
+        let (idle, fx) = DragSessionReducer.reduce(next, .mouseUp(point: point, flags: .shift))
+        #expect(idle == .idle)
+        let hide = try #require(fx.firstIndex(where: F.isHideOverlay))
+        let snap = try #require(fx.firstIndex(where: F.isSnap))
+        #expect(hide < snap)
+        #expect(!fx.contains(where: F.isRestore))
+        guard case .snap(let plan) = fx[snap] else { return }
+        #expect(plan.zones == [zone])
+        #expect(plan.target == F.zoneFrame(zone))
+      }
+    }
+  }
 }

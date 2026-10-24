@@ -1,1 +1,2 @@
 - slice 1: HitTestTests.gapAndMarginAreNearest green — passed on first run (HitTest.hit already implements AC-080); test committed in ZonesWindowingTests
+- slice 2: DragSessionReducerTests.nearestSnaps green — passed on first run (T16 mouseUp already snaps a nearest hit and never restores); pins hide-before-snap with and without an Original Frame
