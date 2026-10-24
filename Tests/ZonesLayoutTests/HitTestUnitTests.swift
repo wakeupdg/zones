@@ -1,0 +1,85 @@
+import CoreGraphics
+import Testing
+import ZonesCore
+import ZonesTestSupport
+
+@testable import ZonesLayout
+
+struct HitTestTests {
+  private let display = CGRect(x: 0, y: 0, width: 1200, height: 800)
+
+  /// 2x2 Grid, margin 20, gap 10 on a 1200x800 frame. AppKit y grows up, so Zone 1 is top-left:
+  /// 1 = (20,405,575,375), 2 = (605,405,575,375), 3 = (20,20,575,375), 4 = (605,20,575,375).
+  private func grid2x2(visible: CGRect? = nil) -> ResolvedLayout {
+    let root = SplitNode.split(
+      axis: .vertical, ratio: 0.5,
+      first: .split(axis: .horizontal, ratio: 0.5, first: .leaf, second: .leaf),
+      second: .split(axis: .horizontal, ratio: 0.5, first: .leaf, second: .leaf))
+    let layout = makeLayout(root: root, insets: Insets(margin: 20, gap: 10))
+    return LayoutMath.resolve(layout, key: .uuid("D1"), visibleFrame: visible ?? display, scale: 1)
+  }
+
+  @Test func gapAndMarginAreNearest() {
+    let r = grid2x2()
+    #expect(r.zones.map(\.frame) == [
+      CGRect(x: 20, y: 405, width: 575, height: 375), CGRect(x: 605, y: 405, width: 575, height: 375),
+      CGRect(x: 20, y: 20, width: 575, height: 375), CGRect(x: 605, y: 20, width: 575, height: 375),
+    ])
+    // Inside each Zone.
+    #expect(HitTest.hit(CGPoint(x: 300, y: 600), in: r) == .zone(1))
+    #expect(HitTest.hit(CGPoint(x: 900, y: 600), in: r) == .zone(2))
+    #expect(HitTest.hit(CGPoint(x: 300, y: 200), in: r) == .zone(3))
+    #expect(HitTest.hit(CGPoint(x: 900, y: 200), in: r) == .zone(4))
+    // Vertical gap, nearer one side.
+    #expect(HitTest.hit(CGPoint(x: 596, y: 600), in: r) == .nearest(1))
+    #expect(HitTest.hit(CGPoint(x: 604, y: 600), in: r) == .nearest(2))
+    // Horizontal gap.
+    #expect(HitTest.hit(CGPoint(x: 300, y: 398), in: r) == .nearest(3))
+    #expect(HitTest.hit(CGPoint(x: 300, y: 402), in: r) == .nearest(1))
+    // Exactly equidistant: lower Zone Number.
+    #expect(HitTest.hit(CGPoint(x: 600, y: 600), in: r) == .nearest(1))
+    #expect(HitTest.hit(CGPoint(x: 300, y: 400), in: r) == .nearest(1))
+    #expect(HitTest.hit(CGPoint(x: 600, y: 400), in: r) == .nearest(1))
+    // Zone frames are half-open: the max edge is out.
+    #expect(HitTest.hit(CGPoint(x: 595, y: 600), in: r) == .nearest(1))
+    #expect(HitTest.hit(CGPoint(x: 20, y: 600), in: r) == .zone(1))
+    // Margin and the visible-frame edge (closed).
+    #expect(HitTest.hit(CGPoint(x: 5, y: 600), in: r) == .nearest(1))
+    #expect(HitTest.hit(CGPoint(x: 1195, y: 100), in: r) == .nearest(4))
+    #expect(HitTest.hit(CGPoint(x: 0, y: 800), in: r) == .nearest(1))
+    #expect(HitTest.hit(CGPoint(x: 1200, y: 0), in: r) == .nearest(4))
+    #expect(HitTest.hit(CGPoint(x: 0, y: 0), in: r) == .nearest(3))
+    // Outside the visible frame, e.g. the menu bar strip.
+    let withBar = grid2x2(visible: CGRect(x: 0, y: 0, width: 1200, height: 775))
+    #expect(HitTest.hit(CGPoint(x: 600, y: 790), in: withBar) == .none)
+    #expect(HitTest.hit(CGPoint(x: -1, y: 400), in: r) == .none)
+    #expect(HitTest.hit(CGPoint(x: 1201, y: 400), in: r) == .none)
+  }
+
+  @Test func displayAtPoint() {
+    let topology = Fixtures.threeDisplays
+    let primary = topology.displays[0].key
+    let retina = topology.displays[1].key
+    let portrait = topology.displays[2].key
+    #expect(HitTest.display(at: CGPoint(x: 100, y: 100), in: topology) == primary)
+    // Menu bar strip is outside visibleFrame but inside frame.
+    #expect(HitTest.display(at: CGPoint(x: 100, y: 1070), in: topology) == primary)
+    // Negative-origin Display.
+    #expect(HitTest.display(at: CGPoint(x: -700, y: 400), in: topology) == retina)
+    #expect(HitTest.display(at: CGPoint(x: -500, y: 2000), in: topology) == portrait)
+    // Shared boundaries are half-open.
+    #expect(HitTest.display(at: CGPoint(x: 0, y: 100), in: topology) == primary)
+    #expect(HitTest.display(at: CGPoint(x: -0.5, y: 100), in: topology) == retina)
+    #expect(HitTest.display(at: CGPoint(x: 100, y: 1080), in: topology) == portrait)
+    // Outside every Display.
+    #expect(HitTest.display(at: CGPoint(x: 5000, y: 5000), in: topology) == nil)
+    #expect(HitTest.display(at: CGPoint(x: -1000, y: 1500), in: topology) == nil)
+    // Mirrored Display is skipped even when it comes first.
+    var mirrored = topology
+    var copy = topology.displays[0]
+    copy.key = .uuid("44444444-4444-4444-8444-444444444444")
+    copy.mirrorOf = primary
+    mirrored.displays.insert(copy, at: 0)
+    #expect(HitTest.display(at: CGPoint(x: 100, y: 100), in: mirrored) == primary)
+  }
+}
