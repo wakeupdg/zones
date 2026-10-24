@@ -57,4 +57,26 @@ struct TemplateTests {
       }
     }
   }
+
+  @Test func focusIsOneCenteredZone() {
+    let layout = Templates.generate(.focus, count: 1, insets: zeroInsets)
+    #expect(layout.root == .leaf)
+    #expect(layout.surround == Surround(top: 0.2, left: 0.2, bottom: 0.2, right: 0.2))
+    let r = resolve(layout)
+    #expect(r.zones.count == 1)
+    let zone = r.zones[0]
+    #expect(zone.number == 1)
+    let want = CGRect(x: 240, y: 160, width: 720, height: 480)
+    #expect(abs(zone.frame.minX - want.minX) < eps && abs(zone.frame.minY - want.minY) < eps)
+    #expect(abs(zone.frame.width - want.width) < eps && abs(zone.frame.height - want.height) < eps)
+    for ix in 0...4 {
+      for iy in 0...4 {
+        let p = CGPoint(x: visible.minX + visible.width * Double(ix) / 4, y: visible.minY + visible.height * Double(iy) / 4)
+        let got = HitTest.hit(p, in: r)
+        #expect(got == .zone(1) || got == .nearest(1), "\(p) gave \(got)")
+      }
+    }
+    #expect(HitTest.hit(CGPoint(x: -1, y: 400), in: r) == .none)
+    #expect(HitTest.hit(CGPoint(x: 600, y: 801), in: r) == .none)
+  }
 }
