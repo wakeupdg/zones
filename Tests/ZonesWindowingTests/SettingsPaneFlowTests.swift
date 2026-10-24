@@ -59,4 +59,88 @@ func makeFlow(
     #expect(written == (try one.encoded(for: nil)))
     #expect(try JSONDecoder().decode(ZonesDocument.self, from: written) == one)
   }
+
+  // MARK: Import sheet
+
+  private func writes(_ fs: FakeFileSystem) -> [URL] {
+    fs.calls.compactMap { if case .writeAtomic(let url, _) = $0 { url } else { nil } }
+  }
+
+  private func stored(_ fs: FakeFileSystem, _ name: String) throws -> ZonesDocument {
+    let data = try #require(fs.files[flowDirectory.appending(path: name)])
+    return try JSONDecoder().decode(ZonesDocument.self, from: data)
+  }
+
+  private let incoming = ZonesDocument(
+    layouts: [flowLayout("L1", "One"), flowLayout("N9", "Nine")],
+    assignments: [flowKeyA: flowAssignment("N9", name: "Dup"), flowKeyB: flowAssignment("N9", name: "Home")])
+
+  private func sequentialIDs() -> () -> LayoutID {
+    var issued = 0
+    return {
+      issued += 1
+      return LayoutID(rawValue: "fresh\(issued)")
+    }
+  }
+
+  @Test func importMergeReplaceSheet() throws {
+    // Nothing applies before the person picks a mode.
+    let (made, fs) = makeFlow(assignments: [flowKeyC: flowAssignment("L1")])
+    var flow = made
+    let before = flow
+    let applied1 = flow.applyImport(.merge, attached: [], newID: sequentialIDs(), now: 1_792_000_000)
+    #expect(!applied1)
+    #expect(flow.assignments == before.assignments)
+    #expect(writes(fs).isEmpty)
+
+    // Cancel changes nothing.
+    flow.beginImport(try incoming.encoded(for: nil), fileName: "mine.json")
+    #expect(flow.pendingImport?.fileName == "mine.json")
+    #expect(flow.importError == nil)
+    flow.cancelImport()
+    #expect(flow.pendingImport == nil)
+    #expect(flow.store.custom == before.store.custom)
+    #expect(writes(fs).isEmpty)
+
+    // Merge keeps existing, renames the incoming duplicate name, and saves both documents.
+    flow.beginImport(try incoming.encoded(for: nil), fileName: "mine.json")
+    #expect(flow.replaceBackupName(now: 1_792_000_000) != nil)  // the sheet can show it; Merge makes none
+    let applied2 = flow.applyImport(.merge, attached: [flowKeyC], newID: sequentialIDs(), now: 1_792_000_000)
+    #expect(applied2)
+    #expect(flow.pendingImport == nil)
+    #expect(flow.store.custom.map(\.name) == ["One", "Two", "One 2", "Nine"])
+    #expect(flow.store.custom.map(\.id.rawValue) == ["L1", "L2", "fresh1", "N9"])
+    #expect(flow.lastImport?.backup == nil)
+    #expect(flow.lastImport?.mode == .merge)
+    // Both imported keys are for Displays that are not attached: reported, and kept.
+    #expect(flow.lastImport?.dormant == [flowKeyA, flowKeyB])
+    #expect(Set(flow.assignments.keys) == [flowKeyA, flowKeyB, flowKeyC])
+    #expect(try stored(fs, "layouts.json").layouts == flow.store.custom)
+    #expect(try stored(fs, "assignments.json").assignments == flow.assignments)
+    #expect(!fs.files.keys.contains { $0.lastPathComponent.hasSuffix(".bak") })
+  }
+
+  @Test func importReplaceNamesBackupBeforeWriting() throws {
+    let (made, fs) = makeFlow(assignments: [flowKeyC: flowAssignment("L1")])
+    var flow = made
+    let now: TimeInterval = 1_792_000_000
+    let currentBytes = try flow.exportDocument(only: nil).encoded(for: nil)
+
+    flow.beginImport(try incoming.encoded(for: nil), fileName: "mine.json")
+    let name = try #require(flow.replaceBackupName(now: now))
+    #expect(writes(fs).isEmpty)  // the sheet names it before anything is written
+    #expect(name.hasPrefix("zones.") && name.hasSuffix(".bak"))
+
+    let applied3 = flow.applyImport(.replace, attached: [flowKeyA], newID: sequentialIDs(), now: now)
+    #expect(applied3)
+    #expect(flow.lastImport?.backup == name)
+    #expect(fs.files[flowDirectory.appending(path: name)] == currentBytes)
+    #expect(flow.store.custom.map(\.name) == ["One", "Nine"])
+    #expect(flow.assignments == incoming.assignments)
+    #expect(flow.lastImport?.dormant == [flowKeyB])
+    #expect(try stored(fs, "layouts.json").layouts == incoming.layouts)
+    #expect(try stored(fs, "assignments.json").assignments == incoming.assignments)
+    // The backup is written first.
+    #expect(writes(fs).first?.lastPathComponent == name)
+  }
 }
