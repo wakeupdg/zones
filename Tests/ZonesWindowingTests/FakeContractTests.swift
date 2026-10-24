@@ -112,4 +112,54 @@ import ZonesWindowing
     en.reset()
     #expect(en.onScreenWindows().isEmpty)
   }
+
+  @Test func inputSource() async {
+    let clock = FakeClock()
+    let src = FakeInputSource(clock: clock)
+    #expect(src.config == .production)
+
+    // Queue: scripted results in order, then the defaults (.started, true, .started).
+    src.enqueue(.start(.unavailable))
+    src.enqueue(.start(.started))
+    src.enqueue(.reenable(false))
+    src.enqueue(.recreate(.unavailable))
+    #expect(src.start() == .unavailable)
+    #expect(src.start() == .started)
+    #expect(src.reenable() == false)
+    #expect(src.reenable() == true)
+    #expect(src.recreate() == .unavailable)
+    #expect(src.recreate() == .started)
+    src.stop()
+    #expect(src.calls == [.start, .start, .reenable, .reenable, .recreate, .recreate, .stop])
+
+    // Streams: emitted events and signals arrive in order.
+    let event = InputEvent(
+      kind: .leftDown, point: CGPoint(x: 5, y: 6), flags: .shift, windowUnderPointer: WindowID(rawValue: 9),
+      time: 1.5)
+    src.emit(event)
+    src.emit(.disabledByTimeout)
+    src.emit(.recreated(true))
+    var events = src.events.makeAsyncIterator()
+    var signals = src.signals.makeAsyncIterator()
+    #expect(await events.next() == event)
+    #expect(await signals.next() == .disabledByTimeout)
+    #expect(await signals.next() == .recreated(true))
+
+    // Latency 2 completes at the second advance(by: 1).
+    src.reset()
+    src.latency = 2
+    _ = src.start()
+    clock.advance(by: 1)
+    #expect(src.completed.isEmpty)
+    clock.advance(by: 1)
+    #expect(src.completed == [.start])
+
+    // reset() clears queue and log, and finishes the old streams.
+    src.enqueue(.start(.unavailable))
+    var old = src.events.makeAsyncIterator()
+    src.reset()
+    #expect(src.calls.isEmpty)
+    #expect(await old.next() == nil)
+    #expect(src.start() == .started)
+  }
 }
