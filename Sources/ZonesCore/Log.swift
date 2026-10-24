@@ -7,7 +7,7 @@ public enum LogCategory: String, Codable, CaseIterable, Sendable {
 
 public enum LogLevel: String, Codable, Sendable { case debug, info, notice, error }
 
-/// Has NO title field, ever (AC-154).
+/// Carries no window text field, ever (AC-154, LI-003).
 public struct LogEvent: Hashable, Codable, Sendable {
   public var time: TimeInterval
   public var category: LogCategory
@@ -32,30 +32,46 @@ public struct LogEvent: Hashable, Codable, Sendable {
 
 public protocol LogSink: Sendable { func write(_ event: LogEvent) }
 
-/// Bounded recent-event buffer. `append` is added by the diagnostics ticket.
-public struct EventRing: Sendable {
-  public let capacity: Int
-  public var events: [LogEvent]
-  /// Grouped by bundle identifier.
-  public var skipCounts: [String: [SkipReason: Int]]
-
-  public init(capacity: Int = Constants.ringCapacity) {
-    self.capacity = capacity
-    self.events = []
-    self.skipCounts = [:]
-  }
-}
-
-/// Facade: sinks are UnifiedLogSink (production) or ArrayLogSink (tests). Methods are added by the diagnostics ticket.
+/// Facade: sinks are UnifiedLogSink (production) or ArrayLogSink (tests).
 public final class Log: Sendable {
   struct State: Sendable {
     var sink: (any LogSink)?
-    var ring = EventRing()
+    var ring: EventRing
   }
 
-  private let state = OSAllocatedUnfairLock(initialState: State())
+  private let state: OSAllocatedUnfairLock<State>
 
   public static let shared = Log()
 
-  private init() {}
+  public init(capacity: Int = Constants.ringCapacity) {
+    state = OSAllocatedUnfairLock(initialState: State(sink: nil, ring: EventRing(capacity: capacity)))
+  }
+
+  public func install(sink: any LogSink) {
+    state.withLock { $0.sink = sink }
+  }
+
+  /// Appends to the ring and calls the sink once.
+  public func event(_ e: LogEvent) {
+    let sink = state.withLock { state -> (any LogSink)? in
+      state.ring.append(e)
+      return state.sink
+    }
+    sink?.write(e)
+  }
+
+  /// A copy of the current ring.
+  public func ring() -> EventRing { state.withLock { $0.ring } }
+
+  /// One event per skip (AC-155). The message never names a window or an owner (LI-003).
+  public func skip(_ reason: SkipReason, _ ref: WindowRef?, category: LogCategory) {
+    event(
+      LogEvent(
+        time: ProcessInfo.processInfo.systemUptime, category: category, level: .info,
+        message: "skip " + reason.rawValue, bundleID: ref?.bundleID, pid: ref?.pid, skip: reason))
+  }
+
+  public static func skip(_ reason: SkipReason, _ ref: WindowRef?, category: LogCategory) {
+    shared.skip(reason, ref, category: category)
+  }
 }
