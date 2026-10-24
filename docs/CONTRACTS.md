@@ -290,7 +290,7 @@ public enum DragState: Hashable, Sendable {
   case idle
   case pressed(candidates: [WindowRef], down: CGPoint, downFrames: [WindowID: CGRect], flags: ModifierSet, config: ModifierConfig, samples: Int, retried: Bool)
   case moving(window: WindowRef, downFrame: CGRect, flags: ModifierSet, config: ModifierConfig)
-  case armed(window: WindowRef, downFrame: CGRect, flags: ModifierSet, config: ModifierConfig, context: ArmContext, display: DisplayKey?, hit: Hit, span: SpanState)
+  case armed(window: WindowRef, downFrame: CGRect, flags: ModifierSet, config: ModifierConfig, context: ArmContext, display: DisplayKey?, hit: Hit, span: SpanState, point: CGPoint?)
 }
 public enum DragEvent: Hashable, Sendable {
   case mouseDown(point: CGPoint, flags: ModifierSet, candidates: [WindowRef], phaseOne: Verdict, config: ModifierConfig)
@@ -308,6 +308,7 @@ public enum DragSessionReducer { public static func reduce(_ s: DragState, _ e: 
 ```
 Guarantees: `hideOverlay` precedes `snap`/`restore` in the mouseUp step (AC-053); `showOverlay` only on entry to `armed`;
 `requestSample` only in `pressed`, never after `moving` (AC-156); highlight == drop set (LI-009).
+`armed` stores the last cursor point (`point`, nil right after `armContext`, before the first `dragged`); `topologyChanged` re-hits at it (LI-009).
 
 ### 3.2 Snap, write protocol, health, Enhanced UI (ADR-0022, ADR-0015 amended, ADR-0018 amended)
 ```swift

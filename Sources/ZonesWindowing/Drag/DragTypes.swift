@@ -88,7 +88,7 @@ public enum DragState: Hashable, Sendable {
   case moving(window: WindowRef, downFrame: CGRect, flags: ModifierSet, config: ModifierConfig)
   case armed(
     window: WindowRef, downFrame: CGRect, flags: ModifierSet, config: ModifierConfig,
-    context: ArmContext, display: DisplayKey?, hit: Hit, span: SpanState)
+    context: ArmContext, display: DisplayKey?, hit: Hit, span: SpanState, point: CGPoint?)
 }
 
 public enum DragEvent: Hashable, Sendable {
