@@ -280,14 +280,14 @@ import ZonesWindowing
         Self.drive(seed: seed, events: Self.directedPrefix(seed: seed, then: random)),
       ] {
         for step in steps {
-          guard case .armed(_, _, let flags, _, _, let display, let hit, let span) = step.after,
+          guard case .armed(_, _, let flags, _, _, let display, let hit, let span, _) = step.after,
             !span.zones.isEmpty, !span.suspended, flags.contains(activation), flags.contains(spanKey)
           else { continue }
           forks += 1
           seedsHit.insert(seed)
           let released = DragSessionReducer.reduce(step.after, .flagsChanged(flags.subtracting(spanKey)))
           let repressed = DragSessionReducer.reduce(released.0, .flagsChanged(flags))
-          guard case .armed(_, _, _, _, _, _, _, let after) = repressed.0 else {
+          guard case .armed(_, _, _, _, _, _, _, let after, _) = repressed.0 else {
             Issue.record(Self.message(seed, "release/re-press left armed: \(repressed.0)"))
             continue
           }
@@ -330,11 +330,9 @@ import ZonesWindowing
     var snapForks = 0
     var restoreForks = 0
     var dimmed = 0
-    var staleSkipped = 0
     for seed in Self.seeds {
-      var cursorStale = false
       for step in Self.drive(seed: seed) {
-        guard case .armed(_, _, let flags, _, let ctx, _, let hit, _) = step.after else { cursorStale = false; continue }
+        guard case .armed(_, _, let flags, _, let ctx, _, let hit, _, _) = step.after else { continue }
         // Every updateHighlight that dims obeys the rule against the state it produced.
         for case .updateHighlight(let h) in step.effects where h.dimAll {
           dimmed += 1
@@ -343,19 +341,10 @@ import ZonesWindowing
         if let h = step.lastHighlight, h.dimAll {
           #expect(hit == .none && ctx.hasOriginalFrame, Self.message(seed, "stale dimAll with hit \(hit)"))
         }
-        // Known exception (CONTRACTS.md, Drag reducer guarantees): the arming step holds no live cursor yet; the
-        // driver replays the last dragged right after it, so the state is compared from that replay on. A
-        // `topologyChanged` re-arm also has no live cursor (armed keeps no point; the re-hit uses the old Zone's
-        // center, and a removed Display re-hits to none), and nothing replays after it, so the armed state is not
-        // compared until the next `dragged` carries a real point. A mouseUp in that window still recomputes its hit.
-        switch step.event {
-        case .armContext where !F.isArmed(step.before): continue
-        case .topologyChanged: cursorStale = F.isArmed(step.before); continue
-        case .dragged: cursorStale = false
-        default: break
-        }
-        if !F.isArmed(step.before) { cursorStale = false }
-        if cursorStale { staleSkipped += 1; continue }
+        // The arming step holds no live cursor yet (`point` is nil); the driver replays the last dragged right
+        // after it, so the state is compared from that replay on. Every other armed state, including the one a
+        // `topologyChanged` re-arm produces (T39: armed stores the last point and the re-hit uses it), is compared.
+        if case .armContext = step.event, !F.isArmed(step.before) { continue }
         let point: CGPoint?
         if case .dragged(let p, _) = step.event { point = p } else { point = step.lastDragPoint }
         guard let point else { continue }
@@ -378,6 +367,5 @@ import ZonesWindowing
     #expect(snapForks > 300, "snap forks: \(snapForks)")
     #expect(restoreForks > 0, "restore forks: \(restoreForks)")
     #expect(dimmed > 0, "dimAll highlights: \(dimmed)")
-    #expect(staleSkipped > 0, "post-topologyChanged states held out of the comparison: \(staleSkipped)")
   }
 }
