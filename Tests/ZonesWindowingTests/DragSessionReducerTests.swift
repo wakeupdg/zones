@@ -418,22 +418,24 @@ import ZonesWindowing
   }
 
   /// Arms on `context` with the cursor dragged to `point` (the harness replays the drag after the arm context).
-  static func armedAt(_ point: CGPoint, context: ArmContext) -> DragState {
+  static func armedAt(_ point: CGPoint, context: ArmContext, flags: ModifierSet = .shift) -> DragState {
     let w = windowCentered(in: 2)
     return F.run(
       [
-        F.mouseDown(flags: .shift, candidates: [w], point: F.center(2)), F.dragged(point),
+        F.mouseDown(flags: flags, candidates: [w], point: F.center(2)), F.dragged(point),
         F.sample(w.frame.offsetBy(dx: 30, dy: 10)),
       ], context: context
     ).state
   }
 
   /// The highlight the step shows must equal the Zones a mouseUp at `point` snaps to (LI-009).
-  func expectHighlightEqualsDrop(_ next: DragState, _ fx: [DragEffect], at point: CGPoint) {
+  func expectHighlightEqualsDrop(
+    _ next: DragState, _ fx: [DragEffect], at point: CGPoint, flags: ModifierSet = .shift
+  ) {
     let shown = fx.compactMap { effect -> Highlight? in
       if case .updateHighlight(let h) = effect { h } else { nil }
     }.last
-    let (_, up) = DragSessionReducer.reduce(next, .mouseUp(point: point, flags: .shift))
+    let (_, up) = DragSessionReducer.reduce(next, .mouseUp(point: point, flags: flags))
     if case .snap(let plan)? = up.last {
       #expect(shown?.primary == plan.zones)
       #expect(shown?.display == plan.display)
@@ -499,6 +501,36 @@ import ZonesWindowing
     #expect(freshDisplay == nil)
     #expect(freshHit == .none)
     #expect(freshFx.last == .updateHighlight(Highlight(display: nil, primary: [], secondary: [], dimAll: false)))
+  }
+
+  @Test func topologyChangeAccumulatesSpanAtRehit() throws {
+    // Span Modifier held: the Span holds Zone 2 on A. The new snapshot gives A a two-column Layout, so the
+    // re-hit lands in Zone 1; the stored Span must be accumulated there so the highlight equals the drop set.
+    let armContext = F.context(displays: [0, 1])
+    let a = F.topology.displays[0].key
+    let z2 = F.zoneFrame(2)
+    let point = CGPoint(x: z2.minX + 1, y: z2.midY)
+    var twoColumns = Fixtures.nineZone
+    twoColumns.id = LayoutID(rawValue: "test:two-columns")
+    twoColumns.root = .split(axis: .horizontal, ratio: 0.5, first: .leaf, second: .leaf)
+    var newCtx = F.context(displays: [0])
+    newCtx.layouts[a] = LayoutMath.resolve(twoColumns, display: F.topology.displays[0])
+
+    let held: ModifierSet = [.shift, .control]
+    let armed = Self.armedAt(point, context: armContext, flags: held)
+    guard case .armed(_, _, _, _, _, _, _, let before, _) = armed else {
+      Issue.record("not armed: \(armed)")
+      return
+    }
+    #expect(before.zones == [2])
+    let (next, fx) = DragSessionReducer.reduce(armed, .topologyChanged(newCtx))
+    guard case .armed(_, _, _, _, _, _, let hit, let span, _) = next else {
+      Issue.record("not armed after topologyChanged: \(next)")
+      return
+    }
+    #expect(hit == .zone(1))
+    #expect(span.zones == [1, 2])
+    expectHighlightEqualsDrop(next, fx, at: point, flags: held)
   }
 
   @Test func spaceChangeReasserts() {

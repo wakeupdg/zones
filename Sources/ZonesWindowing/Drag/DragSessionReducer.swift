@@ -201,9 +201,12 @@ public enum DragSessionReducer {
         } else {
           rehit(lastHitPoint(display: display, hit: hit, in: ctx), previous: display, in: newCtx)
         }
+      // Accumulate the Span at the new cursor exactly as `dragged` does, so the stored Span (and `suspended`)
+      // matches what mouseUp will drop (LI-009).
+      let newSpan = SpanLogic.accumulate(span, at: cursor, flags: flags, config: config)
       let state = DragState.armed(
         window: window, downFrame: downFrame, flags: flags, config: config, context: newCtx, display: cursor.display,
-        hit: cursor.hit, span: span, point: lastPoint)
+        hit: cursor.hit, span: newSpan, point: lastPoint)
       var fx: [DragEffect] = [.showOverlay(overlayScene(for: newCtx))]
       if let highlight = SpanLogic.highlight(of: state) { fx.append(.updateHighlight(highlight)) }
       return (state, fx)
