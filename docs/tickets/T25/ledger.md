@@ -9,3 +9,4 @@
 - slice 6: mirrorKeyedByMaster green — mirror members collapse into the master, picks (incl. UUID and unstable) route through mirrorMaster
 - slice 7: nilUUIDRetryThenUnstable green — retry up to 3 at 1 s on the Clock, 4th read commits (unstable key session-only), raw mid-retry restarts the debounce
 - slice 8: DocumentTests.rejectsNonUUIDKey green — T10 test existed; filled gaps ("nil:7", lowercase UUID); whole-document refusal already covered
+- slice 9: LayoutsPaneModelTests.rows green — attached rows in snapshot order, then disconnected rows sorted by displayName then key; copyTargets = attached .uuid keys only; a mirror member dropped by the collapse therefore appears as disconnected (accepted per brief)
