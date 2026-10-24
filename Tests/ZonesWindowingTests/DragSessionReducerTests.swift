@@ -89,6 +89,51 @@ import ZonesWindowing
     #expect(fx == [.requestSample(ids)])
   }
 
+  /// A pressed state over `count` stacked identical windows (ids 1...count), after the first dragged event.
+  static func stackedPressed(_ count: Int, flags: ModifierSet = .shift) -> (state: DragState, refs: [WindowRef]) {
+    let refs = (1...count).map { F.ref(UInt32($0)) }
+    let (down, _) = DragSessionReducer.reduce(.idle, F.mouseDown(flags: flags, candidates: refs))
+    return (DragSessionReducer.reduce(down, F.dragged()).0, refs)
+  }
+
+  static func tick(_ results: [UInt32: SampleResult]) -> DragEvent {
+    .frameSample(Dictionary(uniqueKeysWithValues: results.map { (WindowID(rawValue: $0.key), $0.value) }))
+  }
+
+  static let stayed = SampleResult.frame(F.downFrame, F.standardFacts)
+  static let shifted = SampleResult.frame(F.downFrame.offsetBy(dx: 30, dy: 10), F.standardFacts)
+
+  @Test func candidateTableFirstMoverWins() {
+    let (state, refs) = Self.stackedPressed(2)
+    // No mover: stay pressed with another batched request.
+    let (still, stillFx) = DragSessionReducer.reduce(state, Self.tick([1: Self.stayed, 2: Self.stayed]))
+    #expect(F.isPressed(still))
+    #expect(stillFx == [.requestSample(refs.map(\.id))])
+
+    // Only the second moved: it wins, with its own down frame.
+    let (next, fx) = DragSessionReducer.reduce(still, Self.tick([1: Self.stayed, 2: Self.shifted]))
+    guard case .moving(let window, let downFrame, _, _) = next else {
+      Issue.record("not moving: \(next)")
+      return
+    }
+    #expect(window == refs[1])
+    #expect(downFrame == F.downFrame)
+    #expect(fx == [.stopSampling, .requestArmContext(window: refs[1], point: F.downPoint)])
+
+    // Different own frames: the winner's own entry is used.
+    let other = F.ref(7, frame: CGRect(x: 600, y: 120, width: 300, height: 200))
+    let (down, _) = DragSessionReducer.reduce(.idle, F.mouseDown(candidates: [F.window, other]))
+    let (dragging, _) = DragSessionReducer.reduce(down, F.dragged())
+    let (moved, _) = DragSessionReducer.reduce(
+      dragging, Self.tick([1: Self.stayed, 7: .frame(other.frame.offsetBy(dx: 0, dy: 50), F.standardFacts)]))
+    guard case .moving(let w, let f, _, _) = moved else {
+      Issue.record("not moving: \(moved)")
+      return
+    }
+    #expect(w == other)
+    #expect(f == other.frame)
+  }
+
   @Test func ignoresSecondMouseDownCore() {
     let (pressed, _) = DragSessionReducer.reduce(.idle, F.mouseDown())
     let (s, fx) = DragSessionReducer.reduce(
