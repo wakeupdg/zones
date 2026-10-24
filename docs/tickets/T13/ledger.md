@@ -1,1 +1,2 @@
 - slice 1: FrameWriteResultTests.exhaustiveSwitch green — no-default switches over FrameWriteResult, AXStatus, AXRead (types already existed, so no red phase)
+- slice 2: WindowActorTests.timeoutsSetAtLaunch green — WindowActor.applyLaunchTimeouts(to:) calls setTimeouts with Constants (WindowActor and WindowHandle already existed from T01)
