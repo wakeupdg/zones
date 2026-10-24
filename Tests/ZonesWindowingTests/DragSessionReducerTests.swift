@@ -224,4 +224,34 @@ import ZonesWindowing
     let (_, fx) = DragSessionReducer.reduce(armed, .dragged(point: p, flags: []))
     #expect(fx == [.updateHighlight(Highlight(display: left.key, primary: [5], secondary: [], dimAll: false))])
   }
+
+  @Test func modifierReleaseCancels() {
+    let (armed, _) = Self.armedOverZone2()
+    let (state, fx) = DragSessionReducer.reduce(armed, .flagsChanged([]))
+    #expect(F.isMoving(state))
+    #expect(fx == [.hideOverlay])
+    guard case .moving(_, _, let flags, _) = state else { return }
+    #expect(flags.isEmpty)
+
+    let (idle, upFx) = DragSessionReducer.reduce(state, .mouseUp(point: F.center(3), flags: []))
+    #expect(idle == .idle)
+    #expect(!upFx.contains(where: F.isSnap))
+    #expect(!upFx.contains(where: F.isRestore))
+
+    // Another modifier is not the Activation Modifier: still a cancel.
+    let (other, otherFx) = DragSessionReducer.reduce(armed, .flagsChanged(.option))
+    #expect(F.isMoving(other))
+    #expect(otherFx == [.hideOverlay])
+
+    // Shift still held: nothing changes.
+    let (kept, keptFx) = DragSessionReducer.reduce(armed, .flagsChanged([.shift, .option]))
+    #expect(F.isArmed(kept))
+    #expect(keptFx.isEmpty)
+
+    // Pressing Shift again after the cancel re-arms (a new overlay).
+    let whole = F.run([.flagsChanged([]), .flagsChanged(.shift)], from: armed)
+    #expect(F.isArmed(whole.state))
+    #expect(whole.effects.filter(F.isHideOverlay).count == 1)
+    #expect(whole.effects.filter(F.isShowOverlay).count == 1)
+  }
 }

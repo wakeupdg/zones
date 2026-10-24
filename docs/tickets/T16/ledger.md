@@ -7,3 +7,4 @@
 - slice 6: DragSessionReducerTests.resizeFromEveryEdgeEndsSession green — size delta over tolerance ends the session before the origin check
 - slice 7: DragSessionReducerTests.modifierLateArms and plainDragIsInert green — moving flagsChanged requests arm context when the modifier is newly present
 - slice 8: DragSessionReducerTests.highlightFollowsCursorNotWindow green — armed dragged hit-tests the cursor Display and Zone, emits updateHighlight on change only
+- slice 9: DragSessionReducerTests.modifierReleaseCancels green — armed flagsChanged without the Activation Modifier hides the overlay and returns to moving

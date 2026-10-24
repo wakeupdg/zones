@@ -127,6 +127,15 @@ public enum DragSessionReducer {
         hit: newHit, span: span)
       let highlight = Highlight(display: newDisplay, primary: zones(of: newHit), secondary: [], dimAll: false)
       return (state, [.updateHighlight(highlight)])
+    case .flagsChanged(let f):
+      // Releasing the Activation Modifier hides the overlay and cancels; the Span is dropped (AC-035).
+      guard f.contains(ModifierSet(config.activation)) else {
+        return (.moving(window: window, downFrame: downFrame, flags: f, config: config), [.hideOverlay])
+      }
+      let state = DragState.armed(
+        window: window, downFrame: downFrame, flags: f, config: config, context: ctx, display: display, hit: hit,
+        span: span)
+      return (state, [])
     default:
       return (s, [])
     }
