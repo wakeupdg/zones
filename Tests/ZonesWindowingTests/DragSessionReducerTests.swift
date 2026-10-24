@@ -349,4 +349,44 @@ import ZonesWindowing
     #expect(moving.0 == .idle)
     #expect(moving.1.isEmpty)
   }
+
+  @Test func backgroundWindowArms() {
+    // Same id and frame; only the owning process differs. The input has no focus field at all.
+    let own = F.ref(1, pid: getpid())
+    let other = F.ref(1, pid: getpid() &+ 1)
+    func script(_ w: WindowRef) -> [DragEvent] {
+      [
+        F.mouseDown(flags: .shift, candidates: [w], phaseOne: .allow(.full)), F.dragged(F.center(5)),
+        F.moved(), .mouseUp(point: F.center(5), flags: .shift),
+      ]
+    }
+    // Compare effects with the window's pid blanked: the ref differs, the behavior must not.
+    func normalized(_ fx: [DragEffect]) -> [DragEffect] {
+      fx.map { e in
+        func blank(_ w: WindowRef) -> WindowRef {
+          var b = w
+          b.pid = 0
+          return b
+        }
+        switch e {
+        case .requestArmContext(let w, let p): return .requestArmContext(window: blank(w), point: p)
+        case .snap(var plan):
+          plan.window = blank(plan.window)
+          return .snap(plan)
+        default: return e
+        }
+      }
+    }
+    let a = F.run(script(own))
+    let b = F.run(script(other))
+    #expect(a.state == .idle && b.state == .idle)
+    #expect(a.effects.contains(where: F.isShowOverlay))
+    #expect(a.effects.contains(where: F.isSnap))
+    #expect(normalized(a.effects) == normalized(b.effects))
+
+    // Armed (before the drop) is identical too.
+    let armedOwn = F.run(Array(script(own).dropLast()))
+    let armedOther = F.run(Array(script(other).dropLast()))
+    #expect(F.isArmed(armedOwn.state) && F.isArmed(armedOther.state))
+  }
 }

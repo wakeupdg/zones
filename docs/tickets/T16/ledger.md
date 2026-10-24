@@ -11,3 +11,4 @@
 - slice 10: DragSessionReducerTests.snapOnlyWithModifierAtMouseUp green — armed mouseUp snaps only with the Activation Modifier in its own flags, hit recomputed from the mouse-up point
 - slice 11: DragSessionReducerTests.hideOverlayPrecedesSnap green — passed on first run, slice 10 emits hideOverlay first
 - slice 12: DragSessionReducerTests.windowGoneHidesOverlay green — armed windowGone hides and returns to idle with no snap
+- slice 13: DragSessionReducerTests.backgroundWindowArms green — passed on first run, the reducer input has no focus flag so pid never matters
