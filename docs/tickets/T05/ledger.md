@@ -2,3 +2,4 @@
 - slice 2: spk004 identity green — windowNumber==kCGWindowNumber 50/50 and optionIncludingWindow alone 50/50 on macOS 27.0.1
 - slice 3: spk004 event field green — field matches 50/50 at cgAnnotatedSessionEventTap, 0/50 at plain cgSessionEventTap (synthetic events)
 - slice 4: docs/spikes/SPK-004.md written — verdict PARTIAL (macOS 27.0.1 50/50 all checks; 14 and 15 not run)
+- slice 5: spk008 green — 4 stacked windows, 20 trials: CG sample at tick 1 changes exactly the top window 20/20 under a 125 Hz dragged stream; AX lags to tick 6-7 (same-pid); a single dragged event moves nothing (0/20); events must be posted off the main thread
