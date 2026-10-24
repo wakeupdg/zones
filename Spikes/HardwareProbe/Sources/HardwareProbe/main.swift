@@ -335,6 +335,164 @@ extension Array {
   subscript(safe index: Int) -> Element? { indices.contains(index) ? self[index] : nil }
 }
 
+// MARK: sleepwake (SPK-018)
+
+let sleepWakeStatePath = NSTemporaryDirectory() + "HardwareProbe-sleepwake.json"
+let sleepWakePidPath = NSTemporaryDirectory() + "HardwareProbe-sleepwake.pid"
+
+@MainActor
+final class SleepWakeProbe {
+  static let shared = SleepWakeProbe()
+  var tap: CFMachPort?
+  var panels: [CGDirectDisplayID: NSPanel] = [:]
+  var eventCount = 0
+
+  func installTap() {
+    let mask: CGEventMask =
+      (1 << CGEventType.leftMouseDown.rawValue) | (1 << CGEventType.leftMouseDragged.rawValue)
+      | (1 << CGEventType.leftMouseUp.rawValue) | (1 << CGEventType.flagsChanged.rawValue)
+    tap = CGEvent.tapCreate(
+      tap: .cgSessionEventTap, place: .headInsertEventTap, options: .listenOnly,
+      eventsOfInterest: mask,
+      callback: { _, type, event, _ in
+        if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+          log("sleepwake tap DISABLED by system: \(type)")
+        } else {
+          MainActor.assumeIsolated { SleepWakeProbe.shared.eventCount += 1 }
+        }
+        return Unmanaged.passUnretained(event)
+      }, userInfo: nil)
+    guard let tap else {
+      log("sleepwake tap creation FAILED (nil): Input Monitoring not granted to this process?")
+      return
+    }
+    let source = CFMachPortCreateRunLoopSource(nil, tap, 0)
+    CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
+    CGEvent.tapEnable(tap: tap, enable: true)
+    log("sleepwake tap created and enabled")
+  }
+
+  func rebuildPanels() {
+    for panel in panels.values { panel.orderOut(nil) }
+    panels = [:]
+    for screen in NSScreen.screens {
+      guard let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber
+      else { continue }
+      let panel = NSPanel(
+        contentRect: screen.frame, styleMask: [.borderless, .nonactivatingPanel],
+        backing: .buffered, defer: false)
+      panel.isOpaque = false
+      panel.backgroundColor = NSColor.systemBlue.withAlphaComponent(0.05)
+      panel.level = .statusBar
+      panel.ignoresMouseEvents = true  // click-through
+      panel.hasShadow = false
+      panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
+      panel.isReleasedWhenClosed = false
+      panel.setFrame(screen.frame, display: false)
+      panel.orderFrontRegardless()
+      panels[CGDirectDisplayID(number.uint32Value)] = panel
+    }
+    log("sleepwake panels rebuilt: \(panels.count)")
+  }
+
+  func printState(_ label: String) {
+    let tapState = tap.map { CGEvent.tapIsEnabled(tap: $0) ? "enabled" : "DISABLED" } ?? "none"
+    log("sleepwake[\(label)] tap=\(tapState) eventsSeen=\(eventCount)")
+    for (id, panel) in panels.sorted(by: { $0.key < $1.key }) {
+      log("sleepwake[\(label)] panel display=\(id) isVisible=\(panel.isVisible) frame=\(panel.frame)")
+    }
+    let records = currentDisplays()
+    log("sleepwake[\(label)] displays=\(records.count) uuids=\(records.map { $0.uuid ?? "nil" })")
+    let missing = Set(panels.keys).subtracting(records.map(\.displayID))
+    if !missing.isEmpty { log("sleepwake[\(label)] panels for vanished displayIDs: \(missing.sorted())") }
+  }
+
+  func saveSnapshot() {
+    let uuids = currentDisplays().map { $0.uuid ?? "nil" }
+    if let data = try? JSONEncoder().encode(uuids) {
+      try? data.write(to: URL(fileURLWithPath: sleepWakeStatePath))
+    }
+  }
+}
+
+@MainActor
+func runSleepWake(_ args: [String]) -> Int32 {
+  let app = NSApplication.shared
+  app.setActivationPolicy(.accessory)
+  let probe = SleepWakeProbe.shared
+  log("sleepwake macOS=\(ProcessInfo.processInfo.operatingSystemVersionString) pid=\(getpid())")
+  try? "\(getpid())".write(toFile: sleepWakePidPath, atomically: true, encoding: .utf8)
+  probe.installTap()
+  probe.rebuildPanels()
+  probe.printState("startup")
+  probe.saveSnapshot()
+
+  let center = NSWorkspace.shared.notificationCenter
+  center.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { _ in
+    MainActor.assumeIsolated {
+      log("sleepwake willSleep")
+      probe.printState("before-sleep")
+      probe.saveSnapshot()
+    }
+  }
+  center.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { _ in
+    MainActor.assumeIsolated {
+      log("sleepwake didWake")
+      probe.printState("wake+0s (before recreate)")
+      for delay in [2, 8] {
+        DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(delay)) {
+          MainActor.assumeIsolated { probe.printState("wake+\(delay)s") }
+        }
+      }
+    }
+  }
+  NotificationCenter.default.addObserver(
+    forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
+  ) { _ in
+    MainActor.assumeIsolated {
+      log("sleepwake screen parameters changed")
+      probe.printState("screen-change")
+    }
+  }
+
+  signal(SIGUSR1, SIG_IGN)
+  let usr1 = DispatchSource.makeSignalSource(signal: SIGUSR1, queue: .main)
+  usr1.setEventHandler { MainActor.assumeIsolated { probe.printState("post-wake (SIGUSR1)") } }
+  usr1.resume()
+
+  if let seconds = args.firstIndex(of: "--exit-after").flatMap({ Double(args[safe: $0 + 1] ?? "") }) {
+    DispatchQueue.main.asyncAfter(deadline: .now() + seconds) { exit(0) }
+  }
+  log("sleepwake ready: close the lid on the docked Mac, wait, wake it, then run `HardwareProbe post-wake`.")
+  app.run()
+  return 0
+}
+
+/// Separate process: nudge the running sleepwake probe to re-print, and compare UUIDs to the saved snapshot.
+@MainActor
+func runPostWake() -> Int32 {
+  let records = currentDisplays()
+  let now = records.map { $0.uuid ?? "nil" }
+  log("post-wake displays=\(records.count) uuids=\(now)")
+  if let data = FileManager.default.contents(atPath: sleepWakeStatePath),
+    let saved = try? JSONDecoder().decode([String].self, from: data)
+  {
+    let same = Set(saved) == Set(now)
+    log("post-wake UUIDs vs pre-sleep snapshot: \(same ? "PASS (persisted)" : "FAIL (changed)") saved=\(saved)")
+  } else {
+    log("post-wake: no pre-sleep snapshot found; run `sleepwake` first")
+  }
+  if let pidText = try? String(contentsOfFile: sleepWakePidPath, encoding: .utf8),
+    let pid = Int32(pidText), kill(pid, 0) == 0
+  {
+    kill(pid, SIGUSR1)
+    log("post-wake: asked sleepwake pid \(pid) to re-print its tap/panel state")
+  } else {
+    log("post-wake: no live sleepwake probe process")
+  }
+  return 0
+}
+
 @MainActor
 func run(_ args: [String]) -> Int32 {
   guard let command = args.first else {
@@ -351,6 +509,10 @@ func run(_ args: [String]) -> Int32 {
     return runDisplays()
   case "hotkey":
     return runHotkey(Array(args.dropFirst()))
+  case "sleepwake":
+    return runSleepWake(Array(args.dropFirst()))
+  case "post-wake":
+    return runPostWake()
   default:
     FileHandle.standardError.write(Data("unknown command: \(command)\n\(usage)\n".utf8))
     return 64
