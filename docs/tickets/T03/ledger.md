@@ -1,2 +1,3 @@
 - slice 1: selfTest.statsAndTables green — Package.swift + stats/table helpers + --self-test (6 checks)
 - slice 2: panel.configuration green — ProbePanel per ADR-0023, --self-test asserts AC-043 values for both variants; finding: isFloatingPanel=true resets level to .floating, set level after it
+- slice 3: panel.dragProbe green (synthetic) — panel mode with global-monitor Shift+title-bar probe; synthetic show/orderOut on 3 displays: layer 1000 only while armed, frontmost pid and key proxy unchanged; real drag run still needs a human (manual)
