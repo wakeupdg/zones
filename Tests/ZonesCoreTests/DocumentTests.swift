@@ -150,4 +150,19 @@ private let layoutsJSON = """
       _ = try JSONDecoder().decode(ZonesDocument.self, from: Data(doc.utf8))
     }
   }
+
+  @Test func exportRoundTrip() throws {
+    var both = TestFixtures.layoutsDocument
+    both.assignments = TestFixtures.assignmentsDocument.assignments
+    let single = ZonesDocument(version: Constants.documentVersion, layouts: [TestFixtures.centered])
+    for original in [both, single] {
+      let exported = try original.encoded(for: nil)
+      let object = try #require(JSONSerialization.jsonObject(with: exported) as? [String: Any])
+      #expect(object["version"] as? Int == Constants.documentVersion)
+      #expect(object["layouts"] != nil && object["assignments"] != nil)
+      let (decoded, from) = try Migrator.migrate(exported).get()
+      #expect(decoded == original)
+      #expect(from == Constants.documentVersion)
+    }
+  }
 }

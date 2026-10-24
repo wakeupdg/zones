@@ -79,5 +79,16 @@ public struct DocumentStore: Sendable {
   }
 }
 
-/// `migrate(_:)` is added by the persistence ticket (golden fixtures per version, AC-152).
-public enum Migrator {}
+extension DocumentError {
+  /// A short user-facing description. A newer version names both numbers.
+  public var message: String {
+    switch self {
+    case .corrupt(let detail): "document is unreadable: \(detail)"
+    case .newerVersion(let found, let supported):
+      "document version \(found) is newer than supported version \(supported)"
+    case .invalidLayout(let name, let fault): "layout \"\(name)\" is invalid: \(fault)"
+    case .nonUUIDKey(let key): "display key \"\(key)\" is not a UUID"
+    case .io(let detail): "file error: \(detail)"
+    }
+  }
+}
