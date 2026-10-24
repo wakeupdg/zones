@@ -1,4 +1,6 @@
 import AppKit
+import ApplicationServices
+import ColorSync
 import Foundation
 import ServiceManagement
 
@@ -99,6 +101,97 @@ func runLogin(_ args: [String]) -> Int32 {
   return 0
 }
 
+// MARK: displays (SPK-012)
+
+/// Mirrors CONTRACTS `DisplayKey`: `.uuid` is stable, `.unstable` is session only.
+enum DisplayKey: Hashable {
+  case uuid(String), unstable(String)
+}
+
+struct DisplayRecord {
+  let displayID: CGDirectDisplayID
+  let uuid: String?
+  let vendor: UInt32
+  let model: UInt32
+  let serial: UInt32
+  let name: String
+  let isMain: Bool
+  let frame: CGRect
+
+  /// vendor-model-serial-bounds fallback fingerprint, used when UUID is nil or serial is 0.
+  var fallbackFingerprint: String {
+    "v\(vendor)-m\(model)-s\(serial)-\(Int(frame.width))x\(Int(frame.height))@\(Int(frame.origin.x)),\(Int(frame.origin.y))"
+  }
+
+  var key: DisplayKey {
+    if let uuid { return .uuid(uuid) }
+    return .unstable(fallbackFingerprint)
+  }
+}
+
+func displayUUID(_ id: CGDirectDisplayID) -> String? {
+  guard let unmanaged = CGDisplayCreateUUIDFromDisplayID(id) else { return nil }
+  let uuid = unmanaged.takeRetainedValue()
+  return CFUUIDCreateString(nil, uuid) as String?
+}
+
+@MainActor
+func currentDisplays() -> [DisplayRecord] {
+  NSScreen.screens.compactMap { screen in
+    guard let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber
+    else { return nil }
+    let id = CGDirectDisplayID(number.uint32Value)
+    return DisplayRecord(
+      displayID: id,
+      uuid: displayUUID(id),
+      vendor: CGDisplayVendorNumber(id),
+      model: CGDisplayModelNumber(id),
+      serial: CGDisplaySerialNumber(id),
+      name: screen.localizedName,
+      isMain: CGDisplayIsMain(id) != 0,
+      frame: screen.frame
+    )
+  }
+}
+
+@MainActor
+func printDisplays(_ label: String) -> [DisplayRecord] {
+  let records = currentDisplays()
+  log("displays[\(label)] count=\(records.count)")
+  for (index, d) in records.enumerated() {
+    log(
+      "displays[\(label)] #\(index) id=\(d.displayID) uuid=\(d.uuid ?? "nil") vendor=\(d.vendor) model=\(d.model) serial=\(d.serial) name=\"\(d.name)\" main=\(d.isMain) frame=\(d.frame)"
+    )
+    if d.uuid == nil || d.serial == 0 {
+      log("displays[\(label)] #\(index) fallback fingerprint=\(d.fallbackFingerprint) (uuid nil=\(d.uuid == nil), zero serial=\(d.serial == 0))")
+    }
+  }
+  return records
+}
+
+@MainActor
+func runDisplays() -> Int32 {
+  log("displays macOS=\(ProcessInfo.processInfo.operatingSystemVersionString)")
+  let records = printDisplays("now")
+  let uuids = records.compactMap(\.uuid)
+  let allDistinct = uuids.count == records.count && Set(uuids).count == uuids.count
+  log("displays distinct-uuid check: \(allDistinct ? "PASS" : "FAIL") (\(Set(uuids).count) distinct of \(records.count))")
+
+  // Same-model groups: the case SPK-012 cares about.
+  let groups = Dictionary(grouping: records, by: { "\($0.vendor)-\($0.model)" })
+  let identical = groups.filter { $0.value.count > 1 }
+  if identical.isEmpty {
+    log("displays identical-model: UNTESTED (no two same vendor/model Displays attached)")
+  } else {
+    for (model, members) in identical {
+      let distinct = Set(members.compactMap(\.uuid)).count == members.count
+      let zeroSerials = members.allSatisfy { $0.serial == 0 }
+      log("displays identical-model \(model): \(members.count) Displays, UUIDs distinct=\(distinct ? "PASS" : "FAIL"), all serials zero=\(zeroSerials)")
+    }
+  }
+  return 0
+}
+
 @MainActor
 func run(_ args: [String]) -> Int32 {
   guard let command = args.first else {
@@ -111,6 +204,8 @@ func run(_ args: [String]) -> Int32 {
     return 0
   case "login":
     return runLogin(Array(args.dropFirst()))
+  case "displays":
+    return runDisplays()
   default:
     FileHandle.standardError.write(Data("unknown command: \(command)\n\(usage)\n".utf8))
     return 64
