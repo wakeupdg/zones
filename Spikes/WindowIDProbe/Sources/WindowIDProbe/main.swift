@@ -588,8 +588,86 @@ func runSpk016() -> Int32 {
     }
     let confirmOK = cgCounts.allSatisfy { $0 <= 2 }
     print("move confirmation within 2 samples: \(cgCounts.filter { $0 <= 2 }.count) of \(trials)")
-    print(confirmOK ? "PASS spk016 (confirmation; SIGSTOP cost not run)" : "FAIL spk016 (confirmation)")
-    return confirmOK ? 0 : 1
+    print(confirmOK ? "PASS spk016 confirmation (within 2 samples in every trial)" : "FAIL spk016 confirmation")
+
+    // Part B: cost against a SIGSTOP'd app. The child is always continued (defer + signal handlers).
+    func pollPhase(_ label: String, seconds: Double, expect: CGPoint) -> PollStats {
+        let n = Int(seconds * 60)
+        var lat: [Double] = [], errors = 0, changed = 0
+        let t0 = nowNs()
+        for k in 1...n {
+            sleepUntil(t0 + UInt64(k) * tickNs)
+            let a = nowNs()
+            let o = cgDescriptionOrigins(ids: [id])[id]
+            lat.append(Double(nowNs() - a) / 1e6)
+            if let o { if abs(o.x - expect.x) > 0.5 || abs(o.y - expect.y) > 0.5 { changed += 1 } } else { errors += 1 }
+        }
+        let st = PollStats(label: label, samples: n, p50: percentile(lat, 0.5), p95: percentile(lat, 0.95),
+                           p99: percentile(lat, 0.99), max: lat.max() ?? 0, errors: errors, changed: changed)
+        print(String(format: "%@: %d samples, description read ms p50 %.3f p95 %.3f p99 %.3f max %.3f, errors %d, origin changes %d",
+                     label, st.samples, st.p50, st.p95, st.p99, st.max, st.errors, st.changed))
+        return st
+    }
+    let rest = cgDescriptionOrigins(ids: [id])[id]!
+    let live = pollPhase("live (before STOP)", seconds: 5, expect: rest)
+    // AX read latency on the live child (cross-process), for contrast.
+    var axLive: [Double] = []
+    for _ in 0..<60 { axLive.append(axChildPosition(pid: child.pid).ms); usleep(16_000) }
+    print(String(format: "AX read on the live child (60 reads): p50 %.3f p95 %.3f p99 %.3f max %.3f ms",
+                 percentile(axLive, 0.5), percentile(axLive, 0.95), percentile(axLive, 0.99), axLive.max() ?? 0))
+    kill(child.pid, SIGSTOP)
+    usleep(300_000)
+    let state = processState(child.pid)
+    print("child state after SIGSTOP (ps stat): \(state)")
+    let stopped = pollPhase("SIGSTOP'd", seconds: 5, expect: rest)
+    var axLines: [String] = []
+    var axAllTimedOut = true
+    for i in 1...3 {
+        let r = axChildPosition(pid: child.pid)
+        if !r.timedOut { axAllTimedOut = false }
+        axLines.append(String(format: "AX read %d on the stopped app: %@ after %.1f ms (position %@)", i,
+                              r.timedOut ? "timed out" : "returned", r.ms, r.pos.map { "\($0)" } ?? "nil"))
+    }
+    axLines.forEach { print($0) }
+    kill(child.pid, SIGCONT)
+    usleep(300_000)
+    print("child state after SIGCONT (ps stat): \(processState(child.pid))")
+    // Recovery: the child answers a move again.
+    try? child.stdin.write(contentsOf: Data("move 25 0\n".utf8))
+    usleep(300_000)
+    let after = cgDescriptionOrigins(ids: [id])[id]
+    let recovered = after.map { abs($0.x - rest.x - 25) < 0.5 } ?? false
+    print("child answers a move after SIGCONT: \(recovered)")
+    let live2 = pollPhase("live (after CONT)", seconds: 5, expect: after ?? rest)
+
+    let floorMs = 1.0
+    let costOK = stopped.errors == 0 && stopped.changed == 0
+        && stopped.p50 <= max(2 * live.p50, floorMs) && stopped.p95 <= max(2 * live.p95, 2 * floorMs)
+    print("stopped-vs-live: p50 \(String(format: "%.3f", stopped.p50)) vs \(String(format: "%.3f", live.p50)) ms, p95 \(String(format: "%.3f", stopped.p95)) vs \(String(format: "%.3f", live.p95)) ms (limit: 2x live, floors 1 ms / 2 ms); live2 p95 \(String(format: "%.3f", live2.p95)) ms")
+    let sane = state.hasPrefix("T") && axAllTimedOut && recovered
+    if !sane { print("WARN spk016: stop sanity failed (stopped state: \(state), AX all timed out: \(axAllTimedOut), recovered: \(recovered))") }
+    let ok = confirmOK && costOK && sane
+    print(ok ? "PASS spk016" : "FAIL spk016")
+    return ok ? 0 : 1
+}
+
+struct PollStats {
+    var label: String; var samples: Int
+    var p50: Double; var p95: Double; var p99: Double; var max: Double
+    var errors: Int; var changed: Int
+}
+
+/// `ps -o stat=` for a pid ("T" means stopped).
+func processState(_ pid: pid_t) -> String {
+    let p = Process()
+    p.executableURL = URL(fileURLWithPath: "/bin/ps")
+    p.arguments = ["-o", "stat=", "-p", "\(pid)"]
+    let out = Pipe()
+    p.standardOutput = out
+    do { try p.run() } catch { return "?" }
+    p.waitUntilExit()
+    let s = String(data: out.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? "?"
+    return s.trimmingCharacters(in: .whitespacesAndNewlines)
 }
 
 // MARK: - Entry
