@@ -36,4 +36,17 @@ import ZonesWindowing
     #expect(controller.window == nil)
     #expect(NSApp.windows.filter { $0.title == "Welcome to Zones" && $0.isVisible }.isEmpty)
   }
+
+  @Test func noWindowWhenLaunchedAtLogin() {
+    let (controller, _, created) = make(launchedAtLogin: true)
+    controller.show()
+    #expect(created() == 0)
+    #expect(controller.window == nil)
+  }
+
+  @Test func openSettingsButtonCallsProbe() {
+    let (controller, probe, _) = make()
+    controller.openSettings()
+    #expect(probe.calls == [.openAccessibilitySettings])
+  }
 }

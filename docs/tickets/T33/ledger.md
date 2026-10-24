@@ -3,3 +3,5 @@
 - slice 3: OnboardingViewStateTests.needsRelaunchOffersQuitAndReopenWithSentence green — Quit and Reopen only in needsRelaunch and only while offerRelaunch is true, with explanation sentence
 - slice 4: OnboardingViewStateTests.grantedAndSuspectHaveNoWindow green — granted/suspect windowVisible false; derive switch now exhaustive
 - slice 5: OnboardingControllerTests.showTwiceKeepsOneWindow green — OnboardingWindowController (+OnboardingModel/OnboardingView/CheatSheetView) in App/Onboarding; AppTests now depend on ZonesTestSupport (project.yml); unwired: no composition root exists yet to call show/dismiss/update
+- slice 6: OnboardingControllerTests.noWindowWhenLaunchedAtLogin green — passed on first run (guard already written in slice 5), no code change
+- slice 7: OnboardingControllerTests.openSettingsButtonCallsProbe green — passed on first run (controller.openSettings forwards to probe only), no code change
