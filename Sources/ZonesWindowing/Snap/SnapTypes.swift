@@ -25,14 +25,6 @@ public struct SnapPlan: Hashable, Sendable {
   }
 }
 
-/// Unresponsive cooldown, Clock-driven (AC-077). The methods belong to the health ticket.
-public struct AppHealth: Hashable, Sendable {
-  public var unresponsiveSince: [pid_t: TimeInterval]
-  public init(unresponsiveSince: [pid_t: TimeInterval] = [:]) {
-    self.unresponsiveSince = unresponsiveSince
-  }
-}
-
 public struct RecoveryRecord: Hashable, Codable, Sendable {
   public var bundleID: String
   public var pid: Int32
