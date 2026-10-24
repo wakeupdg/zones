@@ -5,3 +5,5 @@
 - decision: Foundation alone does not export CGRect/CGSize conformances here; Core files and tests using CG types add `import CoreGraphics`
 - slice 4: preferencesDefaultsMatchContract, preferencesJSONRoundTrip, shortcutActionAllCasesIsFourteenInOrder, isWindowActionTrueForFirstFour, chordCommandOrControlIsComputed green — Modifier, ModifierSet, Key, Chord (computed hasCommandOrControl), ShortcutAction (hand allCases), Shortcut, Preferences + defaults, Appearance, NoticeFlag, PreferencesCodec shell
 - decision: Preferences.defaults uses shortcuts [] with comment per brief gap 1; Appearance placeholder fill RGBA(0,0.478,1,1), opacity 0.35, insets 8/8
+- slice 5: skipReasonHasTenCases, logEventHasNoTitleField, timerIDRawValuesAreStable, verdictAndFrameWriteResultAreHashable green — Results.swift (all §1.6), TimerID, TimerHandle, Clock, Log types + Log shell, EventRing, FileSystem, DocumentKind, LoadResult, DocumentStore shell, Migrator shell
+- decision: EventRing keeps `capacity` as a stored let; LogEvent init defaults bundleID/pid/skip to nil

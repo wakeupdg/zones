@@ -33,3 +33,30 @@ public struct ZonesDocument: Hashable, Codable, Sendable {
     try c.encode(assignments, forKey: .assignments)
   }
 }
+
+public enum DocumentKind: String, Sendable {
+  case layouts = "layouts.json", assignments = "assignments.json", recovery = "enhanced-ui-recovery.json"
+}
+
+public enum LoadResult: Hashable, Sendable {
+  case loaded(ZonesDocument)
+  case migrated(ZonesDocument, from: Int, backup: String)
+  case defaults(quarantined: String)
+  case newerLeftUntouched(version: Int)
+}
+
+/// Directory = ~/Library/Application Support/Zones. `load`, `save` and `backupName` are added by the persistence ticket.
+public struct DocumentStore: Sendable {
+  let fs: any FileSystem
+  let directory: URL
+  let clock: any Clock
+
+  public init(fs: any FileSystem, directory: URL, clock: any Clock) {
+    self.fs = fs
+    self.directory = directory
+    self.clock = clock
+  }
+}
+
+/// `migrate(_:)` is added by the persistence ticket (golden fixtures per version, AC-152).
+public enum Migrator {}
