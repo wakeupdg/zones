@@ -214,4 +214,57 @@ import ZonesTestSupport
     #expect(sink.events.isEmpty)
     #expect(registry == before)
   }
+
+  // MARK: through SnapService with FakeWindowSystem
+
+  /// A Calculator-like window clamps the Zone 3 write; the read-back becomes the last-Snap record, and the next
+  /// cycleRight targets Zone 4 (AC-100, AC-098).
+  @Test @WindowActor func fakeSystemIntegration() throws {
+    let clock = FakeClock()
+    let ws = FakeWindowSystem(clock: clock)
+    let handle = F.handle()
+    let store = DocumentStore(fs: FakeFileSystem(), directory: URL(filePath: "/zones-test"), clock: clock)
+    let service = SnapService(
+      writer: FrameWriter(system: ws, recovery: EnhancedUIRecovery(store: store)), system: ws, clock: clock)
+    var health = AppHealth()
+    var registry = OriginalFrameRegistry()
+    let layouts = F.layouts(a: Self.columns4, b: Self.grid4)
+    let layoutA = try #require(layouts[F.displayA])
+
+    // sendToZone(3) from a free-floating frame.
+    let start = CGRect(x: 100, y: 200, width: 800, height: 600)
+    let plan = ShortcutResolver.plan(
+      .sendToZone(3), focused: F.focused(frame: start, handle: handle), verdict: .allow(.full), topology: F.topology,
+      layouts: layouts, registry: registry)
+    guard case .snap(let snap) = plan else {
+      Issue.record("expected a snap plan, got \(plan)")
+      return
+    }
+    #expect(snap.target == layoutA.zones[2].frame)
+    // The caller captures the Original Frame from the plan, then executes it.
+    _ = registry.capture(OriginalFrameEntry(key: handle.key, frame: try #require(snap.originalFrame), via: .keyboard))
+
+    // The app refuses to grow past 300x400: pre-write read, read-back, follow-up read.
+    let clamped = CGRect(x: snap.target.minX, y: snap.target.minY, width: 300, height: 400)
+    ws.enqueue(.frame(.value(start)))
+    ws.enqueue(.frame(.value(clamped)))
+    ws.enqueue(.frame(.value(clamped)))
+    let outcome = service.execute(snap, handle: handle, health: &health)
+    #expect(outcome.result == .clamped(clamped))
+    let readBack = try #require(outcome.readBack)
+    registry.recordSnap(LastSnapRecord(key: handle.key, display: snap.display, zones: snap.zones, frame: readBack))
+
+    // The window is still at the clamped frame: cycleRight goes to Zone 4, not back to Zone 3.
+    let next = ShortcutResolver.plan(
+      .cycleRight, focused: F.focused(frame: readBack, handle: handle), verdict: .allow(.full),
+      topology: F.topology, layouts: layouts, registry: registry)
+    guard case .snap(let nextSnap) = next else {
+      Issue.record("expected a snap plan, got \(next)")
+      return
+    }
+    #expect(nextSnap.zones == [4])
+    #expect(nextSnap.target == layoutA.zones[3].frame)
+    // The Original Frame is still the very first one.
+    #expect(registry.entry(handle.key)?.frame == start)
+  }
 }
