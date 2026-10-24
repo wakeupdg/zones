@@ -18,8 +18,14 @@ public enum PermissionMachine {
     default: (next, effects) = step(s, e, config: config, now: now)
     }
     guard config.launchedAtLogin else { return (next, effects) }
-    // Launched at login: no window effects. The badge and the "Grant Accessibility" item carry the message.
-    return (next, effects.filter { $0 != .showOnboarding && $0 != .dismissOnboarding })
+    // Launched at login: no window effects. The badge and the "Grant Accessibility" item carry the message, so
+    // arriving at (or re-confirming) notGranted emits them in place of the window (AC-012). A trust-poll timer
+    // fire stays silent: the badge is already up.
+    var kept = effects.filter { $0 != .showOnboarding && $0 != .dismissOnboarding }
+    if next == .notGranted, s != .notGranted || e == .probe(false) {
+      kept += [.badge(true), .grantMenuItem(true)]
+    }
+    return (next, kept)
   }
 
   /// Timer due times are `scheduledAt + delay`; subtracting `scheduledAt` again can land a hair under `delay`.

@@ -450,6 +450,31 @@ final class PermissionHarness: Sendable {
     #expect(health == healthBefore)
   }
 
+  /// AC-012 reducer table: arriving at or re-confirming notGranted. Login launch swaps the window for the badge and
+  /// the Grant item; a normal launch keeps its window effects and emits neither.
+  @Test func loginLaunchNotGrantedBadges() {
+    let badges: [PermissionEffect] = [.badge(true), .grantMenuItem(true)]
+    func run(_ s: PermissionState, _ e: PermissionEvent, login: Bool) -> [PermissionEffect] {
+      let config = PermissionConfig(launchedAtLogin: login, heartbeatEnabled: false, reducerIdle: true)
+      return PermissionMachine.reduce(s, e, config: config, now: 0).1
+    }
+    // Login: probe(false) while notGranted, and re-onboarding out of granted, both badge; no window effect.
+    for (s, e) in [(PermissionState.notGranted, PermissionEvent.probe(false)), (.granted, .reonboard)] {
+      let fx = run(s, e, login: true)
+      #expect(badges.allSatisfy(fx.contains), "login \(s) \(e)")
+      #expect(!fx.contains(.showOnboarding) && !fx.contains(.dismissOnboarding), "login \(s) \(e)")
+    }
+    // Login: a trust-poll timer fire is only a probe; the badge is already up.
+    #expect(run(.notGranted, .timer(.trustPoll), login: true) == [.probe])
+    // Login: staying granted or going granted never badges on.
+    #expect(!run(.notGranted, .probe(true), login: true).contains(.badge(true)))
+    // Normal launch: reonboard shows the window and emits no badge effect.
+    let normal = run(.granted, .reonboard, login: false)
+    #expect(normal.contains(.showOnboarding))
+    #expect(!normal.contains(.badge(true)) && !normal.contains(.grantMenuItem(true)))
+    #expect(!run(.notGranted, .probe(false), login: false).contains(.badge(true)))
+  }
+
   @Test func launchedAtLoginEmitsNoWindowEffects() {
     func noWindow(_ log: [PermissionEffect], _ note: String) {
       #expect(!log.contains(.showOnboarding) && !log.contains(.dismissOnboarding), Comment(rawValue: note))
