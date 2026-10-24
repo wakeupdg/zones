@@ -130,4 +130,43 @@ struct LabelModelTests {
     }
     #expect(labels.filter(\.noChord).map(\.number) == [10, 11, 12])
   }
+
+  /// Independent WCAG ratio (same formula, written out here so the test does not call LabelModel internals).
+  private func luminance(_ c: RGBA) -> Double {
+    func lin(_ v: Double) -> Double { v <= 0.03928 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4) }
+    return 0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b)
+  }
+
+  private func ratio(_ a: RGBA, _ b: RGBA) -> Double {
+    let (x, y) = (luminance(a), luminance(b))
+    return (max(x, y) + 0.05) / (min(x, y) + 0.05)
+  }
+
+  @Test func outlineContrast() {
+    var fills: [RGBA] = []
+    for r in [0.0, 1] { for g in [0.0, 1] { for b in [0.0, 1] { fills.append(RGBA(r: r, g: g, b: b, a: 1)) } } }
+    for i in 0...100 { fills.append(RGBA(r: Double(i) / 100, g: Double(i) / 100, b: Double(i) / 100, a: 1)) }
+    fills.append(RGBA(r: 0.46, g: 0.46, b: 0.46, a: 1))
+    var gen = Generator(seed: 7)
+    while fills.count < 500 {
+      fills.append(RGBA(r: gen.double(0...1), g: gen.double(0...1), b: gen.double(0...1), a: gen.double(0...1)))
+    }
+    let r = LayoutMath.resolve(
+      makeLayout(root: .split(axis: .horizontal, ratio: 0.5, first: .leaf, second: .leaf)), key: .uuid("D1"),
+      visibleFrame: CGRect(x: 0, y: 0, width: 1200, height: 800), scale: 1)
+    var worst = Double.infinity
+    for fill in fills {
+      for opacity in [0.1, 0.5, 1] {
+        let appearance = Appearance(fill: fill, opacity: opacity, defaultInsets: Insets(margin: 0, gap: 0))
+        for label in LabelModel.labels(r, appearance: appearance) {
+          let opaque = RGBA(r: fill.r, g: fill.g, b: fill.b, a: 1)
+          let value = ratio(label.outline, opaque)
+          worst = min(worst, value)
+          #expect(value >= 4.5, "fill=\(fill) opacity=\(opacity) ratio=\(value)")
+          #expect(label.outline.a == 1)
+        }
+      }
+    }
+    #expect(worst >= 4.5)
+  }
 }

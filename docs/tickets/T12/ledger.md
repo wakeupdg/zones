@@ -6,3 +6,4 @@
 - slice 4: SpanTests.unionIncludesGaps green — Span.rect bounding union, unknown numbers ignored, empty is .zero
 - slice 5: TemplateTests.focusIsOneCenteredZone green — Focus is one leaf, surround 0.2, centered 720x480 zone (passes on first run; generate and HitTest already done)
 - slice 6: LabelModelTests.textScaleAndNoChord green — LabelModel.labels with text, scale, noChord and WCAG black/white outline
+- slice 7: LabelModelTests.outlineContrast green — 500 fills x 3 opacities all at or above 4.5 (passes on first run; outline chosen in slice 6)
