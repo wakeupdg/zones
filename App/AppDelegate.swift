@@ -1,4 +1,5 @@
 import AppKit
+import ZonesCore
 import ZonesWindowing
 
 @MainActor
@@ -49,12 +50,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       status.apply(StatusItemModel.derive(root.permission.state, tap: root.permission.tap))
     }
     surfaces.refresh()
+    // T34's Settings own one PreferencesController on the same "zones.preferences" blob; every change it persists
+    // is forwarded to the root's AppState so the drag pipeline sees it without a relaunch (AC-141).
+    let topology: () -> TopologySnapshot? = { [weak root] in root?.topology.snapshot }
+    let permission: () -> PermissionState = { [weak root] in root?.permission.state ?? .notGranted }
+    let settingsEnvironment = SettingsEnvironment.live(
+      topology: topology, permission: permission, registrar: root.adapters.hotkeys)
+    settingsEnvironment.preferences.onChange = { [weak root] in root?.state.setPreferences($0) }
     settings = SettingsWindowController(
-      topology: { [weak root] in root?.topology.snapshot }, cursor: { NSEvent.mouseLocation },
-      permission: { [weak root] in root?.permission.state ?? .notGranted },
-      tap: { [weak root] in root?.permission.tap ?? .alive },
-      preferences: { [weak root] in root?.state.preferences ?? .defaults },
-      onChange: { [weak root] in root?.state.setPreferences($0) },
+      topology: topology, cursor: { NSEvent.mouseLocation }, permission: permission,
+      tap: { [weak root] in root?.permission.tap ?? .alive }, environment: settingsEnvironment,
       onRerunOnboarding: { [weak root] in root?.permission.receive(.reonboard) })
     wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
       forName: NSWorkspace.didWakeNotification, object: nil, queue: .main

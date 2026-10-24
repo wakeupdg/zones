@@ -62,6 +62,19 @@ struct IsolatedDefaults {
     #expect(fresh.preferences == controller.preferences)
   }
 
+  @Test func preferencesControllerReportsEachChangeToTheComposition() throws {
+    let isolated = IsolatedDefaults()
+    defer { isolated.tearDown() }
+    let controller = PreferencesController(defaults: isolated.defaults)
+    var reported: [Preferences] = []
+    controller.onChange = { reported.append($0) }
+
+    controller.update { $0.appearance.opacity = 0.8 }
+    controller.update { $0.appearance.opacity = 0.8 }  // no change: not reported
+    #expect(reported.count == 1)
+    #expect(reported.first == controller.preferences)
+  }
+
   @Test func equalModifiersAreCoercedByTheExistingRule() throws {
     let isolated = IsolatedDefaults()
     defer { isolated.tearDown() }
