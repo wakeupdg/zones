@@ -1206,4 +1206,42 @@ extension DragSessionReducerTests {
     #expect(F.isPressed(sampling))
     #expect(DragSessionReducer.reduce(sampling, .wake).1 == [.stopSampling, .hideOverlay])
   }
+
+  // AC-156 (T37 slice 9): frame sampling is requested only in pressed, never after moving.
+  @Test func noSamplesAfterMoving() {
+    let both = ModifierSet.shift.union(.control)
+    let moving = F.run([F.mouseDown(), F.dragged(), F.moved()]).state
+    let armed = F.run([F.mouseDown(flags: .shift), F.dragged(), F.moved()]).state
+    #expect(F.isMoving(moving) && F.isArmed(armed))
+
+    let constructed: [DragEvent] = [
+      F.mouseDown(), F.mouseDown(flags: .shift), F.mouseDown(flags: both),
+      F.dragged(), F.dragged(F.center(5)), .dragged(point: CGPoint(x: 9_000, y: 9_000), flags: both),
+      .flagsChanged([]), .flagsChanged(.shift), .flagsChanged(both),
+      .mouseUp(point: F.center(5), flags: .shift), .mouseUp(point: F.downPoint, flags: []),
+      F.moved(), F.unmoved(),
+      .frameSample([F.window.id: .timedOut]), .frameSample([F.window.id: .gone]),
+      .armContext(F.context), .windowGone, .topologyChanged(F.context), .spaceChanged, .wake,
+    ]
+    #expect(constructed.count == 20)
+    // 100 seeded streams of 8 events: every event kind the generator makes, from each state.
+    var generated: [DragEvent] = []
+    for seed in 0..<100 as Range<UInt64> {
+      var g = Generator(seed: seed)
+      generated += g.dragEvents(count: 8, context: F.context, config: F.config)
+    }
+    for (name, state) in [("moving", moving), ("armed", armed)] {
+      for event in constructed + generated {
+        let (_, fx) = DragSessionReducer.reduce(state, event)
+        #expect(!fx.contains(where: F.isRequestSample), Comment(rawValue: "\(name) emitted requestSample on \(event)"))
+      }
+    }
+
+    // pressed: the first dragged requests one sample, the second none.
+    let (pressed, _) = DragSessionReducer.reduce(.idle, F.mouseDown())
+    let first = DragSessionReducer.reduce(pressed, F.dragged())
+    #expect(first.1.filter(F.isRequestSample).count == 1)
+    let second = DragSessionReducer.reduce(first.0, F.dragged(CGPoint(x: 340, y: 270)))
+    #expect(second.1.filter(F.isRequestSample).isEmpty)
+  }
 }

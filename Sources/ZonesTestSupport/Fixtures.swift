@@ -44,4 +44,11 @@ public enum Fixtures {
       surround: Surround(top: 0, left: 0, bottom: 0, right: 0), insets: Insets(margin: 8, gap: 8),
       builtIn: BuiltInRef(template: .grid, count: 9))
   }()
+
+  /// Where the generated drag streams start: a 400 x 300 window and a mouse-down inside it.
+  public static let dragDownFrame = CGRect(x: 100, y: 100, width: 400, height: 300)
+  public static let dragDownPoint = CGPoint(x: 300, y: 250)
+  /// Phase-two facts of an ordinary, movable, standard window.
+  public static let dragStandardFacts = WindowFacts(
+    subrole: .standard, isFullScreen: false, positionSettable: true, sizeSettable: true)
 }
