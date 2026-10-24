@@ -14,6 +14,8 @@ final class CompositionRoot {
   let recovery: EnhancedUIRecovery
   let worker: WindowWorker
   let permission: PermissionDriver
+  let topology: TopologyDriver
+  let drag: DragDriver
   /// The launch steps the root performed, in order (AC-159, AC-076, ADR-0021).
   private(set) var launchTrace: [String] = []
 
@@ -29,6 +31,15 @@ final class CompositionRoot {
     permission = PermissionDriver(
       clock: adapters.clock, input: adapters.input, probe: adapters.probe, worker: worker,
       surfaces: adapters.surfaces, overlay: adapters.overlay, recovery: recovery)
+    topology = TopologyDriver(
+      clock: adapters.clock, displays: adapters.displays, overlay: adapters.overlay, appState: state)
+    drag = DragDriver(
+      clock: adapters.clock, enumerator: adapters.enumerator, overlay: adapters.overlay, worker: worker,
+      appState: state, topology: topology, options: adapters.accessibilityOptions, ownPid: adapters.ownPid)
+    topology.onChange = { [drag] snapshot in drag.topologyChanged(snapshot) }
+    topology.onSpaceChanged = { [drag] in drag.spaceChanged() }
+    permission.dragIdle = { [drag] in drag.isIdle }
+    permission.onForceTopologySnapshot = { [topology] in topology.forceSnapshot() }
   }
 
   /// The launch sequence: Accessibility timeouts, Enhanced UI recovery, then the permission probe. The tap starts

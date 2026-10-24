@@ -45,6 +45,8 @@ final class Harness {
   let enumerator: FakeWindowEnumerator
   let displays: FakeDisplayProvider
   let overlay: FakeOverlayPresenter
+  /// Wraps the fake overlay (to observe ordering against other fakes); defaults to the fake itself.
+  var overlayOverride: (any OverlayPresenter)?
   let hotkeys: FakeHotkeyRegistrar
   let probe: FakePermissionProbe
   let files = FakeFileSystem()
@@ -70,7 +72,7 @@ final class Harness {
     let running = running
     let frontmost = frontmost
     return CompositionAdapters(
-      clock: clock, input: input, windows: windows, enumerator: enumerator, displays: displays, overlay: overlay,
+      clock: clock, input: input, windows: windows, enumerator: enumerator, displays: displays, overlay: overlayOverride ?? overlay,
       hotkeys: hotkeys, probe: probe, files: files, supportDirectory: URL(filePath: "/zones-support"),
       preferences: preferences, surfaces: surfaces, diagnostics: diagnostics,
       ui: UIActions(
