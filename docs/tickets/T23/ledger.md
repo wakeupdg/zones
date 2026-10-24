@@ -1,1 +1,2 @@
 - slice 1: productionTapIsListenOnly green — EventTapInputSource skeleton, config, cgEventMask(for:), TapMaker seam (TapConfig.production already in ZonesCore)
+- slice 2: reenableRateLimitThenTapLost green — pure TapRecovery in Permission/TapRecovery.swift (TapState already existed in PermissionTypes.swift); choices: disables while dead/unavailable return [], recreated(true) from alive/unavailable returns [] and clears reenables, recreated(false) while unavailable returns []
