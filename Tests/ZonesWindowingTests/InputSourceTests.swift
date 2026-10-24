@@ -189,6 +189,7 @@ import ZonesTestSupport
       CGEvent(
         mouseEventSource: nil, mouseType: .rightMouseDown, mouseCursorPosition: CGPoint(x: 10, y: 20),
         mouseButton: .right))
+    let flagsBefore = down.flags  // a new event may carry host flags (macOS 27 sets maskNonCoalesced)
     box.handle(type: .tapDisabledByTimeout, event: down)
     box.handle(type: .tapDisabledByUserInput, event: down)
     box.handle(type: .rightMouseDown, event: right)
@@ -201,6 +202,6 @@ import ZonesTestSupport
     let first = await events.next()
     #expect(first?.kind == .leftDown)
     #expect(first?.point == CGPoint(x: 10, y: 880))
-    #expect(down.flags == [])  // not modified
+    #expect(down.flags == flagsBefore)  // not modified
   }
 }
