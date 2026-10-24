@@ -1,3 +1,4 @@
+import AppKit
 import CoreGraphics
 import Foundation
 import ZonesCore
@@ -14,10 +15,25 @@ public protocol FrameWriting: Sendable {
 public struct FrameWriter: FrameWriting {
   let system: any WindowSystem
   let recovery: EnhancedUIRecovery
+  /// Who owns a pid, for the recovery record; `nil` means no record is written.
+  let identify: @Sendable (pid_t) -> (bundleID: String, launchDate: Date)?
 
-  public init(system: any WindowSystem, recovery: EnhancedUIRecovery) {
+  public init(
+    system: any WindowSystem, recovery: EnhancedUIRecovery,
+    identify: @escaping @Sendable (pid_t) -> (bundleID: String, launchDate: Date)? =
+      FrameWriter.runningAppIdentity
+  ) {
     self.system = system
     self.recovery = recovery
+    self.identify = identify
+  }
+
+  public static let runningAppIdentity: @Sendable (pid_t) -> (bundleID: String, launchDate: Date)? = {
+    pid in
+    guard let app = NSRunningApplication(processIdentifier: pid),
+      let bundleID = app.bundleIdentifier, let launchDate = app.launchDate
+    else { return nil }
+    return (bundleID, launchDate)
   }
 
   /// What `prepareEnhancedUI` hands back: the value it read (`nil` when absent, unreadable or the
@@ -49,8 +65,33 @@ public struct FrameWriter: FrameWriting {
     _ = health.consumeRetry(h.pid, now: now)
 
     let restore = prepareEnhancedUI(pid: h.pid, policy: policy)
-    defer { restore.run() }
+    let result: FrameWriteResult
+    do {
+      defer { restore.run() }
+      result = writeSequence(target, mode: mode, to: h, health: &health, now: now)
+    }
+    noteRecovery(after: result, prior: restore.prior, pid: h.pid)
+    return result
+  }
 
+  /// After the restore, off the hot path: one record per app per session, only for a completed
+  /// sequence and only when the attribute was readable. A disk error never reaches the Snap.
+  private func noteRecovery(after result: FrameWriteResult, prior: Bool?, pid: pid_t) {
+    guard let prior else { return }
+    switch result {
+    case .applied, .clamped: break
+    default: return
+    }
+    guard let app = identify(pid) else { return }
+    recovery.noteIfFirst(
+      RecoveryRecord(
+        bundleID: app.bundleID, pid: pid, launchDate: app.launchDate, priorEnhancedUI: prior))
+  }
+
+  @WindowActor private func writeSequence(
+    _ target: CGRect, mode: SnapMode, to h: WindowHandle, health: inout AppHealth,
+    now: TimeInterval
+  ) -> FrameWriteResult {
     var steps: [@WindowActor () -> AXStatus] = []
     if mode == .full { steps.append { system.setSize(target.size, h) } }
     steps.append { system.setPosition(target.origin, h) }
