@@ -1,0 +1,1 @@
+- slice 1: constantsMatchContract, hitHasThreeDistinctCases, windowActorSharedIsStable green — Package.swift (7 targets, Swift 6, warnings-as-errors), Constants, Hit, WindowActor, Fixtures shell
