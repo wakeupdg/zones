@@ -3,3 +3,4 @@ T02 started
 - slice 2: FakeContractTests.windowSystem green — FakeWindowSystem plus shared ResponseQueue/CallRecorder/StreamBox helpers (latency via FakeClock .frameSample timers; calls vs completed)
 - slice 3: FakeContractTests.windowEnumerator green — FakeWindowEnumerator (FIFO lists per method, candidates logged with hint, latency, reset); tests qualify ZonesCore.WindowRef because ApplicationServices has a WindowRef too
 - slice 4: FakeContractTests.inputSource green — FakeInputSource (start/reenable/recreate queues, emit event and signal, streams finish on reset)
+- slice 5: FakeContractTests.displayProvider green — FakeDisplayProvider (snapshot queue repeats last, emit(change) on changes, latency, reset)

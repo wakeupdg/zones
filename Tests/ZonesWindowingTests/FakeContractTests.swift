@@ -162,4 +162,43 @@ import ZonesWindowing
     #expect(await old.next() == nil)
     #expect(src.start() == .started)
   }
+
+  @Test func displayProvider() async {
+    let clock = FakeClock()
+    let dp = FakeDisplayProvider(clock: clock)
+    let single = TopologySnapshot(
+      displays: [Fixtures.threeDisplays.displays[0]], separateSpaces: true,
+      primaryFrame: Fixtures.threeDisplays.primaryFrame)
+
+    // Queue: snapshots in order; after the queue drains the last one repeats (a stable topology).
+    dp.enqueue(.snapshot(Fixtures.threeDisplays))
+    dp.enqueue(.snapshot(single))
+    #expect(dp.snapshot() == Fixtures.threeDisplays)
+    #expect(dp.snapshot() == single)
+    #expect(dp.snapshot() == single)
+    #expect(dp.calls == [.snapshot, .snapshot, .snapshot])
+
+    // Change notifications reach the stream in order.
+    dp.emit(.wake)
+    dp.emit(.activeSpace)
+    var changes = dp.changes.makeAsyncIterator()
+    #expect(await changes.next() == .wake)
+    #expect(await changes.next() == .activeSpace)
+
+    // Latency 2 completes at the second advance(by: 1).
+    dp.reset()
+    dp.latency = 2
+    _ = dp.snapshot()
+    clock.advance(by: 1)
+    #expect(dp.completed.isEmpty)
+    clock.advance(by: 1)
+    #expect(dp.completed == [.snapshot])
+
+    // reset() forgets the queue, the repeated snapshot and the log.
+    dp.reset()
+    dp.enqueue(.snapshot(single))
+    dp.reset()
+    #expect(dp.calls.isEmpty)
+    #expect(dp.snapshot().displays.isEmpty)
+  }
 }
