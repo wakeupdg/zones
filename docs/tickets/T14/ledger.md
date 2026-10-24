@@ -1,3 +1,4 @@
 - BLOCKED before slice 1: `AppHealth` (Sources/ZonesWindowing/Snap/SnapTypes.swift:29) has only the stored `unresponsiveSince` and no `markUnresponsive`/`isUnresponsive`/`consumeRetry` (its own comment: "methods belong to the health ticket", T15). grep on integration and ticket/T15 finds no `isUnresponsive`. Brief forbids editing AppHealth, so phaseOne's unresponsive row and the slice 1 test cannot compile. Needs T15 merged (or an orchestrator ruling) before T14 starts.
 - Note for resume: AC-144 is manual (Save sheet, popover and Zones Settings show no Overlay on Shift-drag; Calculator snaps position-only at the Zone's top-left); needs a human run, no test.
 - RESOLVED by orchestrator (run 2 end): T15 merged AppHealth.swift with markUnresponsive/isUnresponsive/consumeRetry; T15 added to blocked_by; ticket reset to todo for run 3.
+- slice 1: ExclusionPolicyTests.table (phase one) green — ExclusionPolicy.systemAgents and phaseOne
