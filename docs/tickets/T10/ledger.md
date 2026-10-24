@@ -14,3 +14,4 @@
 - slice 7: MigrationTests.goldenFixturesMigrate green — table-driven over layouts/assignments v1..documentVersion
 - slice 8: MigrationTests.migrationWritesBackupFirst green — backup written before migrated file, .migrated(doc, from:, backup:)
 - slice 9: FixtureHashTests green — SHA-256 table over goldens, highest fixture equals Constants.documentVersion (mutation-checked red)
+- slice 10: PreferencesTests.modifiersMustDiffer green — Preferences.coerced() keeps Activation, Span becomes control (shift when Activation is control), flag only on change

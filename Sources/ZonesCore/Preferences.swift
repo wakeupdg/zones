@@ -44,6 +44,16 @@ public struct Preferences: Hashable, Codable, Sendable {
     self.notices = notices
   }
 
+  /// Keeps the Activation modifier and makes the Span modifier differ from it (AC-087): Span becomes Control,
+  /// or Shift when Activation is Control. Sets `.modifiersCoerced` only when it changed something.
+  public func coerced() -> Preferences {
+    guard spanModifier == activationModifier else { return self }
+    var copy = self
+    copy.spanModifier = activationModifier == .control ? .shift : .control
+    copy.notices.insert(.modifiersCoerced)
+    return copy
+  }
+
   public static let defaults = Preferences(
     schemaVersion: Constants.preferencesSchema,
     activationModifier: .shift,

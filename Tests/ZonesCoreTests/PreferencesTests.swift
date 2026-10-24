@@ -63,3 +63,26 @@ import ZonesCore
   #expect(Set(object.keys) == ["key", "modifiers"])
   #expect(try JSONDecoder().decode(Chord.self, from: JSONEncoder().encode(chord)) == chord)
 }
+
+@Suite struct PreferencesTests {
+  static let pairs: [[Modifier]] = Modifier.allCases.flatMap { a in Modifier.allCases.map { [a, $0] } }
+
+  @Test(arguments: pairs)
+  func modifiersMustDiffer(pair: [Modifier]) {
+    var input = Preferences.defaults
+    input.activationModifier = pair[0]
+    input.spanModifier = pair[1]
+    input.notices = [.separateSpacesOff]
+    let output = input.coerced()
+
+    #expect(output.activationModifier == pair[0])
+    #expect(output.spanModifier != output.activationModifier)
+    if pair[0] != pair[1] {
+      #expect(output == input)
+      #expect(!output.notices.contains(.modifiersCoerced))
+    } else {
+      #expect(output.spanModifier == (pair[0] == .control ? .shift : .control))
+      #expect(output.notices == [.separateSpacesOff, .modifiersCoerced])
+    }
+  }
+}
