@@ -3,6 +3,7 @@ import Foundation
 import Testing
 import ZonesCore
 import ZonesLayout
+import ZonesTestSupport
 
 @testable import ZonesWindowing
 
@@ -143,5 +144,33 @@ import ZonesLayout
     #expect(base == nil)
     #expect(CycleResolver.next(from: base, direction: .right, count: 4, span: nil) == 1)
     #expect(CycleResolver.next(from: base, direction: .left, count: 4, span: nil) == 4)
+  }
+
+  // MARK: property (ADR-0016, seeded generator)
+
+  @Test func wrapProperty() {
+    for seed in UInt64(1)...200 {
+      var g = Generator(seed: seed)
+      let count = g.int(1...9)
+      let base: Int? = g.bool() ? g.int(1...count) : nil
+      let direction: CycleDirection = g.bool() ? .right : .left
+      var span: Set<Int>?
+      if count >= 2, g.bool() {
+        let lo = g.int(1...(count - 1))
+        span = Set(lo...g.int((lo + 1)...count))
+      }
+      let note = "seed=\(seed) count=\(count) base=\(String(describing: base)) span=\(String(describing: span))"
+      let n = CycleResolver.next(from: base, direction: direction, count: count, span: span)
+      #expect((1...count).contains(n), Comment(rawValue: note))
+      // Applying Right `count` times from a base returns to it (no span).
+      if let base {
+        var at = base
+        for _ in 0..<count { at = CycleResolver.next(from: at, direction: .right, count: count, span: nil) }
+        #expect(at == base, Comment(rawValue: note))
+        // Left is the inverse of Right when there is no span.
+        let right = CycleResolver.next(from: base, direction: .right, count: count, span: nil)
+        #expect(CycleResolver.next(from: right, direction: .left, count: count, span: nil) == base, Comment(rawValue: note))
+      }
+    }
   }
 }

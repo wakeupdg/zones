@@ -1,3 +1,4 @@
 - slice 1: CycleResolverTests.table green — CycleResolver.next wrap table (no span, nil base, spans, count 1)
 - slice 2: CycleResolverTests.table (tableRecordMatch, tableCalculatorClamped, tableSpanRecord) green — matchedRecord 2 pt match, base from record
 - slice 3: CycleResolverTests.table (tableMaxIntersection, tableTie, tableNoIntersection) green — max-intersection fallback, ties to lower, nil when no overlap
+- slice 4: CycleResolverTests.wrapProperty green — 200 seeded cases: in range, Right x count returns, Left inverts Right (passed at once, next already complete)
