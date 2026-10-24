@@ -1367,5 +1367,239 @@
     "protocol": "DragSessionReducer, DragState (edit)",
     "fake": "none needed (pure reducer)",
     "tests": "Tests/ZonesWindowingTests/DragSessionReducerTests.swift (topologyChangeRehitsAtLastCursorPoint), SpanTests.swift, MessageTests.swift (patterns)"
+  },
+  {
+    "id": "T40",
+    "title": "QA fix: onboarding buttons, safe Quit and Reopen, template status-item image",
+    "kind": "fix",
+    "delivers": "Back is `.disabled` on page 1 and Next is `.disabled` on page 2 (or hidden); no opacity dimming of an enabled control.; `relaunchApp` terminates only when `openApplication` returns an app and no error; on error it logs (category `.app`), keeps Zones running, and keeps the Quit and Reopen offer standing.; The status-item `button.image` is a template image (`isTemplate == true`) in every state, so the menu bar tints it. The red badge is drawn as a separate non-template layer or subview on the button, shown only when the model is badged. The accessibility description stays as it is today.",
+    "acceptance_ids": [
+      "AC-004",
+      "AC-010",
+      "AC-018"
+    ],
+    "blocked_by": [
+      "T33",
+      "T36"
+    ],
+    "files_expected": [
+      "App/Onboarding/OnboardingView.swift",
+      "App/Onboarding/OnboardingWindowController.swift",
+      "App/StatusItemController.swift",
+      "AppTests/"
+    ],
+    "est_tokens": 70000,
+    "brief_path": "docs/tickets/T40.md",
+    "state": "todo",
+    "tokens_spent": 0,
+    "branch": "",
+    "last_report": "",
+    "protocol": "StatusItemController, OnboardingWindowController (edit)",
+    "fake": "closure seams for openApplication and terminate",
+    "tests": "AppTests/StatusItemBindingTests.swift, AppTests/OnboardingControllerTests.swift, AppTests/OnboardingViewTests.swift",
+    "qa_findings": [
+      "QA-1.0",
+      "QA-1.8",
+      "QA-1.9"
+    ]
+  },
+  {
+    "id": "T41",
+    "title": "QA fix: login-launch notGranted emits badge and Grant Accessibility item (AC-012)",
+    "kind": "fix",
+    "delivers": "`PermissionMachine.reduce` on the login-launch path (launched-as-login-item set) with state notGranted emits `.badge(true)` and `.grantMenuItem(true)` and no window effect, exactly as AC-012 states.; Remove the `withKnownIssue` wrapper in Tests/ZonesWindowingTests/AppLaunchTests.swift so the literal AC-012 expectation runs and passes.; Keep every other PermissionMachine test green; if a T20/T29 test pinned the old empty effect list on this path, update it to the AC-012 effects and say so in the ledger.; Check the composition root (App/Composition) applies `.badge`/`.grantMenuItem` effects from",
+    "acceptance_ids": [
+      "AC-012"
+    ],
+    "blocked_by": [
+      "T20",
+      "T29",
+      "T36"
+    ],
+    "files_expected": [
+      "Sources/ZonesWindowing/Permission/PermissionMachine.swift",
+      "Tests/ZonesWindowingTests/AppLaunchTests.swift",
+      "Tests/ZonesWindowingTests/PermissionMachineTests.swift"
+    ],
+    "est_tokens": 50000,
+    "brief_path": "docs/tickets/T41.md",
+    "state": "todo",
+    "tokens_spent": 0,
+    "branch": "",
+    "last_report": "",
+    "protocol": "PermissionMachine (edit)",
+    "fake": "FakeClock",
+    "tests": "Tests/ZonesWindowingTests/AppLaunchTests.swift, Tests/ZonesWindowingTests/PermissionMachineTests.swift",
+    "qa_findings": [
+      "QA-1.2"
+    ]
+  },
+  {
+    "id": "T42",
+    "title": "QA fix: Shortcuts pane row alignment and VoiceOver-reachable recorder fields (AC-103)",
+    "kind": "fix",
+    "delivers": "Each Shortcuts row has the action label and the recorder/Clear controls on one centre line; the per-row message line stays below without shifting the label.; Every RecorderField is an accessibility element: role button, label `Shortcut for <action>`, value = the current chord text (or `Not set`), updated when the chord or recording state changes (not in `draw(_:)`).; Keyboard-only: Tab reaches each recorder; Space/Return starts recording; Escape cancels; Delete clears (keep T27/T34 behavior).",
+    "acceptance_ids": [
+      "AC-103"
+    ],
+    "blocked_by": [
+      "T34"
+    ],
+    "files_expected": [
+      "App/Settings/ShortcutsPane.swift",
+      "App/Settings/ChordRecorderView.swift",
+      "AppTests/ShortcutsAccessibilityTests.swift"
+    ],
+    "est_tokens": 60000,
+    "brief_path": "docs/tickets/T42.md",
+    "state": "todo",
+    "tokens_spent": 0,
+    "branch": "",
+    "last_report": "",
+    "protocol": "RecorderField, ShortcutsPane (edit)",
+    "fake": "none needed (AppKit view test)",
+    "tests": "AppTests/ShortcutsAccessibilityTests.swift",
+    "qa_findings": [
+      "QA-1.1",
+      "QA-1.6"
+    ]
+  },
+  {
+    "id": "T43",
+    "title": "QA fix: editor toolbar pop-up and sliders expose accessibility labels (AC-139)",
+    "kind": "fix",
+    "delivers": "The editor toolbar Display pop-up and the Margin and Gap sliders expose non-empty AX labels `Display`, `Margin`, `Gap` on the element AppKit actually exposes (the cell), or are linked to their visible label text fields with `setAccessibilityTitleUIElement`.; Slider AX values read as the point value with unit (e.g. `8 points`), if the current code exposes a bare number keep the number but make sure it updates when the value changes.; No other editor behavior changes.",
+    "acceptance_ids": [
+      "AC-139"
+    ],
+    "blocked_by": [
+      "T35"
+    ],
+    "files_expected": [
+      "App/Editor/EditorToolbar.swift",
+      "AppTests/EditorAccessibilityTests.swift"
+    ],
+    "est_tokens": 40000,
+    "brief_path": "docs/tickets/T43.md",
+    "state": "todo",
+    "tokens_spent": 0,
+    "branch": "",
+    "last_report": "",
+    "protocol": "EditorToolbar (edit)",
+    "fake": "none needed (AppKit view test)",
+    "tests": "AppTests/EditorAccessibilityTests.swift",
+    "qa_findings": [
+      "QA-1.7"
+    ]
+  },
+  {
+    "id": "T44",
+    "title": "QA fix: CI gates fail on test failure, AC-146/151 Verify filters run tests, AC-161 flags set once",
+    "kind": "fix",
+    "delivers": "`.github/workflows/ci.yml`: every piped step fails when its first command fails. Add `defaults: run: shell: bash` at the job level (GitHub then runs `bash --noprofile --norc -eo pipefail {0}`), or `set -o pipefail` in each piped step. Keep the `| tail -80` output trimming.; AC-146 Verify `swift test --filter DocumentTests.mergeAndReplace` and AC-151 Verify `--filter DocumentTests.importValidatesWholeFile` each run exactly one passing test. Do this by moving those two tests into a `@Suite struct DocumentTests` in Tests/ZonesLayoutTests (a new file, e.g. ImportDocumentTests.swift); do not edit L",
+    "acceptance_ids": [
+      "AC-160",
+      "AC-146",
+      "AC-151",
+      "AC-161"
+    ],
+    "blocked_by": [
+      "T38",
+      "T17"
+    ],
+    "files_expected": [
+      ".github/workflows/ci.yml",
+      "project.yml",
+      "Tests/ZonesLayoutTests/ImportExportTests.swift",
+      "Tests/ZonesLayoutTests/ImportDocumentTests.swift",
+      "Tests/ZonesCoreTests/GateScriptTests.swift"
+    ],
+    "est_tokens": 50000,
+    "brief_path": "docs/tickets/T44.md",
+    "state": "todo",
+    "tokens_spent": 0,
+    "branch": "",
+    "last_report": "",
+    "protocol": "none (build configuration)",
+    "fake": "none needed (config and test moves)",
+    "tests": "Tests/ZonesCoreTests/GateScriptTests.swift, Tests/ZonesLayoutTests/ImportDocumentTests.swift",
+    "qa_findings": [
+      "QA-1.5",
+      "QA-1.3",
+      "QA-1.4"
+    ]
+  },
+  {
+    "id": "T45",
+    "title": "QA fix: top-edge cursor resolves to its Display; suspended Span secondary stays on the Span's Display (LI-009, AC-036, AC-085)",
+    "kind": "fix",
+    "delivers": "`HitTest.display(at:in:)` returns the Display for a point on the top edge of the top-most Display (y == frame.maxY after the flip) and, when no frame contains the point, falls back to the nearest Display by edge distance (a cursor is always on some Display). Interior half-open tie rules between adjacent Displays stay as they are.; A mouse-up at such a point snaps (or restores) exactly as the highlight showed (LI-009).; While a Span is suspended (cursor on Display B, Span on Display A), the Overlay draws the Span's Zones dimmer on Display A's panel and the cursor Zone on Display B. Give `Highli",
+    "acceptance_ids": [
+      "AC-036",
+      "AC-085",
+      "AC-082"
+    ],
+    "blocked_by": [
+      "T39",
+      "T26",
+      "T37"
+    ],
+    "files_expected": [
+      "Sources/ZonesLayout/HitTest.swift",
+      "Sources/ZonesWindowing/Drag/DragTypes.swift",
+      "Sources/ZonesWindowing/Drag/SpanLogic.swift",
+      "Sources/ZonesWindowing/Overlay/OverlayModel.swift",
+      "Tests",
+      "docs/CONTRACTS.md"
+    ],
+    "est_tokens": 90000,
+    "brief_path": "docs/tickets/T45.md",
+    "state": "todo",
+    "tokens_spent": 0,
+    "branch": "",
+    "last_report": "",
+    "protocol": "HitTest, Highlight, SpanLogic, OverlayModel (edit)",
+    "fake": "none needed (pure)",
+    "tests": "Tests/ZonesLayoutTests/HitTestUnitTests.swift, Tests/ZonesWindowingTests/OverlayModelTests.swift, Tests/ZonesWindowingTests/DragSessionReducerTests.swift, Tests/ZonesWindowingTests/SpanTests.swift",
+    "qa_findings": [
+      "QA-1.11",
+      "QA-1.12"
+    ]
+  },
+  {
+    "id": "T46",
+    "title": "QA fix: size-locked windows get a position-only Snap on mouse and keyboard paths (AC-144, ADR-0018 C4)",
+    "kind": "fix",
+    "delivers": "Carry the `SnapMode` returned by `ExclusionPolicy.phaseTwo` (`.allow(.positionOnly)`) from the moved sample into `moving` and `armed` (a new associated value `mode: SnapMode`, default `.full`), and use it in the mouseUp `SnapPlan` instead of the literal `.full`.; Keyboard path: `ShortcutResolver.plan` applies `ExclusionPolicy.phaseTwo(focused.facts)` (or maps `!facts.sizeSettable` to `.positionOnly`) before building the plan; `WindowWorker` passes the facts it already reads.; `FrameWriter` with `.positionOnly` issues no `setSize` (T15 behavior; confirm with the fake's call log).; Update every ",
+    "acceptance_ids": [
+      "AC-144"
+    ],
+    "blocked_by": [
+      "T45",
+      "T21",
+      "T28"
+    ],
+    "files_expected": [
+      "Sources/ZonesWindowing/Drag/DragTypes.swift",
+      "Sources/ZonesWindowing/Drag/DragSessionReducer.swift",
+      "Sources/ZonesWindowing/Drag/SpanLogic.swift",
+      "Sources/ZonesWindowing/Drag/CandidateResolution.swift",
+      "Sources/ZonesWindowing/Shortcuts/ShortcutResolver.swift",
+      "App/Composition/WindowWorker.swift",
+      "Tests",
+      "docs/CONTRACTS.md"
+    ],
+    "est_tokens": 80000,
+    "brief_path": "docs/tickets/T46.md",
+    "state": "todo",
+    "tokens_spent": 0,
+    "branch": "",
+    "last_report": "",
+    "protocol": "DragState, DragSessionReducer, ShortcutResolver (edit)",
+    "fake": "FakeWindowSystem",
+    "tests": "Tests/ZonesWindowingTests/DragSessionReducerTests.swift, Tests/ZonesWindowingTests/ShortcutResolverTests.swift, Tests/ZonesWindowingTests/SnapServiceTests.swift",
+    "qa_findings": [
+      "QA-1.10"
+    ]
   }
 ]
