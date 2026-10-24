@@ -170,4 +170,19 @@ import ZonesWindowing
       ZonesDocument.self, from: h.files.read(URL(filePath: "/zones-support/assignments.json")))
     #expect(assignments.assignments[Self.uuidA]?.layout == editorID)
   }
+
+  @Test func deleteLayoutMovesItsAssignmentsToTheReplacement() {
+    let h = Harness()
+    let root = h.makeRoot()
+    let rig = EditorRig(root: root)
+    rig.saveTwoColumnsAndAssign()
+    let custom = rig.model.draft.layout.id
+    let fallback = Templates.builtInID(.priorityGrid, count: 3)
+
+    #expect(!root.state.deleteLayout(custom, replacement: nil))  // in use: refused, nothing changes
+    #expect(root.state.layouts.layout(custom) != nil)
+    #expect(root.state.deleteLayout(custom, replacement: fallback))
+    #expect(root.state.layouts.layout(custom) == nil)
+    #expect(root.state.assignments[Self.uuidA]?.layout == fallback)
+  }
 }
