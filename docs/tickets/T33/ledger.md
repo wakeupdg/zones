@@ -5,3 +5,7 @@
 - slice 5: OnboardingControllerTests.showTwiceKeepsOneWindow green — OnboardingWindowController (+OnboardingModel/OnboardingView/CheatSheetView) in App/Onboarding; AppTests now depend on ZonesTestSupport (project.yml); unwired: no composition root exists yet to call show/dismiss/update
 - slice 6: OnboardingControllerTests.noWindowWhenLaunchedAtLogin green — passed on first run (guard already written in slice 5), no code change
 - slice 7: OnboardingControllerTests.openSettingsButtonCallsProbe green — passed on first run (controller.openSettings forwards to probe only), no code change
+- slice 8: StatusItemBindingTests green — App/StatusItemController.swift did not exist, so it was created (badge icon from StatusItemModel.badged, NSMenu from MenuModel items, "Grant Accessibility" calls onGrant = OnboardingWindowController.show); model/menu content already pinned by StatusItemModelTests and MenuModelTests; AppDelegate not touched and no composition root exists yet, so show/dismiss/update/apply are unwired
+- AC-004: implemented (one window via OnboardingWindowController; button calls probe.openAccessibilitySettings only), manual, not run
+- AC-005: implemented (window closes on dismiss(), driven by dismissOnboarding; no polling in the view; badge from StatusItemModel), manual, not run; needs the composition root to execute effects
+- AC-020: implemented (CheatSheetView lists three gestures; KeyCapView redraws from Preferences re-read on UserDefaults.didChangeNotification), manual, not run
