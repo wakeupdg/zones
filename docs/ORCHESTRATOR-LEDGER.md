@@ -3,3 +3,4 @@ One line per completed orchestration step. Read this plus docs/tickets/graph.jso
 - P0.0 mechanics committed (scripts, hooks, docs skeleton)
 - P0.1 research sweep committed (6 files under docs/research)
 - P0.2 grill round 1 answered: all 25 recommendations accepted (2026-10-23)
+- P0.3 ADRs (25), CONTEXT.md, BRIEF.md committed; remote wakeupdg/zones created; CI + dev-cert added. P1 workflow wf_afaabc36-55e launched
