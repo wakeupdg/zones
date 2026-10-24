@@ -1,3 +1,7 @@
 # A layout is a binary split tree; zones are its leaves
 
 A layout is a binary tree: each inner node splits its rectangle horizontally or vertically at a ratio in (0,1); each leaf is a zone. Editor operations map directly: split a zone = replace the leaf with a node; merge = collapse a node into one leaf; resize = change one ratio; margins and gaps are layout-level values in points applied at render time. The tree always tiles the display with no gaps and no overlaps, which is the core property test. Zone rectangles are stored as normalized 0..1 fractions of the display visible frame so one layout fits any display. Rejected: FancyZones-style row/column grid with merged cells (merge rules are fiddlier, same expressiveness for our templates) and free-form canvas rectangles (overlaps, gaps).
+
+## Amendment 2026-10-24 (LOCKED-SPEC challenge C1)
+
+"The tree always tiles the display" is replaced by "the tree always tiles the Layout rectangle". A Layout carries a normalized surround fraction per side (default 0; Focus 0.2; maximum 0.45) that is subtracted from the display visible frame before Margin and Gap; the Layout rectangle is what remains, and the leaves tile it with no gaps and no overlaps (the core property test, AC-116). Every Template but Focus keeps surround 0, so for them the Layout rectangle is the visible frame and nothing changes. Leaves remain the only Zones; there is no inert or third leaf kind. Merge stays sibling-only; same-axis chain merge waits on SPK-015.

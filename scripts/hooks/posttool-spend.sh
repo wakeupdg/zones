@@ -13,16 +13,21 @@ case "$common" in /*) ;; *) common="$cwd/$common";; esac
 main="$(cd "$(dirname "$common")" && pwd)"
 branch="$(git -C "$cwd" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")"
 transcript="$(printf '%s' "$input" | jq -r '.transcript_path // empty')"
+agent_id="$(printf '%s' "$input" | jq -r '.agent_id // .agentId // empty')"
+printf '%s' "$input" | jq -c 'del(.tool_input,.tool_response)' >>"/tmp/zones-hook-debug.jsonl" 2>/dev/null
 id="${ZONES_TICKET_ID:-}"
 if [ -z "$id" ]; then
   case "$branch" in
     ticket/*) id="${branch#ticket/}";;
     *)
       # a subagent running in the main checkout gets its own log; the orchestrator keeps its own
-      case "$transcript" in
-        */subagents/*) id="_subagents/$(basename "$transcript" .jsonl)";;
-        *) id="orchestrator";;
-      esac;;
+      if [ -n "$agent_id" ]; then id="_subagents/agent-$agent_id"
+      else
+        case "$transcript" in
+          */subagents/*) id="_subagents/$(basename "$transcript" .jsonl)";;
+          *) id="orchestrator";;
+        esac
+      fi;;
   esac
 fi
 dir="$main/docs/tickets/$id"; mkdir -p "$dir"

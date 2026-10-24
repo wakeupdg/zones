@@ -1,7 +1,7 @@
 name: CI
 on:
   push:
-    branches: [integration, main]
+    branches: [integration, main, "ticket/**"]
   pull_request:
     branches: [main, integration]
 jobs:
