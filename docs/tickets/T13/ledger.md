@@ -4,3 +4,4 @@
 - slice 4: AXMappingTests.subroleMapping green — Subrole(axSubrole:axRole:) in Adapters/AXWindowSystem.swift
 - slice 5: AXMappingTests.coordinateRoundTrip green — AXGeometry.ax/appKit wrap CoordinateSpace (only callers); 200 seeded rects x 2 primaries round-trip
 - slice 6: AXObserverBridgeTests.fanOut green — NoticeHub fan-out behind a lock, notices() new stream per call, internal emit(_:)
+- slice 7: AXPermissionProbeTests.probeValues green — AXPermissionProbe (isTrusted calls AXIsProcessTrusted each time, settingsURL, injected or Apple-event launchedAtLogin)
