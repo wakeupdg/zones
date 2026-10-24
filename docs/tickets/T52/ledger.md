@@ -1,0 +1,2 @@
+- slice 1: ciTriggersArePullRequestToMainAndManual green; ci.yml push trigger removed; PR to main + workflow_dispatch (ADR-0026)
+- slice 2: AC-160 amended (Statement + Verify), challenge C11, ADR-0026, ADR-0024 amendment; acs.json synced

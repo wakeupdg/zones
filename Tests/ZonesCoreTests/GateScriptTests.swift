@@ -441,8 +441,20 @@ func write(_ text: String, to url: URL) throws {
     let testIndex = try #require(lines.firstIndex { $0.contains("swift test") })
     let gateIndex = try #require(lines.firstIndex { $0.contains("scripts/hygiene-gate.sh") })
     #expect(gateIndex > testIndex)
-    #expect(text.contains("ticket/**"))
-    #expect(text.contains("integration"))
+  }
+  /// AC-160 as amended by ADR-0026 (challenge C11): CI runs on pull requests to main and on manual dispatch only;
+  /// every merge into integration runs the same gates locally through scripts/merge-ticket.sh.
+  @Test func ciTriggersArePullRequestToMainAndManual() throws {
+    let text = try String(
+      contentsOf: repoRoot().appendingPathComponent(".github/workflows/ci.yml"), encoding: .utf8)
+    let lines = text.components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
+    #expect(!lines.contains("push:"), "push triggers spend Actions minutes on every ticket push (ADR-0026)")
+    let pr = try #require(lines.firstIndex(of: "pull_request:"))
+    #expect(lines[pr + 1] == "branches: [main]")
+    #expect(lines.contains("workflow_dispatch:"))
+    let merge = try String(
+      contentsOf: repoRoot().appendingPathComponent("scripts/merge-ticket.sh"), encoding: .utf8)
+    #expect(merge.contains("swift build") && merge.contains("swift test") && merge.contains("xcodebuild"))
   }
   @Test func ciPipedStepsUsePipefail() throws {
     let text = try String(
