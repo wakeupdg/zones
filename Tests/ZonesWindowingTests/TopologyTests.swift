@@ -86,7 +86,7 @@ private struct Harness {
   }
 
   /// AC-124: a storm of callbacks becomes one read and one commit, 200 ms after the last.
-  @Test func stormCoalescesAndResizes() {
+  @Test func stormCoalescesAndResizes() throws {
     var h = Harness()
     h.provider.enqueue(.snapshot(Self.topology([Self.a])))
     for _ in 0..<5 {
@@ -113,7 +113,7 @@ private struct Harness {
     #expect(h.reads == 2)
     #expect(h.changes == [Self.topology([Self.a]), second])
     #expect(h.resizes == [Self.topology([Self.a]), second])
-    let newDisplay = try! #require(h.resizes.last?.displays.first)
+    let newDisplay = try #require(h.resizes.last?.displays.first)
     #expect(h.resizes.last?.displays.map(\.frame) == [moved.frame])
 
     let before = LayoutMath.resolve(Fixtures.nineZone, display: Self.a)
@@ -122,10 +122,10 @@ private struct Harness {
     #expect(after.visibleFrame == moved.visibleFrame)
     #expect(after.zones.map(\.frame) != before.zones.map(\.frame))
     // 3 x 3 thirds of the visible frame inset by the 8 pt Margin: zone 1 starts at the Margin, top-left.
-    let zone1 = try! #require(after.zones.first { $0.number == 1 }).frame
+    let zone1 = try #require(after.zones.first { $0.number == 1 }).frame
     #expect(zone1.minX == moved.visibleFrame.minX + 8)
     #expect(zone1.maxY == moved.visibleFrame.maxY - 8)
-    let zone9 = try! #require(after.zones.first { $0.number == 9 }).frame
+    let zone9 = try #require(after.zones.first { $0.number == 9 }).frame
     #expect(zone9.maxX == moved.visibleFrame.maxX - 8)
     #expect(zone9.minY == moved.visibleFrame.minY + 8)
 
