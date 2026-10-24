@@ -8,3 +8,4 @@
 - AC-023: implemented, awaiting human run
 - AC-028: implemented, awaiting human run
 - AC-030: implemented, awaiting human run
+- review fix: SettingsWindow (NSWindow subclass) closes on Cmd+W via performKeyEquivalent and Escape via cancelOperation, since the accessory app has no main menu; AppTests/SettingsWindowKeyboardTests red (3 failures on plain NSWindow stub) then green; AC-023 still awaiting human run

@@ -58,7 +58,7 @@ final class SettingsWindowController {
   }
 
   private func makeWindow() -> NSWindow {
-    let window = NSWindow(
+    let window = SettingsWindow(
       contentRect: NSRect(x: 0, y: 0, width: 640, height: 460),
       styleMask: NSWindow.StyleMask(rawValue: WindowPlacement.settingsStyleMaskRaw),
       backing: .buffered, defer: false)
