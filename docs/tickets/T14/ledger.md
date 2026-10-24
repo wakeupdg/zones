@@ -4,3 +4,4 @@
 - slice 1: ExclusionPolicyTests.table (phase one) green — ExclusionPolicy.systemAgents and phaseOne
 - slice 2: ExclusionPolicyTests.table (phase two, reason coverage) green — ExclusionPolicy.phaseTwo
 - slice 3: ExclusionPolicyTests.precedence green — ordering pinned (policy already implemented the order in slices 1-2, so no separate red)
+- slice 4: ExclusionsPaneModelTests.bundleIdentifierKeyed green — rows/add/Row (AC-142)
