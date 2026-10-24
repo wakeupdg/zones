@@ -21,6 +21,18 @@ public enum Templates {
       insets: insets, builtIn: BuiltInRef(template: t, count: count))
   }
 
+  /// Every built-in, in `Template.allCases` order with each Template's counts ascending: 12 Layouts.
+  public static func all(insets: Insets) -> [Layout] {
+    Template.allCases.flatMap { t in t.counts.map { generate(t, count: $0, insets: insets) } }
+  }
+
+  /// A custom copy: fresh id, name "<name> copy", no `builtIn`, `insets` (the current defaults) made explicit.
+  /// Root and surround are copied.
+  public static func duplicate(_ l: Layout, insets: Insets, newID: LayoutID) -> Layout {
+    Layout(
+      id: newID, name: "\(l.name) copy", root: l.root, surround: l.surround, insets: insets, builtIn: nil)
+  }
+
   private static func caseName(_ t: Template) -> String {
     switch t {
     case .columns: "columns"
