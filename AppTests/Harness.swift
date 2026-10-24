@@ -77,6 +77,7 @@ final class Harness {
       preferences: preferences, surfaces: surfaces, diagnostics: diagnostics,
       ui: UIActions(
         openSettings: { log.withLock { $0.append("settings") } },
+        openAbout: { log.withLock { $0.append("about") } },
         openEditor: { log.withLock { $0.append("editor") } },
         requestQuit: { log.withLock { $0.append("quit") } }),
       ownPid: 999_999, runningApps: { running.withLock { $0 } }, bundleID: { _ in nil }, identify: { _ in nil },

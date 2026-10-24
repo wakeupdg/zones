@@ -22,6 +22,7 @@ protocol DiagnosticsPresenter: AnyObject {
 /// Windows the root opens on request. The editor is a later ticket; until then `openEditor` only logs.
 struct UIActions {
   var openSettings: @MainActor () -> Void
+  var openAbout: @MainActor () -> Void
   var openEditor: @MainActor () -> Void
   var requestQuit: @MainActor () -> Void
 }
