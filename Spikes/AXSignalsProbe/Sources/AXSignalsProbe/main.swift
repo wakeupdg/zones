@@ -13,5 +13,6 @@ guard let mode = args.first else { fail(usage, code: 64) }
 switch mode {
 case "selftest": exit(runSelfTest())
 case "thread": exit(runThreadMode(args))
+case "cadence": exit(runCadenceMode(args))
 default: fail("unknown mode: \(mode)\n\(usage)", code: 64)
 }

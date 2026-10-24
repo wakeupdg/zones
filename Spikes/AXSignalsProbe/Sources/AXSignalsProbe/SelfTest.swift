@@ -21,6 +21,20 @@ func runSelfTest() -> Int32 {
   let gaps = interArrivalMs([0, 0.010, 0.030, 0.060])
   check(gaps.count == 3 && abs(gaps[0] - 10) < 1e-9 && abs(gaps[2] - 30) < 1e-9, "interArrivalMs")
   check(interArrivalMs([1]).isEmpty, "interArrivalMs single")
+  // Cadence summary: one gesture down=1.0 up=2.0; end-of-gesture events land at 2.01 / 2.03.
+  let endOnly = summarizeCadence(
+    events: [CadenceEvent(name: "AXWindowMoved", t: 2.01), CadenceEvent(name: "AXWindowMoved", t: 2.03)],
+    downs: [1.0], ups: [2.0])
+  check(endOnly.count == 1 && endOnly[0].count == 2 && endOnly[0].betweenDownUp == 0
+    && endOnly[0].within50msAfterUp == 2 && endOnly[0].verdict == "end-of-gesture-only", "cadence end-of-gesture-only")
+  let cont = summarizeCadence(
+    events: (0..<10).map { CadenceEvent(name: "AXWindowMoved", t: 1.1 + Double($0) * 0.1) },
+    downs: [1.0], ups: [2.5])
+  check(cont[0].betweenDownUp == 10 && cont[0].verdict == "continuous"
+    && abs((cont[0].interArrival?.median ?? 0) - 100) < 1e-6, "cadence continuous + median 100 ms")
+  let none = summarizeCadence(events: [], downs: [], ups: [])
+  check(none.isEmpty, "cadence no events -> empty summary")
+  check(cadenceVerdict(count: 0, betweenDownUp: 0, gestures: 0) == "no-data", "verdict no-data")
   print(failures == 0 ? "selftest OK" : "selftest FAILED (\(failures))")
   return failures == 0 ? 0 : 1
 }
