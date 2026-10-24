@@ -172,4 +172,58 @@ private final class IdleRig: Sendable {
     #expect(granted.permission == .needsRelaunch)
     Self.expectPending(granted, [.trustPoll], "needsRelaunch after 60 s")
   }
+
+  // Slice 13 (AC-156)
+  @Test func transientTimersCancelWhenResolved() {
+    // (a) the 30 s dead-tap retry exists from tapLost until the tap is recreated.
+    let tap = IdleRig.booted(granted: true)
+    Self.expectPending(tap, [.healthTick], "(a) before any disable")
+    for _ in 0..<5 {
+      tap.signal(.disabledByTimeout)
+      tap.clock.advance(by: 1)
+      #expect(tap.tap.state == .alive)
+      Self.expectPending(tap, [.healthTick], "(a) a re-enable schedules nothing")
+    }
+    tap.signal(.disabledByTimeout)
+    #expect(tap.tap.state == .dead)
+    Self.expectPending(tap, [.healthTick, .deadTapRetry], "(a) after tapLost")
+    tap.clock.advance(by: 29.9)
+    Self.expectPending(tap, [.healthTick, .deadTapRetry], "(a) 29.9 s after tapLost")
+    tap.signal(.recreated(true))
+    #expect(tap.tap.state == .alive)
+    Self.expectPending(tap, [.healthTick], "(a) after recreated(true)")
+    tap.clock.advance(by: 60)
+    Self.expectPending(tap, [.healthTick], "(a) a minute later")
+
+    // (b) the 200 ms topology debounce exists from the raw change until the snapshot is read.
+    let debounce = IdleRig.booted(granted: true)
+    debounce.sendTopology(.raw(.reconfiguration))
+    Self.expectPending(debounce, [.healthTick, .topologyDebounce], "(b) after a raw change")
+    debounce.clock.advance(by: 0.19)
+    Self.expectPending(debounce, [.healthTick, .topologyDebounce], "(b) 0.19 s later")
+    debounce.clock.advance(by: 0.02)
+    #expect(debounce.topology.current == Fixtures.threeDisplays, "the clean snapshot committed")
+    Self.expectPending(debounce, [.healthTick], "(b) after the debounce fired and the snapshot committed")
+
+    // (c) the 1 s nil-UUID retry: three retries at most, then the fourth read commits.
+    let nilUUID = IdleRig.booted(granted: true)
+    nilUUID.nilUUIDsOnRead = 1
+    nilUUID.sendTopology(.raw(.reconfiguration))
+    nilUUID.clock.advance(by: Constants.topologyDebounce)
+    for attempt in 1...3 {
+      #expect(nilUUID.topology.uuidRetries == attempt, "attempt \(attempt)")
+      #expect(nilUUID.topology.current == nil, "nothing committed on failed read \(attempt)")
+      Self.expectPending(nilUUID, [.healthTick, .nilUUIDRetry], "(c) after failed read \(attempt)")
+      nilUUID.clock.advance(by: 0.5)
+      Self.expectPending(nilUUID, [.healthTick, .nilUUIDRetry], "(c) half a second into retry \(attempt)")
+      nilUUID.clock.advance(by: 0.6)  // past the 1 s due time
+    }
+    #expect(nilUUID.nilUUIDSchedules == 3, "never a fourth retry: \(nilUUID.nilUUIDSchedules)")
+    #expect(nilUUID.topology.current == Fixtures.threeDisplays, "the fourth read committed")
+    #expect(nilUUID.topology.uuidRetries == 0)
+    Self.expectPending(nilUUID, [.healthTick], "(c) after the commit")
+    nilUUID.clock.advance(by: 60)
+    #expect(nilUUID.nilUUIDSchedules == 3)
+    Self.expectPending(nilUUID, [.healthTick], "(c) a minute later")
+  }
 }
