@@ -2,3 +2,4 @@
 - slice 2: OnboardingViewStateTests.revokedNeverOffersQuitAndReopen green — revoked status line, Open System Settings only, never relaunch
 - slice 3: OnboardingViewStateTests.needsRelaunchOffersQuitAndReopenWithSentence green — Quit and Reopen only in needsRelaunch and only while offerRelaunch is true, with explanation sentence
 - slice 4: OnboardingViewStateTests.grantedAndSuspectHaveNoWindow green — granted/suspect windowVisible false; derive switch now exhaustive
+- slice 5: OnboardingControllerTests.showTwiceKeepsOneWindow green — OnboardingWindowController (+OnboardingModel/OnboardingView/CheatSheetView) in App/Onboarding; AppTests now depend on ZonesTestSupport (project.yml); unwired: no composition root exists yet to call show/dismiss/update
