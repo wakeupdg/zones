@@ -1,3 +1,4 @@
 - slice 1: spk004 stub red (exit 1 unimplemented), swift build green — Spikes/WindowIDProbe package skeleton
 - slice 2: spk004 identity green — windowNumber==kCGWindowNumber 50/50 and optionIncludingWindow alone 50/50 on macOS 27.0.1
 - slice 3: spk004 event field green — field matches 50/50 at cgAnnotatedSessionEventTap, 0/50 at plain cgSessionEventTap (synthetic events)
+- slice 4: docs/spikes/SPK-004.md written — verdict PARTIAL (macOS 27.0.1 50/50 all checks; 14 and 15 not run)
