@@ -2,3 +2,5 @@
 - decision: Highlight, AccessibilityOptions, OverlayScene (needed by OverlayPresenter) land in Drag/DragTypes.swift in slice 6; the rest of DragTypes comes in slice 7
 - decision: CGRect is Hashable only from macOS 15, so `AXRead<CGRect>` in a seam signature failed on the macOS 14 target; AXRead now requires only T: Sendable and is Equatable/Hashable conditionally (ZonesCore/Results.swift)
 - decision: WindowHandle.swift qualifies `ZonesCore.WindowRef` because ApplicationServices also declares WindowRef
+- slice 7: dragStateIdleAndPressedAreHashable, dragEffectAndEventConstruct, permissionStateEquality, lifecycleEffectHasEightCases, snapPlanAndAppHealthConstruct green — DragTypes (ModifierConfig, SpanState, SampleResult, ArmContext, DragState, DragEvent, DragEffect), SnapPlan, AppHealth, RecoveryRecord, Permission types + TapState, LifecycleEffect
+- decision: AppHealth stores `unresponsiveSince: [pid_t: TimeInterval]` with `init(unresponsiveSince: = [:])`; the health ticket adds the three methods
