@@ -1,6 +1,6 @@
 public enum Modifier: String, Codable, CaseIterable, Sendable { case shift, control, option, command }
 
-/// Masked to the four modifiers (AC-051). `init(_:)` and `masked(_:)` are added by the input ticket.
+/// Masked to the four modifiers (AC-051).
 public struct ModifierSet: OptionSet, Hashable, Codable, Sendable {
   public let rawValue: UInt8
   public init(rawValue: UInt8) { self.rawValue = rawValue }
@@ -9,6 +9,31 @@ public struct ModifierSet: OptionSet, Hashable, Codable, Sendable {
   public static let control = ModifierSet(rawValue: 1 << 1)
   public static let option = ModifierSet(rawValue: 1 << 2)
   public static let command = ModifierSet(rawValue: 1 << 3)
+
+  public init(_ m: Modifier) {
+    switch m {
+    case .shift: self = .shift
+    case .control: self = .control
+    case .option: self = .option
+    case .command: self = .command
+    }
+  }
+
+  // Raw CGEventFlags bits. Caps Lock (1 << 16), keypad (1 << 21), Fn (1 << 23) and the rest are ignored.
+  private static let cgShift: UInt64 = 1 << 17
+  private static let cgControl: UInt64 = 1 << 18
+  private static let cgOption: UInt64 = 1 << 19
+  private static let cgCommand: UInt64 = 1 << 20
+
+  /// The four modifiers present in raw `CGEventFlags` bits; every other bit is ignored (AC-051).
+  public static func masked(_ cgFlags: UInt64) -> ModifierSet {
+    var set = ModifierSet()
+    if cgFlags & cgShift != 0 { set.insert(.shift) }
+    if cgFlags & cgControl != 0 { set.insert(.control) }
+    if cgFlags & cgOption != 0 { set.insert(.option) }
+    if cgFlags & cgCommand != 0 { set.insert(.command) }
+    return set
+  }
 }
 
 public enum Key: Hashable, Codable, Sendable {

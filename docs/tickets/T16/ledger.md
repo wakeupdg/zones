@@ -1,0 +1,1 @@
+- slice 1: ModifierMaskTests.ignoresNonModifierBits green — ModifierSet.init(_:) and masked(_:) with named CGEventFlags bits
