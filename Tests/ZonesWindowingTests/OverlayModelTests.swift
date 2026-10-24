@@ -162,4 +162,35 @@ import ZonesWindowing
       }
     }
   }
+
+  @Test func panelsAreDeterministicAndIsolated() {
+    for seed in UInt64(1)...100 {
+      var g = Generator(seed: seed)
+      let layout = g.layout(maxDepth: 4)
+      let dict = Fixtures.layouts(Self.topology, layout)
+      let opacity = g.double(0.05...1)
+      let scene = OverlayScene(
+        layouts: Self.topology.displays.compactMap { dict[$0.key] }, appearance: Self.appearance(opacity),
+        options: AccessibilityOptions(reduceTransparency: g.bool(), reduceMotion: g.bool()))
+      func note(_ s: String) -> Comment { Comment(rawValue: Generator.failureMessage(seed: seed, layout: layout, note: s)) }
+      let a = OverlayModel.panels(scene, topology: Self.topology)
+      #expect(a == OverlayModel.panels(scene, topology: Self.topology), note("not deterministic"))
+      for (panel, display) in zip(a, Self.topology.displays) {
+        for z in panel.zones { #expect(Self.inside(z.rect, display.visibleFrame), note("zone outside visible frame")) }
+      }
+      let count = a[0].zones.count
+      let h = Highlight(
+        display: g.bool() ? g.pick(Self.topology.displays.map(\.key)) : nil,
+        primary: Set((0..<g.int(0...3)).map { _ in g.int(1...count) }),
+        secondary: Set((0..<g.int(0...3)).map { _ in g.int(1...count) }), dimAll: g.int(0...4) == 0)
+      let b = OverlayModel.apply(h, to: a)
+      for (x, y) in zip(a, b) {
+        #expect(
+          x.frame == y.frame && x.style == y.style && x.spanOutline == y.spanOutline
+            && x.zones.map(\.rect) == y.zones.map(\.rect) && x.zones.map(\.label) == y.zones.map(\.label),
+          note("apply changed geometry"))
+      }
+      #expect(OverlayModel.apply(h, to: b) == b, note("apply not idempotent"))
+    }
+  }
 }

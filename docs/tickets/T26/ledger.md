@@ -8,4 +8,6 @@ decision | ZonesWindowingTests depends on ZonesTestSupport, so the slice-6 prope
 2:37 AM PT | slice 3 | applyPaintsPrimarySecondaryDim | green | b87635c
 decision | slice 4 test passed on first run: panels (slice 1) already routes labels through LabelModel (T12), so no new production code; the test pins the AC-063 behavior.
 2:37 AM PT | slice 4 | labelsLegibleAndScaled | green | a8fa5e8
-2:37 AM PT | slice 5 | accessibilityOptions | green | pending
+2:37 AM PT | slice 5 | accessibilityOptions | green | 084fa2e
+decision | slice 6 property test passed on first run (production code already complete after slices 1-5).
+2:37 AM PT | slice 6 | panelsAreDeterministicAndIsolated | green | pending
