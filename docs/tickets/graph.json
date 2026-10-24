@@ -390,10 +390,10 @@
     ],
     "est_tokens": 89922,
     "brief_path": "docs/tickets/T12.md",
-    "state": "todo",
-    "tokens_spent": 0,
-    "branch": "",
-    "last_report": ""
+    "state": "done",
+    "tokens_spent": 16758,
+    "branch": "ticket/T12",
+    "last_report": "merged 5a950d5"
   },
   {
     "id": "T13",
@@ -418,10 +418,10 @@
     ],
     "est_tokens": 94105,
     "brief_path": "docs/tickets/T13.md",
-    "state": "todo",
-    "tokens_spent": 0,
-    "branch": "",
-    "last_report": ""
+    "state": "done",
+    "tokens_spent": 20938,
+    "branch": "ticket/T13",
+    "last_report": "merged 9075dab"
   },
   {
     "id": "T14",
@@ -436,7 +436,8 @@
     "blocked_by": [
       "T02",
       "T04",
-      "T05"
+      "T05",
+      "T15"
     ],
     "files_expected": [
       "Sources/ZonesWindowing/Exclusion/ExclusionPolicy.swift",
@@ -448,9 +449,9 @@
     "est_tokens": 71540,
     "brief_path": "docs/tickets/T14.md",
     "state": "todo",
-    "tokens_spent": 0,
+    "tokens_spent": 10291,
     "branch": "",
-    "last_report": ""
+    "last_report": "reset to todo after T15 merged AppHealth"
   },
   {
     "id": "T15",
@@ -478,10 +479,10 @@
     ],
     "est_tokens": 73291,
     "brief_path": "docs/tickets/T15.md",
-    "state": "todo",
-    "tokens_spent": 0,
-    "branch": "",
-    "last_report": ""
+    "state": "done",
+    "tokens_spent": 14932,
+    "branch": "ticket/T15",
+    "last_report": "merged 4f35584"
   },
   {
     "id": "T16",
@@ -517,10 +518,10 @@
     ],
     "est_tokens": 94626,
     "brief_path": "docs/tickets/T16.md",
-    "state": "todo",
-    "tokens_spent": 0,
-    "branch": "",
-    "last_report": ""
+    "state": "done",
+    "tokens_spent": 21171,
+    "branch": "ticket/T16",
+    "last_report": "merged b27ecbe"
   },
   {
     "id": "T17",
@@ -549,10 +550,10 @@
     ],
     "est_tokens": 77409,
     "brief_path": "docs/tickets/T17.md",
-    "state": "todo",
-    "tokens_spent": 0,
-    "branch": "",
-    "last_report": ""
+    "state": "done",
+    "tokens_spent": 21657,
+    "branch": "ticket/T17",
+    "last_report": "merged 987996d"
   },
   {
     "id": "T18",
@@ -580,10 +581,10 @@
     ],
     "est_tokens": 67502,
     "brief_path": "docs/tickets/T18.md",
-    "state": "todo",
-    "tokens_spent": 0,
-    "branch": "",
-    "last_report": ""
+    "state": "done",
+    "tokens_spent": 34237,
+    "branch": "ticket/T18",
+    "last_report": "merged bf151af"
   },
   {
     "id": "T19",
@@ -606,10 +607,10 @@
     ],
     "est_tokens": 73096,
     "brief_path": "docs/tickets/T19.md",
-    "state": "todo",
-    "tokens_spent": 0,
-    "branch": "",
-    "last_report": ""
+    "state": "done",
+    "tokens_spent": 25659,
+    "branch": "ticket/T19",
+    "last_report": "merged 28f3f62"
   },
   {
     "id": "T20",
@@ -762,10 +763,10 @@
     ],
     "est_tokens": 73086,
     "brief_path": "docs/tickets/T24.md",
-    "state": "todo",
-    "tokens_spent": 0,
-    "branch": "",
-    "last_report": ""
+    "state": "done",
+    "tokens_spent": 25497,
+    "branch": "ticket/T24",
+    "last_report": "merged 26c5403"
   },
   {
     "id": "T25",
@@ -795,10 +796,10 @@
     ],
     "est_tokens": 74354,
     "brief_path": "docs/tickets/T25.md",
-    "state": "todo",
-    "tokens_spent": 0,
-    "branch": "",
-    "last_report": ""
+    "state": "done",
+    "tokens_spent": 27325,
+    "branch": "ticket/T25",
+    "last_report": "merged 76630ea"
   },
   {
     "id": "T26",
@@ -819,10 +820,10 @@
     ],
     "est_tokens": 49385,
     "brief_path": "docs/tickets/T26.md",
-    "state": "todo",
-    "tokens_spent": 0,
-    "branch": "",
-    "last_report": ""
+    "state": "done",
+    "tokens_spent": 20531,
+    "branch": "ticket/T26",
+    "last_report": "merged db5307c"
   },
   {
     "id": "T27",
@@ -1215,9 +1216,9 @@
     ],
     "est_tokens": 113290,
     "brief_path": "docs/tickets/T38.md",
-    "state": "todo",
-    "tokens_spent": 0,
-    "branch": "",
-    "last_report": ""
+    "state": "done",
+    "tokens_spent": 18288,
+    "branch": "ticket/T38",
+    "last_report": "merged 624cd3b"
   }
 ]
