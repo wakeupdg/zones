@@ -2,6 +2,7 @@ import CoreGraphics
 import Foundation
 import Testing
 import ZonesCore
+import ZonesTestSupport
 
 private let assignmentJSON = """
   {"layout":"builtin:priorityGrid:3","displayName":"Studio Display",
@@ -164,5 +165,45 @@ private let layoutsJSON = """
       #expect(decoded == original)
       #expect(from == Constants.documentVersion)
     }
+  }
+
+  private let directory = URL(fileURLWithPath: "/virtual/Zones")
+
+  @Test func atomicWriteSurvivesFailure() throws {
+    let fs = LocalFakeFileSystem()
+    let store = DocumentStore(fs: fs, directory: directory, clock: FakeClock())
+    let first = TestFixtures.layoutsDocument
+    try store.save(first, as: .layouts)
+    #expect(store.load(.layouts) == .loaded(first))
+
+    fs.failAfterBytes = 10
+    var second = first
+    second.layouts.removeLast()
+    do {
+      try store.save(second, as: .layouts)
+      Issue.record("save should have thrown")
+    } catch {
+      if case .io = error {} else { Issue.record("expected .io, got \(error)") }
+    }
+    #expect(store.load(.layouts) == .loaded(first))
+    #expect(fs.paths == [directory.appending(path: "layouts.json")])
+  }
+
+  @Test func foundationFileSystemRoundTrip() throws {
+    let root = FileManager.default.temporaryDirectory.appending(path: "zones-t10-\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let fs = FoundationFileSystem()
+    let url = root.appending(path: "nested/layouts.json")
+    #expect(!fs.exists(url))
+    try fs.writeAtomic(Data("one".utf8), to: url)
+    #expect(fs.exists(url))
+    try fs.writeAtomic(Data("two".utf8), to: url)
+    #expect(try fs.read(url) == Data("two".utf8))
+    let moved = root.appending(path: "nested/layouts.bak")
+    try fs.move(url, to: moved)
+    #expect(!fs.exists(url) && fs.exists(moved))
+    try fs.remove(moved)
+    #expect(!fs.exists(moved))
+    #expect(throws: (any Error).self) { _ = try fs.read(moved) }
   }
 }
