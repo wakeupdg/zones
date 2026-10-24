@@ -31,6 +31,27 @@ public struct LayoutStore: Hashable, Sendable {
     }
   }
 
+  /// Deletes a custom Layout (AC-115). A Layout any Assignment references needs a `replacement`; every referencing
+  /// Assignment is rewritten in the same call. On failure the store and `assignments` are unchanged.
+  public mutating func delete(
+    _ id: LayoutID, replacement: LayoutID?, assignments: inout [String: Assignment]
+  ) -> Result<Void, DocumentError> {
+    if builtIns.contains(where: { $0.id == id }) { return .failure(.io("built-in layouts cannot be deleted")) }
+    guard let index = custom.firstIndex(where: { $0.id == id }) else {
+      return .failure(.io("no layout with id \(id.rawValue)"))
+    }
+    if let replacement, replacement == id || layout(replacement) == nil {
+      return .failure(.io("replacement \(replacement.rawValue) is not a different existing layout"))
+    }
+    let referencing = assignments.filter { $0.value.layout == id }.map(\.key)
+    if !referencing.isEmpty {
+      guard let replacement else { return .failure(.io("layout \(id.rawValue) is assigned; choose a replacement")) }
+      for key in referencing { assignments[key]?.layout = replacement }
+    }
+    custom.remove(at: index)
+    return .success(())
+  }
+
   /// Custom Layouts only; Assignments live in their own document.
   public var document: ZonesDocument {
     ZonesDocument(version: Constants.documentVersion, layouts: custom, assignments: [:])

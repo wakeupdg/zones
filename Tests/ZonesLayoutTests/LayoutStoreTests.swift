@@ -69,4 +69,62 @@ struct LayoutStoreTests {
     #expect(store.layout(LayoutID(rawValue: "A"))?.name == "A")
     #expect(store.layout(LayoutID(rawValue: "missing")) == nil)
   }
+
+  @Test func deleteAssignedRequiresReplacement() throws {
+    let a = LayoutID(rawValue: "A"), b = LayoutID(rawValue: "B")
+    let start = LayoutStore(
+      document: ZonesDocument(layouts: [custom("A", "A"), custom("B", "B"), custom("U", "Unused")]),
+      defaults: Insets(margin: 8, gap: 8))
+    let original: [String: Assignment] = [
+      "d1": assignment("A", name: "One"), "d2": assignment("A", name: "Two"), "d3": assignment("B", name: "Three"),
+    ]
+
+    var store = start
+    var assignments = original
+    guard case .failure = store.delete(a, replacement: nil, assignments: &assignments) else {
+      Issue.record("delete without replacement should fail")
+      return
+    }
+    #expect(store == start)
+    #expect(assignments == original)
+
+    for bad in [a, LayoutID(rawValue: "missing")] {
+      guard case .failure = store.delete(a, replacement: bad, assignments: &assignments) else {
+        Issue.record("replacement \(bad) should fail")
+        return
+      }
+      #expect(store == start)
+      #expect(assignments == original)
+    }
+
+    try store.delete(a, replacement: b, assignments: &assignments).get()
+    #expect(store.layout(a) == nil)
+    #expect(store.custom.map(\.id.rawValue) == ["B", "U"])
+    #expect(assignments["d1"]?.layout == b)
+    #expect(assignments["d2"]?.layout == b)
+    #expect(assignments["d3"] == original["d3"])
+    #expect(assignments["d1"]?.displayName == "One")
+    #expect(assignments["d2"]?.displayName == "Two")
+    #expect(assignments["d1"]?.lastScale == 2)
+  }
+
+  @Test func deleteUnassignedAndBuiltInRules() throws {
+    var store = LayoutStore(
+      document: ZonesDocument(layouts: [custom("U", "Unused"), custom("B", "B")]), defaults: Insets(margin: 8, gap: 8))
+    var assignments: [String: Assignment] = ["d": assignment("B")]
+    let builtIn = Templates.builtInID(.priorityGrid, count: 3)
+    let before = store
+    guard case .failure = store.delete(builtIn, replacement: LayoutID(rawValue: "B"), assignments: &assignments) else {
+      Issue.record("built-in delete should fail")
+      return
+    }
+    guard case .failure = store.delete(LayoutID(rawValue: "nope"), replacement: nil, assignments: &assignments) else {
+      Issue.record("unknown delete should fail")
+      return
+    }
+    #expect(store == before)
+    try store.delete(LayoutID(rawValue: "U"), replacement: nil, assignments: &assignments).get()
+    #expect(store.custom.map(\.id.rawValue) == ["B"])
+    #expect(assignments["d"]?.layout.rawValue == "B")
+  }
 }
