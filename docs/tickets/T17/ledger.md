@@ -5,3 +5,4 @@
 - slice 5: LayoutStoreTests.deleteAssignedRequiresReplacement green — LayoutStore.delete transactional; also deleteUnassignedAndBuiltInRules; any bad replacement fails even when unassigned
 - slice 6: AssignmentLookupTests.dormantAppliesOnArrival green — already satisfied by AssignmentLookup (test added, no new code)
 - slice 7: ImportExportTests.exportAllAndOne green — ImportExport.export (built-in/unknown only: id => empty layouts; assignments filtered by id regardless)
+- slice 8: ImportExportTests.mergeAndReplace green — importDocument Merge/Replace/dormant; deviation: Replace backup string is "zones.<yyyyMMdd-HHmmss>.bak" (stamp formatter duplicated privately, DocumentStore.stampedName is internal to ZonesCore)
