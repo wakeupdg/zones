@@ -229,6 +229,43 @@ func focusUnchanged(_ snaps: [FocusSnapshot]) -> Bool {
   return snaps.allSatisfy { $0.frontPid == f.frontPid && $0.topWindow == f.topWindow && $0.axFocused == f.axFocused && $0.nsKeyWindow == "nil" }
 }
 
+// MARK: - Display and Space helpers (pure parts covered by --self-test)
+
+/// NSScreen frame (bottom-left origin) to CG coordinates (top-left origin on the primary display).
+@MainActor func screenCGFrame(_ s: NSScreen) -> CGRect {
+  let h = NSScreen.screens.first?.frame.height ?? 0
+  return CGRect(x: s.frame.minX, y: h - s.frame.maxY, width: s.frame.width, height: s.frame.height)
+}
+
+func nearlyEqual(_ a: CGRect, _ b: CGRect, tol: CGFloat = 1.5) -> Bool {
+  abs(a.minX - b.minX) <= tol && abs(a.minY - b.minY) <= tol && abs(a.width - b.width) <= tol && abs(a.height - b.height) <= tol
+}
+
+/// Heuristic: a layer-0 window exactly covering the display means a full-screen Space (or a maximised borderless window).
+func fullScreenGuess(screenCG: CGRect, windows: [WinInfo]) -> Bool {
+  windows.contains { $0.layer == 0 && $0.onScreen && nearlyEqual($0.bounds, screenCG) }
+}
+
+/// Menu bar windows live at layer 24; absent on a full-screen Space (or with the bar auto-hidden and retracted).
+func menuBarPresent(screenCG: CGRect, windows: [WinInfo]) -> Bool {
+  windows.contains {
+    $0.layer == 24 && $0.onScreen && $0.bounds.width >= screenCG.width * 0.5
+      && $0.bounds.minY <= screenCG.minY + 40 && $0.bounds.minX >= screenCG.minX - 1 && $0.bounds.maxX <= screenCG.maxX + 1
+  }
+}
+
+func screenIndex(forCG p: CGPoint, screens: [CGRect]) -> Int? { screens.firstIndex { $0.contains(p) } }
+
+func describe(_ o: NSApplication.PresentationOptions) -> String {
+  var names: [String] = []
+  let table: [(NSApplication.PresentationOptions, String)] = [
+    (.autoHideMenuBar, "autoHideMenuBar"), (.hideMenuBar, "hideMenuBar"), (.autoHideDock, "autoHideDock"),
+    (.hideDock, "hideDock"), (.fullScreen, "fullScreen"),
+  ]
+  for (flag, name) in table where o.contains(flag) { names.append(name) }
+  return "raw \(o.rawValue) [\(names.isEmpty ? "default" : names.joined(separator: ","))]"
+}
+
 // MARK: - Panel mode
 
 @MainActor final class PanelRig {
@@ -238,9 +275,77 @@ func focusUnchanged(_ snaps: [FocusSnapshot]) -> Bool {
   }
   var windows: [NSWindow] { panels }
   /// show(): once per drag session. Never makeKey, never activate.
-  func show() { panels.forEach { $0.orderFrontRegardless() } }
+  private(set) var isShown = false
+  func show() { isShown = true; panels.forEach { $0.orderFrontRegardless() } }
+  /// reassert(): the same orderFrontRegardless, called again after an active-Space change.
+  func reassert() { if isShown { panels.forEach { $0.orderFrontRegardless() } } }
   /// hide() and orderOut() are the same call in this probe: hide the panel, keep the object.
-  func orderOut() { panels.forEach { $0.orderOut(nil) } }
+  func orderOut() { isShown = false; panels.forEach { $0.orderOut(nil) } }
+
+  /// One row per display: geometry, whether our panel is really on screen there, menu bar and full-screen state.
+  func displayRows() -> [[String]] {
+    let wins = windowList(all: false)
+    return NSScreen.screens.enumerated().map { i, s in
+      let cg = screenCGFrame(s)
+      let panel = i < panels.count ? panels[i] : nil
+      let onScreen = panel.map { p in wins.contains { $0.number == p.windowNumber && $0.layer == 1000 } } ?? false
+      let topInset = s.frame.maxY - s.visibleFrame.maxY
+      let bottomInset = s.visibleFrame.minY - s.frame.minY
+      return [
+        "\(i)", s.localizedName, "\(s.frame)", "\(s.visibleFrame)",
+        "top \(topInset) / bottom \(bottomInset)",
+        onScreen ? "yes" : "no", (panel?.isOnActiveSpace).map { $0 ? "yes" : "no" } ?? "n/a",
+        (panel?.occlusionState.contains(.visible)).map { $0 ? "yes" : "no" } ?? "n/a",
+        menuBarPresent(screenCG: cg, windows: wins) ? "yes" : "no",
+        fullScreenGuess(screenCG: cg, windows: wins.filter { $0.pid != ProcessInfo.processInfo.processIdentifier }) ? "yes" : "no",
+      ]
+    }
+  }
+}
+
+let displayHeader = [
+  "display", "name", "frame", "visibleFrame", "insets (frame minus visibleFrame)", "panel on screen at layer 1000 (CGWindowList)",
+  "panel.isOnActiveSpace", "panel occlusion visible", "menu bar window present", "full-screen guess",
+]
+
+/// Subscribes to NSWorkspace.activeSpaceDidChangeNotification; logs panel visibility with and without reassert().
+@MainActor final class SpaceWatcher {
+  let rig: PanelRig
+  let report: Report
+  let reassert: Bool
+  var count = 0
+  var token: NSObjectProtocol?
+
+  init(rig: PanelRig, report: Report, reassert: Bool) {
+    self.rig = rig
+    self.report = report
+    self.reassert = reassert
+  }
+
+  func start() {
+    token = NSWorkspace.shared.notificationCenter.addObserver(
+      forName: NSWorkspace.activeSpaceDidChangeNotification, object: nil, queue: .main
+    ) { [weak self] _ in
+      MainActor.assumeIsolated { self?.changed() }
+    }
+  }
+
+  func changed() {
+    count += 1
+    let n = count
+    let shown = rig.isShown
+    report.emit("\n#### Active Space change \(n) at \(ptTime()) (panels ordered front: \(shown ? "yes" : "no"))\n")
+    Task { @MainActor in
+      try? await Task.sleep(for: .milliseconds(300))
+      report.table("Change \(n): 300 ms after notification, no reassert yet", header: displayHeader, rows: rig.displayRows())
+      report.emit("- presentation options: \(describe(NSApp.currentSystemPresentationOptions))")
+      if reassert, shown {
+        rig.reassert()
+        try? await Task.sleep(for: .milliseconds(300))
+        report.table("Change \(n): 300 ms after reassert()", header: displayHeader, rows: rig.displayRows())
+      }
+    }
+  }
 }
 
 enum DragPhase { case idle, pressed, armed }
@@ -254,6 +359,7 @@ enum DragPhase { case idle, pressed, armed }
   var grabbed: WinInfo?
   var before: FocusSnapshot?
   var during: FocusSnapshot?
+  var armedRows: [[String]] = []
   var downPoint = CGPoint.zero
   var armedAt = Date.distantPast
   var draggedEvents = 0
@@ -297,11 +403,13 @@ enum DragPhase { case idle, pressed, armed }
         armedAt = Date()
         rig.show()  // the one and only orderFrontRegardless of this drag session
         during = nil
+        armedRows = []
       }
       if phase == .armed {
         draggedEvents += 1
         if during == nil, Date().timeIntervalSince(armedAt) >= 0.15 {
           during = focusSnapshot("during", panels: rig.windows)
+          armedRows = rig.displayRows()
         }
       }
     case .leftMouseUp:
@@ -309,6 +417,9 @@ enum DragPhase { case idle, pressed, armed }
       phase = .idle
       let during = self.during ?? focusSnapshot("during(at mouseUp)", panels: rig.windows)
       let events = draggedEvents
+      if armedRows.isEmpty { armedRows = rig.displayRows() }
+      let armed = armedRows
+      let presentation = describe(NSApp.currentSystemPresentationOptions)
       rig.orderOut()
       run += 1
       let n = run
@@ -317,14 +428,14 @@ enum DragPhase { case idle, pressed, armed }
         try? await Task.sleep(for: .milliseconds(200))  // let the window server settle the drop
         let after = focusSnapshot("after", panels: rig.windows)
         let now = windowList(all: false).first { $0.number == w.number }
-        self.finishRun(n: n, label: label, start: w, end: now, events: events, snaps: [before, during, after])
+        self.finishRun(n: n, label: label, start: w, end: now, events: events, snaps: [before, during, after], armed: armed, presentation: presentation)
       }
       pending.append(t)
     default: break
     }
   }
 
-  func finishRun(n: Int, label: String, start: WinInfo, end: WinInfo?, events: Int, snaps: [FocusSnapshot]) {
+  func finishRun(n: Int, label: String, start: WinInfo, end: WinInfo?, events: Int, snaps: [FocusSnapshot], armed: [[String]], presentation: String) {
     let layerOK = snaps[1].panelLayers.contains(1000) && snaps[0].panelLayers.isEmpty && snaps[2].panelLayers.isEmpty
     let moved = end.map { $0.bounds.origin != start.bounds.origin } ?? false
     report.emit("\n#### Run \(n) [\(label)] at \(ptTime())\n")
@@ -334,6 +445,17 @@ enum DragPhase { case idle, pressed, armed }
       rows: [[
         "\(n)", label, "\(events)", focusUnchanged(snaps) ? "yes" : "NO", layerOK ? "yes" : "NO", moved ? "yes" : "no",
         "\(start.owner) #\(start.number) \(start.bounds)", end.map { "\($0.bounds)" } ?? "not on screen",
+      ]])
+    report.table("Run \(n): display state while armed", header: displayHeader, rows: armed)
+    let screensCG = NSScreen.screens.map { screenCGFrame($0) }
+    let from = screenIndex(forCG: CGPoint(x: start.bounds.midX, y: start.bounds.midY), screens: screensCG)
+    let to = end.flatMap { screenIndex(forCG: CGPoint(x: $0.bounds.midX, y: $0.bounds.midY), screens: screensCG) }
+    let toIsFullScreen = to.map { $0 < armed.count && armed[$0].last == "yes" }
+    report.table(
+      nil, header: ["from display", "dropped on display", "dropped display full-screen (guess)", "window ended where", "presentation options"],
+      rows: [[
+        from.map(String.init) ?? "?", to.map(String.init) ?? "?", toIsFullScreen.map { $0 ? "yes" : "no" } ?? "?",
+        end.map { "\($0.bounds)" } ?? "not on screen", presentation,
       ]])
     report.emit("Operator: did the drag stay smooth and continuous the whole time? (record yes/no in the note)")
   }
@@ -378,6 +500,19 @@ enum DragPhase { case idle, pressed, armed }
   } else {
     let probe = DragProbe(rig: rig, report: report, label: label)
     probe.start()
+    let watcher = SpaceWatcher(rig: rig, report: report, reassert: args.contains("--reassert"))
+    watcher.start()
+    KeepAlive.watcher = watcher
+    report.emit("- reassert on Space change: \(args.contains("--reassert") ? "yes" : "no (observe only)")")
+    if args.contains("--hold") {
+      rig.show()
+      report.emit("- --hold: panels stay ordered front; switch Spaces and read the per-change tables")
+      Task { @MainActor in
+        try? await Task.sleep(for: .milliseconds(300))
+        report.table("Display state at start (300 ms after show)", header: displayHeader, rows: rig.displayRows())
+        report.emit("- presentation options: \(describe(NSApp.currentSystemPresentationOptions))")
+      }
+    }
     if let d = value("--duration").flatMap(Double.init) {
       Task { @MainActor in
         try? await Task.sleep(for: .seconds(d))
@@ -389,7 +524,10 @@ enum DragPhase { case idle, pressed, armed }
   app.run()
 }
 
-@MainActor enum KeepAlive { static var probe: DragProbe? }
+@MainActor enum KeepAlive {
+  static var probe: DragProbe?
+  static var watcher: SpaceWatcher?
+}
 
 @MainActor func selfTest() -> Bool {
   var failures = 0
@@ -406,6 +544,15 @@ enum DragPhase { case idle, pressed, armed }
   let t = markdownTable(header: ["a", "b"], rows: [["1", "2"], ["3", "4"]])
   check(t == "| a | b |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n", "table")
   do {
+    let scr = CGRect(x: 0, y: 0, width: 1000, height: 800)
+    let fs = WinInfo(number: 1, pid: 9, layer: 0, bounds: scr, onScreen: true, owner: "Safari")
+    let normal = WinInfo(number: 2, pid: 9, layer: 0, bounds: CGRect(x: 10, y: 30, width: 600, height: 400), onScreen: true, owner: "Safari")
+    let bar = WinInfo(number: 3, pid: 8, layer: 24, bounds: CGRect(x: 0, y: 0, width: 1000, height: 24), onScreen: true, owner: "Window Server")
+    check(fullScreenGuess(screenCG: scr, windows: [fs]), "fullScreenGuess.true")
+    check(!fullScreenGuess(screenCG: scr, windows: [normal, bar]), "fullScreenGuess.false")
+    check(menuBarPresent(screenCG: scr, windows: [bar]), "menuBarPresent.true")
+    check(!menuBarPresent(screenCG: scr, windows: [fs]), "menuBarPresent.false")
+    check(screenIndex(forCG: CGPoint(x: 1500, y: 100), screens: [scr, CGRect(x: 1000, y: 0, width: 1000, height: 800)]) == 1, "screenIndex")
     NSApplication.shared.setActivationPolicy(.accessory)
     if let screen = NSScreen.main ?? NSScreen.screens.first {
       for joinAll in [false, true] {
@@ -437,6 +584,6 @@ switch args.first {
 case "--self-test": exit(selfTest() ? 0 : 1)
 case "panel": runPanelMode(Array(args.dropFirst()))
 default:
-  print("usage: PanelProbe --self-test | panel [--synthetic] [--join-all-apps] [--label L] [--duration S] | frametime | witness")
+  print("usage: PanelProbe --self-test | panel [--synthetic] [--join-all-apps] [--reassert] [--hold] [--label L] [--duration S] | frametime | witness")
   exit(64)
 }
