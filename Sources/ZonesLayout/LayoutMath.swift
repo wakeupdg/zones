@@ -47,3 +47,27 @@ public enum LayoutMath {
     }
   }
 }
+
+extension LayoutMath {
+  /// Overlay path: forwards the Display's key, visible frame and scale to the Snap-path overload.
+  public static func resolve(_ layout: Layout, display: DisplaySnapshot) -> ResolvedLayout {
+    resolve(layout, key: display.key, visibleFrame: display.visibleFrame, scale: display.scale)
+  }
+
+  /// surround -> insets -> `Grid.round` -> numbering. Numbers come from the UNIT rectangles, Zones are sorted by
+  /// number 1...N, and the output is a pure function of the inputs, so Overlay and Snap read identical rectangles.
+  public static func resolve(
+    _ layout: Layout, key: DisplayKey, visibleFrame: CGRect, scale: Double
+  ) -> ResolvedLayout {
+    let rect = layoutRect(visibleFrame: visibleFrame, surround: layout.surround)
+    let units = unitRects(layout.root)
+    let numbers = ZoneNumbering.numbers(units)
+    let frames = Grid.round(units, layoutRect: rect, insets: layout.insets, scale: scale)
+    let zones =
+      frames
+      .compactMap { placed in numbers[placed.path].map { Zone(number: $0, path: placed.path, frame: placed.frame) } }
+      .sorted { $0.number < $1.number }
+    return ResolvedLayout(
+      layoutID: layout.id, display: key, visibleFrame: visibleFrame, layoutRect: rect, scale: scale, zones: zones)
+  }
+}

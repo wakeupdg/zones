@@ -122,3 +122,52 @@ struct GridRoundingTests {
     return (flip(root), { NodePath(steps: map($0.steps[...], in: root)) })
   }
 }
+
+extension GridRoundingTests {
+  /// Overlay and Snap read the same rectangles (AC-068): `resolve(_:display:)` and `resolve(_:key:visibleFrame:scale:)`
+  /// are the two entry points, and their Zone frames must be `==` for every Zone Number.
+  @Test func overlayEqualsSnapTarget() {
+    var layouts: [(UInt64, Layout)] = [(0, Fixtures.nineZone)]
+    for i in 1...60 {
+      var g = Generator(seed: UInt64(i) &+ 9_000_000)
+      var layout = g.layout(maxDepth: g.int(1...8))
+      layout.surround = Surround(
+        top: g.double(0...0.3), left: g.double(0...0.3), bottom: g.double(0...0.3), right: g.double(0...0.3))
+      layout.insets = Insets(margin: g.double(0...16), gap: g.double(0...10))
+      layouts.append((UInt64(i), layout))
+    }
+    for display in Fixtures.threeDisplays.displays {
+      for scale in [1.0, 2.0, 3.0] {
+        var overlayDisplay = display
+        overlayDisplay.scale = scale
+        for (seed, layout) in layouts {
+          func fail(_ note: String) -> Comment {
+            Comment(
+              rawValue: Generator.failureMessage(
+                seed: seed, layout: layout, note: "\(display.name) scale \(scale): \(note)"))
+          }
+          let overlay = LayoutMath.resolve(layout, display: overlayDisplay)
+          let snap = LayoutMath.resolve(
+            layout, key: display.key, visibleFrame: display.visibleFrame, scale: scale)
+          #expect(overlay == snap, fail("entry points disagree"))
+          #expect(overlay.zones.map(\.number) == Array(stride(from: 1, through: overlay.zones.count, by: 1)), fail("zones sorted 1...N"))
+          #expect(overlay.zones.count == leafCount(layout.root), fail("zone count"))
+          #expect(overlay.layoutID == layout.id && overlay.display == display.key, fail("identity"))
+          #expect(overlay.scale == scale && overlay.visibleFrame == display.visibleFrame, fail("echoed inputs"))
+          for (a, b) in zip(overlay.zones, snap.zones) {
+            #expect(a.frame == b.frame, fail("zone \(a.number) frame"))
+            #expect(display.visibleFrame.insetBy(dx: -1e-9, dy: -1e-9).contains(a.frame), fail("zone \(a.number) outside"))
+          }
+        }
+        // Zone 1 of the nine-zone layout is top-left, Zone 9 bottom-right, Zone 5 in the middle.
+        let nine = LayoutMath.resolve(
+          Fixtures.nineZone, key: display.key, visibleFrame: display.visibleFrame, scale: scale)
+        #expect(nine.zones.count == 9)
+        #expect(nine.zones[0].frame.minX < nine.zones[1].frame.minX)
+        #expect(nine.zones[0].frame.maxY > nine.zones[3].frame.maxY)
+        #expect(nine.zones[8].frame.maxX > nine.zones[7].frame.maxX)
+        #expect(nine.zones[4].frame.midX == display.visibleFrame.midX)
+      }
+    }
+  }
+}
