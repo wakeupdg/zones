@@ -191,4 +191,65 @@ import ZonesTestSupport
     #expect(rig.registry.entry(single) == nil)
     #expect(rig.registry.entry(span) == nil)
   }
+
+  static let display2Key = DisplayKey.uuid("22222222-2222-4222-8222-222222222222")
+
+  /// Display 1 at the origin, Display 2 to its right; only Display 1 has a menu bar.
+  static let twoDisplays = TopologySnapshot(
+    displays: [
+      oneDisplay.displays[0],
+      DisplaySnapshot(
+        key: display2Key, frame: CGRect(x: 1920, y: 0, width: 2560, height: 1440),
+        visibleFrame: CGRect(x: 1920, y: 0, width: 2560, height: 1440), scale: 1, isMain: false,
+        mirrorOf: nil, name: "Side", resolution: CGSize(width: 2560, height: 1440)),
+    ], separateSpaces: true, primaryFrame: CGRect(x: 0, y: 0, width: 1920, height: 1080))
+
+  /// AC-095: an Original Frame on a vanished Display lands inside the Display the window is on now.
+  @Test @WindowActor func clampsOntoOccupiedDisplay() throws {
+    let display2 = Self.twoDisplays.displays[1]
+    let gone = CGRect(x: 6000, y: 200, width: 700, height: 500)  // a Display that is no longer connected
+    let onDisplay2 = CGRect(x: 2400, y: 300, width: 900, height: 600)
+    var rig = Rig()
+    let entry = OriginalFrameEntry(key: rig.key, frame: gone, via: .mouse)
+
+    let planned = RestorePlanner.plan(
+      entry, window: rig.ref(frame: onDisplay2), facts: Self.facts(), topology: Self.twoDisplays)
+    let target = try #require(try? planned.get())
+    #expect(display2.visibleFrame.contains(target))
+    #expect(target.size == gone.size)
+    #expect(target != gone)
+
+    // The service writes the clamped target and reports clamped; the entry is forgotten.
+    rig.capture(gone)
+    rig.ws.enqueue(.frame(.value(target)))
+    let result = rig.service.restoreFocused(
+      registry: &rig.registry, key: rig.key, window: rig.ref(frame: onDisplay2), facts: Self.facts(),
+      handle: rig.handle, topology: Self.twoDisplays, mode: .full, health: &rig.health)
+    #expect(result == .clamped(target))
+    #expect(rig.ws.calls == Self.writes(target, rig.handle))
+    #expect(rig.registry.entry(rig.key) == nil)
+
+    // In-bounds: returned unchanged.
+    let inBounds = CGRect(x: 100, y: 100, width: 800, height: 600)
+    let same = RestorePlanner.plan(
+      OriginalFrameEntry(key: rig.key, frame: inBounds, via: .keyboard), window: rig.ref(frame: onDisplay2),
+      facts: Self.facts(), topology: Self.twoDisplays)
+    #expect(same == .success(inBounds))
+
+    // Straddling two Displays still intersects one: not clamped.
+    let straddle = CGRect(x: 1500, y: 200, width: 900, height: 600)
+    let both = RestorePlanner.plan(
+      OriginalFrameEntry(key: rig.key, frame: straddle, via: .mouse), window: rig.ref(frame: onDisplay2),
+      facts: Self.facts(), topology: Self.twoDisplays)
+    #expect(both == .success(straddle))
+
+    // A frame larger than the Display shrinks to fit its visible frame.
+    let huge = CGRect(x: 9000, y: 9000, width: 5000, height: 3000)
+    let shrunk = try #require(
+      try? RestorePlanner.plan(
+        OriginalFrameEntry(key: rig.key, frame: huge, via: .mouse), window: rig.ref(frame: onDisplay2),
+        facts: Self.facts(), topology: Self.twoDisplays
+      ).get())
+    #expect(display2.visibleFrame.contains(shrunk))
+  }
 }

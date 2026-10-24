@@ -34,7 +34,9 @@ public struct RestoreService: Sendable {
     let result = writer.write(
       target, mode: mode, to: handle, policy: policy, health: &health, now: clock.now)
     switch result {
-    case .applied(let frame): return .applied(frame)
+    case .applied(let frame):
+      // The planner moved an off-Display frame onto a Display: the Original Frame was not reproduced.
+      return FrameWriter.matches(target, e.frame, mode: .full) ? .applied(frame) : .clamped(frame)
     case .clamped(let frame): return .clamped(frame)
     case .noOp(let reason): return .noOp(reason)
     case .refused, .timedOut, .elementGone: return .failed(result)
