@@ -1,9 +1,10 @@
 name: CI
+# Triggers are limited to keep GitHub Actions minutes free of cost (ADR-0026).
+# The per-ticket gate is scripts/merge-ticket.sh: build, test and xcodebuild before every merge into integration.
 on:
-  push:
-    branches: [integration, main, "ticket/**"]
   pull_request:
-    branches: [main, integration]
+    branches: [main]
+  workflow_dispatch:
 jobs:
   build-and-test:
     runs-on: macos-15
