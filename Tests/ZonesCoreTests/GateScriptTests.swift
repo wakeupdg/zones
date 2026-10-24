@@ -362,4 +362,18 @@ func write(_ text: String, to url: URL) throws {
     #expect(result.status == 64)
     #expect(!result.stderr.isEmpty)
   }
+  // MARK: slice 5, CI (AC-160, AC-162)
+
+  @Test func ciRunsHygieneGateAfterSwiftTest() throws {
+    let workflows = repoRoot().appendingPathComponent(".github/workflows")
+    let files = try FileManager.default.contentsOfDirectory(atPath: workflows.path)
+    #expect(files.count == 1)
+    let text = try String(contentsOf: workflows.appendingPathComponent("ci.yml"), encoding: .utf8)
+    let lines = text.components(separatedBy: "\n")
+    let testIndex = try #require(lines.firstIndex { $0.contains("swift test") })
+    let gateIndex = try #require(lines.firstIndex { $0.contains("scripts/hygiene-gate.sh") })
+    #expect(gateIndex > testIndex)
+    #expect(text.contains("ticket/**"))
+    #expect(text.contains("integration"))
+  }
 }
