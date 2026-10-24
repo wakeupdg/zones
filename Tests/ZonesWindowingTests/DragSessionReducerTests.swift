@@ -409,6 +409,35 @@ import ZonesWindowing
     }
   }
 
+  @Test func spaceChangeReasserts() {
+    let (armed, _) = Self.armedOverZone2()
+    let (next, fx) = DragSessionReducer.reduce(armed, .spaceChanged)
+    #expect(next == armed)  // context, display, hit and span unchanged, still armed
+    #expect(F.isArmed(next))
+    #expect(
+      fx == [
+        .reassertPanels,
+        .updateHighlight(Highlight(display: F.primaryKey, primary: [2], secondary: [], dimAll: false)),
+      ])
+    #expect(!fx.contains(where: F.isHideOverlay))
+    #expect(!fx.contains(where: F.isShowOverlay))
+
+    // Over no Zone the re-asserted highlight dims everything.
+    let (off, _) = DragSessionReducer.reduce(armed, .dragged(point: CGPoint(x: 9000, y: 9000), flags: .shift))
+    let (_, offFx) = DragSessionReducer.reduce(off, .spaceChanged)
+    #expect(offFx == [.reassertPanels, .updateHighlight(Highlight(display: nil, primary: [], secondary: [], dimAll: true))])
+
+    // Pressed, moving and idle hold no panels: nothing happens.
+    let (pressed, _) = DragSessionReducer.reduce(.idle, F.mouseDown(flags: .shift))
+    let (moving, _) = DragSessionReducer.reduce(
+      DragSessionReducer.reduce(pressed, F.dragged()).0, F.moved())
+    for state in [DragState.idle, pressed, moving] {
+      let (same, sameFx) = DragSessionReducer.reduce(state, .spaceChanged)
+      #expect(same == state)
+      #expect(sameFx.isEmpty)
+    }
+  }
+
   @Test func ignoresSecondMouseDownCore() {
     let (pressed, _) = DragSessionReducer.reduce(.idle, F.mouseDown())
     let (s, fx) = DragSessionReducer.reduce(
