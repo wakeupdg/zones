@@ -11,15 +11,24 @@ public enum DragSessionReducer {
   /// after answering `requestArmContext`, which sets the first highlight; mouse-up always recomputes its hit from
   /// its own point, so a drop never uses a stale hit.
   ///
-  /// EXTENSION(T22): `topologyChanged`, `spaceChanged` and `wake` are inert in every state for now; the Display
-  /// change, Space change and wake handling lands with the cross-Display ticket.
+  /// A `wake` ends the session from every state (AC-024): idle, `hideOverlay`, and `stopSampling` when a pressed
+  /// session was polling frames. No snap, no restore: the wake-time frame is not a drop.
+  ///
+  /// EXTENSION(T22): `topologyChanged` and `spaceChanged` are inert in every state for now; the Display
+  /// change and Space change handling lands with the cross-Display ticket.
   public static func reduce(_ s: DragState, _ e: DragEvent) -> (DragState, [DragEffect]) {
+    if case .wake = e { return (.idle, wakeEffects(s)) }
     switch s {
     case .idle: return idle(s, e)
     case .pressed: return pressed(s, e)
     case .moving: return moving(s, e)
     case .armed: return armed(s, e)
     }
+  }
+
+  private static func wakeEffects(_ s: DragState) -> [DragEffect] {
+    if case .pressed(_, _, _, _, _, let samples, _) = s, samples > 0 { return [.stopSampling, .hideOverlay] }
+    return [.hideOverlay]
   }
 
   private static func idle(_ s: DragState, _ e: DragEvent) -> (DragState, [DragEffect]) {

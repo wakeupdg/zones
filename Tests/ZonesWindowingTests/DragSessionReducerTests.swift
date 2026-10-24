@@ -439,12 +439,12 @@ import ZonesWindowing
     #expect(!drop.effects.contains(where: F.isSnap))
   }
 
-  @Test func topologyAndWakeAreInertCore() {
+  @Test func topologyAndSpaceAreInertCore() {
     let (armed, _) = Self.armedOverZone2()
     let (pressed, _) = DragSessionReducer.reduce(.idle, F.mouseDown(flags: .shift))
     let (moving, _) = DragSessionReducer.reduce(
       DragSessionReducer.reduce(pressed, F.dragged()).0, F.moved())
-    let inert: [DragEvent] = [.topologyChanged(F.context), .spaceChanged, .wake]
+    let inert: [DragEvent] = [.topologyChanged(F.context), .spaceChanged]
     for state in [DragState.idle, pressed, moving, armed] {
       for event in inert {
         let (next, fx) = DragSessionReducer.reduce(state, event)
@@ -635,5 +635,25 @@ extension DragSessionReducerTests {
     ])
     #expect(!F.isArmed(shiftHeld.state))
     #expect(Self.storedConfig(shiftHeld.state) == optionConfig)
+  }
+
+  // AC-024, reducer half
+  @Test func wakeEndsSession() {
+    let (armed, _) = Self.armedOverZone2()
+    let (pressed, _) = DragSessionReducer.reduce(.idle, F.mouseDown(flags: .shift))
+    let (moving, _) = DragSessionReducer.reduce(
+      DragSessionReducer.reduce(pressed, F.dragged()).0, F.moved())
+    #expect(F.isPressed(pressed) && F.isMoving(moving) && F.isArmed(armed))
+    for (name, state) in [("idle", DragState.idle), ("pressed", pressed), ("moving", moving), ("armed", armed)] {
+      let (next, fx) = DragSessionReducer.reduce(state, .wake)
+      #expect(next == .idle, Comment(rawValue: name))
+      #expect(fx.contains(.hideOverlay), Comment(rawValue: name))
+      #expect(
+        !fx.contains(where: F.isSnap) && !fx.contains(where: F.isRequestSample), Comment(rawValue: name))
+    }
+    // A pressed session that already started sampling stops it.
+    let (sampling, _) = DragSessionReducer.reduce(pressed, F.dragged())
+    #expect(F.isPressed(sampling))
+    #expect(DragSessionReducer.reduce(sampling, .wake).1 == [.stopSampling, .hideOverlay])
   }
 }
