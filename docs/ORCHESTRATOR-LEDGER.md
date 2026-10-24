@@ -9,3 +9,4 @@ One line per completed orchestration step. Read this plus docs/tickets/graph.jso
 - P3 run 1 launched (wf_727ca359-842): maxTickets 12, maxParallel 6; workflow scripts saved under scripts/workflows/
 - P3 run 1 done: 12/39 merged; spikes T03/T06/T07 merged by orchestrator (verdicts PENDING-HUMAN-RUN); hook+merge-log fixes; run 2 launching
 - P3 run 2 done (wf_713f6c22-6f9): 11/39 more merged (23 total); T14 reset to todo with T15 blocker; run 3 launching
+- P3 run 3 done (wf_517e9d61-7bd): 11 more merged (34 total); T37 blocked on a real reducer bug -> ruling: spec stands, fix ticket T39 added, T37 re-blocked on T39; run 4 launching (T33 T34 T35 T36 T39, then T37)
