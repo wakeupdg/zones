@@ -32,4 +32,15 @@ struct AssignmentLookupTests {
       AssignmentLookup.layoutID(for: .unstable(uuid), in: persisted, session: [:])
         == Templates.builtInID(.priorityGrid, count: 3))
   }
+
+  @Test func dormantAppliesOnArrival() {
+    let a = "37D8832A-2D66-02CA-B9F7-8F30A301B230", b = "47D8832A-2D66-02CA-B9F7-8F30A301B230"
+    let map = [a: assignment("layoutA"), b: assignment("layoutB")]
+    let attached: Set<String> = [a]
+    #expect(AssignmentLookup.layoutID(for: .uuid(a), in: map, session: [:]).rawValue == "layoutA")
+    #expect(attached.contains(b) == false)
+    // B is not attached, yet its entry stays in the one map and applies the first time B is looked up.
+    #expect(AssignmentLookup.layoutID(for: .uuid(b), in: map, session: [:]).rawValue == "layoutB")
+    #expect(map.count == 2)
+  }
 }

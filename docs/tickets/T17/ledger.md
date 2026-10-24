@@ -3,3 +3,4 @@
 - slice 3: LayoutStoreTests.defaultsApplyToBuiltInsOnly green — LayoutStore init/builtIns/custom/layout(_:)/setDefaults/document (builtIns and custom are private(set))
 - slice 4: LayoutStoreTests.upsertAddsAndReplaces green — LayoutStore.upsert (ignores built-in id or builtIn non-nil)
 - slice 5: LayoutStoreTests.deleteAssignedRequiresReplacement green — LayoutStore.delete transactional; also deleteUnassignedAndBuiltInRules; any bad replacement fails even when unassigned
+- slice 6: AssignmentLookupTests.dormantAppliesOnArrival green — already satisfied by AssignmentLookup (test added, no new code)
