@@ -45,7 +45,7 @@ import ZonesWindowing
 
   /// The generated stream for `seed`, with the driver's answers interleaved: each `requestArmContext` gets the
   /// context at once, each `requestSample` a moved sample, and each `armContext` is followed by a replay of the
-  /// last `dragged` (the app's driver does that after answering a request).
+  /// last `dragged` (the app's driver does that after answering a request). A `topologyChanged` is not replayed.
   static func drive(
     seed: UInt64, context ctx: ArmContext? = nil, config: ModifierConfig = F.config,
     events: [DragEvent]? = nil
@@ -93,13 +93,10 @@ import ZonesWindowing
         default: break
         }
       }
-      // The reducer keeps no cursor point outside armed (its documented known gap), so after a new snapshot the
-      // driver re-sends its last `dragged`: after an armContext answer and after a topologyChanged.
-      switch event {
-      case .armContext, .topologyChanged:
-        if let p = lastDragPoint { replies.append(.dragged(point: p, flags: [])) }
-      default: break
-      }
+      // The reducer keeps no cursor point outside armed (its documented known gap), so after the armContext answer
+      // the driver re-sends its last `dragged`. Nothing replays after a `topologyChanged`: no production driver
+      // does, and `highlightEqualsDropSet` carries the explicit exception instead.
+      if case .armContext = event, let p = lastDragPoint { replies.append(.dragged(point: p, flags: [])) }
       queue = replies[...] + queue
     }
     return steps
@@ -333,9 +330,11 @@ import ZonesWindowing
     var snapForks = 0
     var restoreForks = 0
     var dimmed = 0
+    var staleSkipped = 0
     for seed in Self.seeds {
+      var cursorStale = false
       for step in Self.drive(seed: seed) {
-        guard case .armed(_, _, let flags, _, let ctx, _, let hit, _) = step.after else { continue }
+        guard case .armed(_, _, let flags, _, let ctx, _, let hit, _) = step.after else { cursorStale = false; continue }
         // Every updateHighlight that dims obeys the rule against the state it produced.
         for case .updateHighlight(let h) in step.effects where h.dimAll {
           dimmed += 1
@@ -344,12 +343,19 @@ import ZonesWindowing
         if let h = step.lastHighlight, h.dimAll {
           #expect(hit == .none && ctx.hasOriginalFrame, Self.message(seed, "stale dimAll with hit \(hit)"))
         }
-        // The arming and re-arming steps hold no live cursor yet: the driver replays the last dragged right after
-        // them (the reducer's documented known gap), so the state is compared from that replay on.
+        // Known exception (CONTRACTS.md, Drag reducer guarantees): the arming step holds no live cursor yet; the
+        // driver replays the last dragged right after it, so the state is compared from that replay on. A
+        // `topologyChanged` re-arm also has no live cursor (armed keeps no point; the re-hit uses the old Zone's
+        // center, and a removed Display re-hits to none), and nothing replays after it, so the armed state is not
+        // compared until the next `dragged` carries a real point. A mouseUp in that window still recomputes its hit.
         switch step.event {
-        case .armContext where !F.isArmed(step.before), .topologyChanged: continue
+        case .armContext where !F.isArmed(step.before): continue
+        case .topologyChanged: cursorStale = F.isArmed(step.before); continue
+        case .dragged: cursorStale = false
         default: break
         }
+        if !F.isArmed(step.before) { cursorStale = false }
+        if cursorStale { staleSkipped += 1; continue }
         let point: CGPoint?
         if case .dragged(let p, _) = step.event { point = p } else { point = step.lastDragPoint }
         guard let point else { continue }
@@ -372,5 +378,6 @@ import ZonesWindowing
     #expect(snapForks > 300, "snap forks: \(snapForks)")
     #expect(restoreForks > 0, "restore forks: \(restoreForks)")
     #expect(dimmed > 0, "dimAll highlights: \(dimmed)")
+    #expect(staleSkipped > 0, "post-topologyChanged states held out of the comparison: \(staleSkipped)")
   }
 }
