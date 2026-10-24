@@ -97,7 +97,8 @@ public enum OverlayModel {
         return ZoneDrawing(number: zone.number, rect: zone.frame, fill: style.idle, label: label)
       }
       return PanelModel(
-        display: layout.display, frame: frame(layout), zones: zones, style: style, spanOutline: false)
+        display: layout.display, frame: frame(layout), zones: zones, style: style,
+        spanOutline: s.options.reduceTransparency)
     }
   }
 
@@ -108,11 +109,18 @@ public enum OverlayModel {
     let o = min(max(appearance.opacity, 0), 1)
     let ext = luminance(f) < 0.5 ? RGBA(r: 1, g: 1, b: 1, a: 1) : RGBA(r: 0, g: 0, b: 0, a: 1)
     let lifted = mix(f, ext, 0.35)
+    let duration = options.reduceMotion ? nil : animationSeconds
+    if options.reduceTransparency {
+      // Solid fills; a suspended Span is stroked (`spanOutline`), so its fill is fully transparent.
+      return PanelStyle(
+        idle: rgba(f, a: 1), highlight: rgba(lifted, a: 1), secondary: rgba(lifted, a: 0),
+        dim: rgba(mix(f, RGBA(r: 0, g: 0, b: 0, a: 1), 0.5), a: 1), animationDuration: duration)
+    }
     let idle = rgba(f, a: o)
     let highlight = rgba(lifted, a: min(1, max(o + 0.30, 0.40)))
     return PanelStyle(
       idle: idle, highlight: highlight, secondary: rgba(lifted, a: (idle.a + highlight.a) / 2),
-      dim: rgba(f, a: o * 0.4), animationDuration: nil)
+      dim: rgba(f, a: o * 0.4), animationDuration: duration)
   }
 
   private static func rgba(_ c: RGBA, a: Double) -> RGBA { RGBA(r: c.r, g: c.g, b: c.b, a: a) }

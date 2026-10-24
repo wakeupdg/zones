@@ -131,4 +131,35 @@ import ZonesWindowing
       }
     }
   }
+
+  @Test func accessibilityOptions() {
+    let o = 0.10
+    let def = OverlayModel.panels(Self.scene(opacity: o), topology: Self.topology)
+    for p in def {
+      #expect(!p.spanOutline)
+      #expect(p.style.animationDuration == OverlayModel.animationSeconds)
+      #expect(abs(p.style.idle.a - o) < 1e-9)
+    }
+    let motion = OverlayModel.panels(Self.scene(opacity: o, reduceMotion: true), topology: Self.topology)
+    for (m, d) in zip(motion, def) {
+      #expect(m.style.animationDuration == nil)
+      var restyled = m
+      restyled.style.animationDuration = OverlayModel.animationSeconds
+      #expect(restyled == d)
+    }
+    for reduceMotion in [false, true] {
+      let solid = OverlayModel.panels(
+        Self.scene(opacity: o, reduceTransparency: true, reduceMotion: reduceMotion), topology: Self.topology)
+      let h = Highlight(display: solid[0].display, primary: [1], secondary: [2], dimAll: false)
+      for p in solid + OverlayModel.apply(h, to: solid) {
+        #expect(p.style.idle.a == 1 && p.style.highlight.a == 1 && p.style.dim.a == 1)
+        #expect(p.style.secondary.a == 0)
+        #expect(p.spanOutline)
+        #expect(
+          p.style.highlight.r != p.style.idle.r || p.style.highlight.g != p.style.idle.g
+            || p.style.highlight.b != p.style.idle.b)
+        #expect((p.style.animationDuration == nil) == reduceMotion)
+      }
+    }
+  }
 }
