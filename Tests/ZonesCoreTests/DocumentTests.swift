@@ -88,3 +88,45 @@ private let layoutsJSON = """
     layoutRect: frame, scale: 1, zones: [zone])
   #expect(resolved.zones == [zone])
 }
+
+@Suite struct DocumentTests {
+  private func topLevel(_ data: Data) throws -> [String: Any] {
+    try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+  }
+
+  @Test func codecFieldNames() throws {
+    // layouts.json
+    let layoutsBytes = try TestFixtures.data("layouts.v1.json")
+    let layouts = try JSONDecoder().decode(ZonesDocument.self, from: layoutsBytes)
+    #expect(layouts == TestFixtures.layoutsDocument)
+    let layoutsOut = try layouts.encoded(for: .layouts)
+    let layoutsObject = try topLevel(layoutsOut)
+    #expect(Set(layoutsObject.keys) == ["version", "layouts"])
+    let list = try #require(layoutsObject["layouts"] as? [[String: Any]])
+    let root = try #require(list[0]["root"] as? [String: Any])
+    #expect(root["kind"] as? String == "split")
+    #expect(Set(root.keys) == ["kind", "axis", "ratio", "first", "second"])
+    let leaf = try #require(root["first"] as? [String: Any])
+    #expect(leaf as NSDictionary == ["kind": "leaf"] as NSDictionary)
+    #expect(Set(list[0].keys) == ["id", "name", "surround", "insets", "root"])
+
+    // assignments.json
+    let assignmentBytes = try TestFixtures.data("assignments.v1.json")
+    let assignments = try JSONDecoder().decode(ZonesDocument.self, from: assignmentBytes)
+    #expect(assignments == TestFixtures.assignmentsDocument)
+    let assignmentsOut = try assignments.encoded(for: .assignments)
+    let assignmentsObject = try topLevel(assignmentsOut)
+    #expect(Set(assignmentsObject.keys) == ["version", "assignments"])
+    let map = try #require(assignmentsObject["assignments"] as? [String: [String: Any]])
+    let frame = try #require(map[TestFixtures.studioKey]?["lastVisibleFrame"] as? [String: Double])
+    #expect(frame["x"] == 0)
+    #expect(Set(frame.keys) == ["x", "y", "width", "height"])
+    #expect(map[TestFixtures.studioKey]?["lastSeen"] as? String == "2026-10-24T17:02:00Z")
+
+    // bytes are stable on a second encode
+    let again = try JSONDecoder().decode(ZonesDocument.self, from: layoutsOut)
+    #expect(try again.encoded(for: .layouts) == layoutsOut)
+    let againAssignments = try JSONDecoder().decode(ZonesDocument.self, from: assignmentsOut)
+    #expect(try againAssignments.encoded(for: .assignments) == assignmentsOut)
+  }
+}

@@ -1,0 +1,7 @@
+# T10 ledger
+- gap: CGRect flat object and ISO 8601 lastSeen already live in Assignment.swift (T01); SplitNode and Layout Codable already exist in Layout.swift; ZonesDocument decoder treats missing arrays as empty already. Add only what is missing.
+- gap: Log facade has no `event`/`install` yet (diagnostics ticket); DocumentStore takes an optional `LogSink` instead (nil in production until the diagnostics ticket wires Log.shared).
+- gap: FakeFileSystem not in ZonesTestSupport (T02 not merged); local copy at Tests/ZonesCoreTests/LocalFakeFileSystem.swift.
+- decl: new public `AppearancePaneModel.followers(of:in:)` (not in CONTRACTS.md).
+- decl: Preferences.defaults fill/opacity changed to brief values (0.2,0.5,1.0,1.0 / 0.3); T01 test preferencesDefaultsMatchContract updated.
+- slice 1: DocumentTests.codecFieldNames green — encoded(for:) with sorted keys, per-kind top-level keys, v1 golden fixtures written

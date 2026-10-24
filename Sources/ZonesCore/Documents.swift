@@ -32,6 +32,25 @@ public struct ZonesDocument: Hashable, Codable, Sendable {
     try c.encode(layouts, forKey: .layouts)
     try c.encode(assignments, forKey: .assignments)
   }
+
+  /// The one JSON encoder for disk and export: sorted keys so bytes are stable (ADR-0017).
+  /// `layouts.json` writes `version` and `layouts`; `assignments.json` writes `version` and `assignments`;
+  /// `nil` (export) and the recovery kind write both.
+  public func encoded(for kind: DocumentKind?) throws -> Data {
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
+    switch kind {
+    case .layouts: return try encoder.encode(KindView(version: version, layouts: layouts, assignments: nil))
+    case .assignments: return try encoder.encode(KindView(version: version, layouts: nil, assignments: assignments))
+    case .recovery, nil: return try encoder.encode(self)
+    }
+  }
+
+  private struct KindView: Encodable {
+    var version: Int
+    var layouts: [Layout]?
+    var assignments: [String: Assignment]?
+  }
 }
 
 public enum DocumentKind: String, Sendable {
