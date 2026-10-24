@@ -27,7 +27,7 @@ private let context = ArmContext(
   let armed = DragState.armed(
     window: window, downFrame: window.frame, flags: [.shift], config: config, context: context,
     display: display, hit: .zone(2),
-    span: SpanState(zones: [2], display: display, frozen: false, suspended: false))
+    span: SpanState(zones: [2], display: display, frozen: false, suspended: false), point: nil)
   #expect(Set([DragState.idle, pressed, moving, armed]).count == 4)
   #expect(pressed == pressed)
   #expect(DragState.idle != pressed)

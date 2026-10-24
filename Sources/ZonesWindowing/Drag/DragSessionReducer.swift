@@ -131,7 +131,7 @@ public enum DragSessionReducer {
       return (
         .armed(
           window: window, downFrame: downFrame, flags: flags, config: config, context: ctx, display: nil,
-          hit: .none, span: span), [.showOverlay(scene)]
+          hit: .none, span: span, point: nil), [.showOverlay(scene)]
       )
     case .mouseUp, .windowGone:
       return (.idle, [])
@@ -141,7 +141,7 @@ public enum DragSessionReducer {
   }
 
   private static func armed(_ s: DragState, _ e: DragEvent) -> (DragState, [DragEffect]) {
-    guard case .armed(let window, let downFrame, let flags, let config, let ctx, let display, let hit, let span) = s
+    guard case .armed(let window, let downFrame, let flags, let config, let ctx, let display, let hit, let span, let lastPoint) = s
     else { return (s, []) }
     switch e {
     case .dragged(let point, _):
@@ -150,7 +150,7 @@ public enum DragSessionReducer {
       let newSpan = SpanLogic.accumulate(span, at: cursor, flags: flags, config: config)
       let state = DragState.armed(
         window: window, downFrame: downFrame, flags: flags, config: config, context: ctx, display: cursor.display,
-        hit: cursor.hit, span: newSpan)
+        hit: cursor.hit, span: newSpan, point: point)
       return (state, SpanLogic.highlightChange(from: s, to: state))
     case .flagsChanged(let f):
       // Releasing the Activation Modifier hides the overlay and cancels; the Span is dropped (AC-035).
@@ -162,7 +162,7 @@ public enum DragSessionReducer {
       let newSpan = SpanLogic.flagsChanged(span, from: flags, to: f, at: cursor, config: config)
       let state = DragState.armed(
         window: window, downFrame: downFrame, flags: f, config: config, context: ctx, display: display, hit: hit,
-        span: newSpan)
+        span: newSpan, point: lastPoint)
       return (state, SpanLogic.highlightChange(from: s, to: state))
     case .mouseUp(let point, let upFlags):
       // The overlay is on screen in armed, so it is always hidden first (AC-053). A snap or restore needs the
@@ -191,13 +191,19 @@ public enum DragSessionReducer {
       }
       return (.idle, fx)
     case .topologyChanged(let newCtx):
-      // Re-arm from the new snapshot (ADR-0014: no re-layout): a fresh overlay and a re-hit. `armed` keeps no
-      // cursor point, so the stand-in is the center of the Zone the cursor was last over, in the OLD layout.
-      let point = lastHitPoint(display: display, hit: hit, in: ctx)
-      let cursor = rehit(point, previous: display, in: newCtx)
+      // Re-arm from the new snapshot (ADR-0014: no re-layout): a fresh overlay and a re-hit. The re-hit uses the
+      // same call as the mouseUp path, at the last cursor point, so the highlight equals the drop set even when
+      // the cursor's previous Display is gone (LI-009). Before the first `dragged` there is no point, and the
+      // stand-in is the center of the Zone the cursor was last over, in the OLD layout.
+      let cursor =
+        if let lastPoint {
+          SpanLogic.cursor(at: lastPoint, in: newCtx)
+        } else {
+          rehit(lastHitPoint(display: display, hit: hit, in: ctx), previous: display, in: newCtx)
+        }
       let state = DragState.armed(
         window: window, downFrame: downFrame, flags: flags, config: config, context: newCtx, display: cursor.display,
-        hit: cursor.hit, span: span)
+        hit: cursor.hit, span: span, point: lastPoint)
       var fx: [DragEffect] = [.showOverlay(overlayScene(for: newCtx))]
       if let highlight = SpanLogic.highlight(of: state) { fx.append(.updateHighlight(highlight)) }
       return (state, fx)

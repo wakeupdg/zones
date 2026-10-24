@@ -288,7 +288,7 @@ import ZonesWindowing
 
     // Dragging over C: armed stays, no Display, no hit, everything dimmed.
     let (over, overFx) = DragSessionReducer.reduce(armed.state, .dragged(point: onC, flags: .shift))
-    guard case .armed(_, _, _, _, _, let display, let hit, _) = over else {
+    guard case .armed(_, _, _, _, _, let display, let hit, _, _) = over else {
       Issue.record("not armed: \(over)")
       return
     }
@@ -322,7 +322,7 @@ import ZonesWindowing
 
     let onB = CGPoint(x: -1000, y: 300)
     let (armedB, stepB) = drop(at: onB)
-    guard case .armed(_, _, _, _, _, let displayB, let hitB, _) = armedB else {
+    guard case .armed(_, _, _, _, _, let displayB, let hitB, _, _) = armedB else {
       Issue.record("not armed: \(armedB)")
       return
     }
@@ -343,7 +343,7 @@ import ZonesWindowing
     // The same window with the cursor on A: the choice follows the cursor, not the window.
     let onA = CGPoint(x: 300, y: 300)
     let (armedA, stepA) = drop(at: onA)
-    guard case .armed(_, _, _, _, _, let displayA, let hitA, _) = armedA else {
+    guard case .armed(_, _, _, _, _, let displayA, let hitA, _, _) = armedA else {
       Issue.record("not armed: \(armedA)")
       return
     }
@@ -360,14 +360,14 @@ import ZonesWindowing
 
   @Test func topologyChangeRearms() throws {
     let (armed, _) = Self.armedOverZone2()
-    guard case .armed(let w, let downFrame, let flags, let config, _, _, _, let span) = armed else {
+    guard case .armed(let w, let downFrame, let flags, let config, _, _, _, let span, _) = armed else {
       Issue.record("not armed")
       return
     }
     // The snapshot changes: Display C (index 2) dropped out.
     let newCtx = F.context(displays: [0, 1])
     let (next, fx) = DragSessionReducer.reduce(armed, .topologyChanged(newCtx))
-    guard case .armed(let w2, let f2, let flags2, let config2, let ctx, let display, let hit, let span2) = next else {
+    guard case .armed(let w2, let f2, let flags2, let config2, let ctx, let display, let hit, let span2, _) = next else {
       Issue.record("not armed after topologyChanged: \(next)")
       return
     }
@@ -388,7 +388,7 @@ import ZonesWindowing
     // The Display the cursor was on is gone: no Display, no hit, everything dimmed.
     let onlyOthers = F.context(displays: [1, 2])
     let (gone, goneFx) = DragSessionReducer.reduce(armed, .topologyChanged(onlyOthers))
-    guard case .armed(_, _, _, _, let goneCtx, let goneDisplay, let goneHit, _) = gone else {
+    guard case .armed(_, _, _, _, let goneCtx, let goneDisplay, let goneHit, _, _) = gone else {
       Issue.record("not armed: \(gone)")
       return
     }
@@ -407,6 +407,98 @@ import ZonesWindowing
       #expect(same == state)
       #expect(sameFx.isEmpty)
     }
+  }
+
+  /// The Display and Hit a cursor at `point` has in `ctx` (what the mouseUp path computes).
+  static func cursor(at point: CGPoint, in ctx: ArmContext) -> (display: DisplayKey?, hit: Hit) {
+    guard let display = HitTest.display(at: point, in: ctx.topology), let layout = ctx.layouts[display] else {
+      return (HitTest.display(at: point, in: ctx.topology), .none)
+    }
+    return (display, HitTest.hit(point, in: layout))
+  }
+
+  /// Arms on `context` with the cursor dragged to `point` (the harness replays the drag after the arm context).
+  static func armedAt(_ point: CGPoint, context: ArmContext) -> DragState {
+    let w = windowCentered(in: 2)
+    return F.run(
+      [
+        F.mouseDown(flags: .shift, candidates: [w], point: F.center(2)), F.dragged(point),
+        F.sample(w.frame.offsetBy(dx: 30, dy: 10)),
+      ], context: context
+    ).state
+  }
+
+  /// The highlight the step shows must equal the Zones a mouseUp at `point` snaps to (LI-009).
+  func expectHighlightEqualsDrop(_ next: DragState, _ fx: [DragEffect], at point: CGPoint) {
+    let shown = fx.compactMap { effect -> Highlight? in
+      if case .updateHighlight(let h) = effect { h } else { nil }
+    }.last
+    let (_, up) = DragSessionReducer.reduce(next, .mouseUp(point: point, flags: .shift))
+    if case .snap(let plan)? = up.last {
+      #expect(shown?.primary == plan.zones)
+      #expect(shown?.display == plan.display)
+    } else {
+      #expect(shown?.primary.isEmpty ?? true)
+    }
+  }
+
+  @Test func topologyChangeRehitsAtLastCursorPoint() throws {
+    // The cursor was dragged to a point near the left edge of a Zone of Display A; the new snapshot gives A a
+    // two-column Layout. The old Zone center (the former stand-in) falls in the right column, the real point in
+    // the left one.
+    let armContext = F.context(displays: [0, 1])
+    let a = F.topology.displays[0].key
+    let z2 = F.zoneFrame(2)
+    let point = CGPoint(x: z2.minX + 1, y: z2.midY)
+    var twoColumns = Fixtures.nineZone
+    twoColumns.id = LayoutID(rawValue: "test:two-columns")
+    twoColumns.root = .split(axis: .horizontal, ratio: 0.5, first: .leaf, second: .leaf)
+    var newCtx = F.context(displays: [0])
+    newCtx.layouts[a] = LayoutMath.resolve(twoColumns, display: F.topology.displays[0])
+
+    let armed = Self.armedAt(point, context: armContext)
+    #expect(F.isArmed(armed))
+    let (next, fx) = DragSessionReducer.reduce(armed, .topologyChanged(newCtx))
+    guard case .armed(_, _, _, _, let ctx, let display, let hit, _, _) = next else {
+      Issue.record("not armed after topologyChanged: \(next)")
+      return
+    }
+    let expected = Self.cursor(at: point, in: newCtx)
+    #expect(ctx == newCtx)
+    #expect(display == expected.display)
+    #expect(hit == expected.hit)
+    #expect(hit == .zone(1))
+    expectHighlightEqualsDrop(next, fx, at: point)
+
+    // The cursor's Display is gone and the point lies on no remaining Display: the highlight is empty and a
+    // mouseUp there snaps nowhere, so the two still agree.
+    let onB = F.center(of: 1)
+    let armedOnB = Self.armedAt(onB, context: armContext)
+    let onlyA = F.context(displays: [0])
+    let (gone, goneFx) = DragSessionReducer.reduce(armedOnB, .topologyChanged(onlyA))
+    guard case .armed(_, _, _, _, _, let goneDisplay, let goneHit, _, _) = gone else {
+      Issue.record("not armed: \(gone)")
+      return
+    }
+    let goneExpected = Self.cursor(at: onB, in: onlyA)
+    #expect(goneDisplay == goneExpected.display)
+    #expect(goneHit == goneExpected.hit)
+    expectHighlightEqualsDrop(gone, goneFx, at: onB)
+
+    // No dragged since arming: no point, so the stand-in is unchanged from topologyChangeRearms.
+    var (state, _) = DragSessionReducer.reduce(.idle, F.mouseDown(flags: .shift, point: F.center(2)))
+    (state, _) = DragSessionReducer.reduce(state, F.dragged(F.center(2)))
+    (state, _) = DragSessionReducer.reduce(state, F.sample(F.downFrame.offsetBy(dx: 30, dy: 10)))
+    (state, _) = DragSessionReducer.reduce(state, .armContext(armContext))
+    #expect(F.isArmed(state))
+    let (fresh, freshFx) = DragSessionReducer.reduce(state, .topologyChanged(newCtx))
+    guard case .armed(_, _, _, _, _, let freshDisplay, let freshHit, _, _) = fresh else {
+      Issue.record("not armed: \(fresh)")
+      return
+    }
+    #expect(freshDisplay == nil)
+    #expect(freshHit == .none)
+    #expect(freshFx.last == .updateHighlight(Highlight(display: nil, primary: [], secondary: [], dimAll: false)))
   }
 
   @Test func spaceChangeReasserts() {
@@ -602,7 +694,7 @@ import ZonesWindowing
 
     let (next, fx) = DragSessionReducer.reduce(armed, .dragged(point: F.center(3), flags: []))
     #expect(fx == [.updateHighlight(Highlight(display: F.primaryKey, primary: [3], secondary: [], dimAll: false))])
-    guard case .armed(_, _, _, _, _, let display, let hit, _) = next else {
+    guard case .armed(_, _, _, _, _, let display, let hit, _, _) = next else {
       Issue.record("not armed")
       return
     }
@@ -937,7 +1029,7 @@ import ZonesWindowing
           light == [
             .updateHighlight(Highlight(display: F.primaryKey, primary: [zone], secondary: [], dimAll: false))
           ])
-        guard case .armed(_, _, _, _, _, _, let hit, _) = next else {
+        guard case .armed(_, _, _, _, _, _, let hit, _, _) = next else {
           Issue.record("not armed")
           return
         }
@@ -1010,7 +1102,7 @@ extension DragSessionReducerTests {
     case .idle: nil
     case .pressed(_, _, _, _, let config, _, _): config
     case .moving(_, _, _, let config): config
-    case .armed(_, _, _, let config, _, _, _, _): config
+    case .armed(_, _, _, let config, _, _, _, _, _): config
     }
   }
 

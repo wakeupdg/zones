@@ -1,0 +1,1 @@
+- slice 1: topologyChangeRehitsAtLastCursorPoint green — armed gains point: CGPoint?; dragged stores it; topologyChanged re-hits via SpanLogic.cursor at it (nil point keeps the stand-in); all 24 .armed sites updated in the same commit because the enum change cannot compile otherwise

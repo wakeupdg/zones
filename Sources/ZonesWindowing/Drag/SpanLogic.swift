@@ -90,7 +90,7 @@ enum SpanLogic {
 
   /// The highlight an armed state shows: a pure function of its Display, Hit and Span (LI-009).
   static func highlight(of state: DragState) -> Highlight? {
-    guard case .armed(_, _, _, _, let ctx, let display, let hit, let span) = state else { return nil }
+    guard case .armed(_, _, _, _, let ctx, let display, let hit, let span, _) = state else { return nil }
     return drop(at: Cursor(display: display, hit: hit), span: span, in: ctx).highlight
   }
 }
