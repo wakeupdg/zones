@@ -1,0 +1,1 @@
+- slice 1: CycleResolverTests.table green — CycleResolver.next wrap table (no span, nil base, spans, count 1)
