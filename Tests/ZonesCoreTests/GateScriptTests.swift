@@ -115,6 +115,34 @@ func write(_ text: String, to url: URL) throws {
     #expect(result.status == 0)
   }
 
+  @Test func sourcesAXImportOutsideAdaptersFails() throws {
+    let result = try hygiene(
+      "import ApplicationServices\n", file: "Sources/ZonesWindowing/Seams/X.swift")
+    #expect(result.stdout == Self.zeroLines + "sources-ax-imports: 1\n")
+    #expect(result.status == 1)
+  }
+
+  @Test func sourcesAXImportInAdaptersIsAllowed() throws {
+    let result = try hygiene(
+      "import ApplicationServices\n", file: "Sources/ZonesWindowing/Adapters/X.swift")
+    #expect(result.stdout == Self.zeroLines)
+    #expect(result.status == 0)
+  }
+
+  @Test func realSourcesHaveAXImportsOnlyInAdapters() throws {
+    let sources = repoRoot().appendingPathComponent("Sources")
+    let walker = try #require(FileManager.default.enumerator(at: sources, includingPropertiesForKeys: nil))
+    var offenders: [String] = []
+    for case let url as URL in walker where url.pathExtension == "swift" {
+      let text = try String(contentsOf: url, encoding: .utf8)
+      let hasImport = text.split(separator: "\n").contains {
+        $0.trimmingCharacters(in: .whitespaces).hasPrefix("import ApplicationServices")
+      }
+      if hasImport && !url.path.contains("/Adapters/") { offenders.append(url.path) }
+    }
+    #expect(offenders.isEmpty, "\(offenders)")
+  }
+
   @Test func hygieneMissingAppDirExitsTwo() throws {
     let dir = try makeScratchDir()
     defer { try? FileManager.default.removeItem(at: dir) }
@@ -128,6 +156,46 @@ func write(_ text: String, to url: URL) throws {
     #expect(result.stdout == Self.zeroLines)
     #expect(result.status == 0)
   }
+  // MARK: T51, dev-cert.sh hardening (QA-2.1)
+
+  func devCertText() throws -> String {
+    try String(contentsOf: repoRoot().appendingPathComponent("scripts/dev-cert.sh"), encoding: .utf8)
+  }
+
+  @Test func devCertParsesAndHasNoHardcodedPassword() throws {
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+    process.arguments = ["bash", "-n", repoRoot().appendingPathComponent("scripts/dev-cert.sh").path]
+    process.standardError = FileHandle.nullDevice
+    try process.run()
+    process.waitUntilExit()
+    #expect(process.terminationStatus == 0)
+    let code = try devCertText().components(separatedBy: "\n").filter { !$0.hasPrefix("#") }.joined(separator: "\n")
+    #expect(!code.components(separatedBy: "\n").contains { $0.hasPrefix("PASS=") })
+    #expect(code.contains("openssl rand"))
+    #expect(code.contains("add-generic-password"))
+    #expect(code.contains("zones-dev-keychain"))
+  }
+
+  @Test func devCertAutoLocksAndDropsCodesignPartition() throws {
+    let code = try devCertText().components(separatedBy: "\n").filter { !$0.hasPrefix("#") }.joined(separator: "\n")
+    #expect(code.contains("set-keychain-settings -t"))
+    #expect(code.contains("-l"))
+    #expect(!code.contains("apple-tool:,apple:,codesign:"))
+    #expect(code.contains("-T /usr/bin/codesign"))
+  }
+
+  @Test func devCertDryRunHardenNeverPrintsThePassword() throws {
+    let home = try makeScratchDir()
+    defer { try? FileManager.default.removeItem(at: home) }
+    try write("", to: home.appendingPathComponent("Library/Keychains/zones-dev.keychain-db"))
+    let result = try runScript("scripts/dev-cert.sh", ["--dry-run", "--harden"], env: ["HOME": home.path])
+    #expect(result.status == 0)
+    let hardened = result.stdout.contains("already hardened")
+    #expect(hardened || result.stdout.contains("set-keychain-password -o zones-dev -p <password>"))
+    #expect(result.stdout.range(of: "[0-9a-f]{48}", options: .regularExpression) == nil)
+  }
+
   // MARK: slice 2, ticket-lint (AC-167)
 
   static func ticket(
