@@ -15,7 +15,7 @@ import ZonesWindowing
     var shown = 0
     let menu = StatusItemController.makeMenu(
       from: [.header("Display"), .separator, .settings, .grantAccessibility, .separator, .quit],
-      onGrant: { shown += 1 })
+      onGrant: { shown += 1 }, onEditLayouts: {})
     let item = try #require(menu.items.first { $0.title == "Grant Accessibility" })
     _ = item.target?.perform(item.action, with: item)
     #expect(shown == 1)
