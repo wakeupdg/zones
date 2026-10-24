@@ -25,4 +25,20 @@ import ZonesCore
   @Test func okCodeMapsToOk() {
     #expect(AXStatus(axErrorCode: 0) == .ok)
   }
+
+  @Test(arguments: [
+    ("AXStandardWindow", "AXWindow", Subrole.standard),
+    ("AXDialog", "AXWindow", Subrole.dialog),
+    ("AXSystemDialog", "AXWindow", Subrole.systemDialog),
+    ("AXSystemFloatingWindow", "AXWindow", Subrole.systemFloatingWindow),
+    ("AXFloatingWindow", "AXWindow", Subrole.floating),
+    (nil, "AXSheet", Subrole.sheet),
+    (nil, "AXPopover", Subrole.popover),
+    ("AXSomethingNew", "AXWindow", Subrole.unknown),
+    (nil, "AXWindow", Subrole.unknown),
+    (nil, nil, Subrole.unknown),
+  ] as [(String?, String?, Subrole)])
+  func subroleMapping(axSubrole: String?, axRole: String?, expected: Subrole) {
+    #expect(Subrole(axSubrole: axSubrole, axRole: axRole) == expected)
+  }
 }

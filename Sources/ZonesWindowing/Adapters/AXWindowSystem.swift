@@ -36,3 +36,22 @@ extension AXRead {
     }
   }
 }
+
+extension Subrole {
+  /// Maps the AX subrole string (or, for sheets and popovers, the role string). Anything else is `unknown`.
+  init(axSubrole: String?, axRole: String?) {
+    switch axSubrole {
+    case "AXStandardWindow": self = .standard
+    case "AXDialog": self = .dialog
+    case "AXSystemDialog": self = .systemDialog
+    case "AXSystemFloatingWindow": self = .systemFloatingWindow
+    case "AXFloatingWindow": self = .floating
+    default:
+      switch axRole {
+      case "AXSheet": self = .sheet
+      case "AXPopover": self = .popover
+      default: self = .unknown
+      }
+    }
+  }
+}
