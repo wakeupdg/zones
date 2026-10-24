@@ -1,0 +1,1 @@
+- slice 1: probe-skeleton builds and runs (build-and-run check) — Package.swift, TapConfig single definition, AX preflight print, tap stubbed
