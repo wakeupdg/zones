@@ -5,4 +5,6 @@ decision | ZoneDrawing, PanelStyle, PanelModel were undeclared by T01, so they a
 decision | ZonesWindowingTests depends on ZonesTestSupport, so the slice-6 property test is in scope.
 2:36 AM PT | slice 1 | zonesWithinVisibleFrame | green | d20ca62
 2:36 AM PT | slice 2 | highlightDistinctAtLowOpacity | green | 3ac63cc
-2:37 AM PT | slice 3 | applyPaintsPrimarySecondaryDim | green | pending
+2:37 AM PT | slice 3 | applyPaintsPrimarySecondaryDim | green | b87635c
+decision | slice 4 test passed on first run: panels (slice 1) already routes labels through LabelModel (T12), so no new production code; the test pins the AC-063 behavior.
+2:37 AM PT | slice 4 | labelsLegibleAndScaled | green | pending

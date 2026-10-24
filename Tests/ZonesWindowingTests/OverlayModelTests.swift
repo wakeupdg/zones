@@ -103,4 +103,32 @@ import ZonesWindowing
     #expect(OverlayModel.apply(h, to: out) == out)
     #expect(OverlayModel.apply(Highlight(display: nil, primary: [], secondary: [], dimAll: false), to: out) == base)
   }
+
+  /// WCAG 2 contrast ratio, written independently of LabelModel.
+  static func contrast(_ a: RGBA, _ b: RGBA) -> Double {
+    func lin(_ v: Double) -> Double { v <= 0.04045 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4) }
+    func lum(_ c: RGBA) -> Double { 0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b) }
+    let (hi, lo) = (max(lum(a), lum(b)), min(lum(a), lum(b)))
+    return (hi + 0.05) / (lo + 0.05)
+  }
+
+  @Test func labelsLegibleAndScaled() {
+    let fills = [RGBA(r: 0.2, g: 0.4, b: 0.9, a: 1), RGBA(r: 0.46, g: 0.46, b: 0.46, a: 1)]
+    for fill in fills {
+      for o in [0.1, 0.5, 1.0] {
+        let panels = OverlayModel.panels(Self.scene(opacity: o, fill: fill), topology: Self.topology)
+        for (panel, display) in zip(panels, Self.topology.displays) {
+          for z in panel.zones {
+            #expect(z.label.text == String(z.number))
+            #expect(z.label.number == z.number)
+            #expect(z.label.contentsScale == display.scale)
+            let opaque = RGBA(r: fill.r, g: fill.g, b: fill.b, a: 1)
+            #expect(Self.contrast(z.label.outline, opaque) >= 4.5, "fill \(fill) opacity \(o)")
+          }
+        }
+        #expect(panels[1].zones.allSatisfy { $0.label.contentsScale == 2 })
+        #expect(panels[0].zones.allSatisfy { $0.label.contentsScale == 1 })
+      }
+    }
+  }
 }
