@@ -26,4 +26,21 @@ import ZonesWindowing
     #expect(StatusItemController.badged(StatusItemModel.derive(.revoked(failures: 3, firstFailure: 0), tap: .dead)))
     #expect(!StatusItemController.badged(StatusItemModel.derive(.granted, tap: .alive)))
   }
+
+  /// QA-1.9 / AC-018: the glyph is a template image in every state; the red badge is a separate non-template
+  /// subview shown only when the model is badged.
+  @Test func imageIsTemplateInEveryState() throws {
+    let controller = StatusItemController(onGrant: {}, onEditLayouts: {})
+    defer { controller.remove() }
+    let button = try #require(controller.button)
+    #expect(button.image?.isTemplate == true)
+    #expect(controller.badgeView.isHidden)
+    for badged in [true, false, true] {
+      controller.apply(StatusItemModel(badged: badged))
+      #expect(button.image?.isTemplate == true)
+      #expect(controller.badgeView.superview === button)
+      #expect(controller.badgeView.isHidden == !badged)
+      #expect(button.image?.accessibilityDescription == (badged ? "Zones, needs Accessibility access" : "Zones"))
+    }
+  }
 }
