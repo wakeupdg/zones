@@ -1,3 +1,4 @@
 - slice 1: recorderIsAccessibilityElement green — RecorderField is an AX element (setAccessibilityElement(true)), value from displayText kept current in chord/recording didSet
 - slice 2: valueUpdatesWithoutDraw green — value tracks chord and recording on a never-drawn field (covered by slice 1 implementation; test added)
 - slice 3: labelAndControlShareCentre green — label+controls in one HStack(alignment: .center) Form row, message its own row (LabeledContent+NSView baseline left the label 17 pt high; measured from rendered ink since SwiftUI exposes no AX frame for the label)
+- fix: RecorderField overrides isAccessibilityEnabled() to true (VoiceOver read recorders as dimmed); recorderIsAccessibilityElement asserts it, red before fix, green after

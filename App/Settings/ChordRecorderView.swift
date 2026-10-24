@@ -72,6 +72,9 @@ final class RecorderField: NSView, KeyCapturing {
     focusRingType = .default
   }
 
+  /// A plain NSView reports AXEnabled=false, which VoiceOver reads as "dimmed"; the recorder is always usable.
+  override func isAccessibilityEnabled() -> Bool { true }
+
   override var acceptsFirstResponder: Bool { true }
   override var intrinsicContentSize: NSSize { NSSize(width: 150, height: 24) }
   override var needsPanelToBecomeKey: Bool { true }

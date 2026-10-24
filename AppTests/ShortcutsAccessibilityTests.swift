@@ -48,6 +48,7 @@ import ZonesWindowing
       let visible = NSAccessibility.unignoredChildren(from: [field])
       #expect(visible.count == 1, "recorder is ignored by the accessibility hierarchy")
       #expect(field.accessibilityRole() == .button)
+      #expect(field.isAccessibilityEnabled(), "recorder reads as dimmed to VoiceOver")
       let label = field.accessibilityLabel() ?? ""
       #expect(label.hasPrefix("Shortcut for ") && label.count > "Shortcut for ".count)
       #expect(field.accessibilityValue() as? String != nil)
