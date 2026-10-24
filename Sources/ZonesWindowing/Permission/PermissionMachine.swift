@@ -83,7 +83,9 @@ public enum PermissionMachine {
     let stay = PermissionState.suspect(since: since)
     switch e {
     case .tapRecreated(true): return (stay, [.heartbeat])
-    case .trivialRead(.ok), .heartbeat(.ok):
+    case .trivialRead(.ok):
+      // Only the read issued after `tapRecreated(true)` counts. A `.heartbeat` still in flight from before the signal
+      // proves AX works, not that the tap does, so it falls through to the ignore arm.
       return (.granted, [.cancel(.suspectResolve)] + rearm(.healthTick, Constants.healthTick))
     case .timer(.suspectResolve) where now - since >= Constants.suspectWindow - slack:
       return (

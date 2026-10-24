@@ -365,6 +365,18 @@ final class PermissionHarness: Sendable {
     #expect(h.probeCalls == 4, "wake probe plus one per second for 3 s: \(h.probeCalls)")
   }
 
+  // AC-007: a heartbeat already in flight when granted -> suspect is not the post-recreation read.
+  @Test func staleHeartbeatDoesNotRecoverSuspect() {
+    let h = PermissionHarness(state: .granted, heartbeatEnabled: true, reducerIdle: true)
+    h.send(.tapNil)
+    #expect(h.send(.heartbeat(.ok)).isEmpty)
+    #expect(h.state == .suspect(since: 0))
+    #expect(h.clock.pending == [.suspectResolve])
+    h.send(.tapRecreated(true))
+    #expect(h.send(.trivialRead(.ok)) == [.cancel(.suspectResolve), .cancel(.healthTick), .schedule(.healthTick, 5)])
+    #expect(h.state == .granted)
+  }
+
   @Test(arguments: everyState) func quitCancelsTimersAndDisablesTap(state: PermissionState) {
     let (next, fx) = PermissionMachine.reduce(
       state, .quit, config: PermissionConfig(launchedAtLogin: false, heartbeatEnabled: true, reducerIdle: true),
