@@ -1,1 +1,2 @@
 - slice 1: DragSessionReducerTests.sizeLockedSnapsPositionOnly green — phaseTwo SnapMode carried in moving/armed (mode: SnapMode = .full) into the mouseUp SnapPlan
+- slice 2: ShortcutResolverTests.sizeLockedShortcutIsPositionOnly green — resolver maps !facts.sizeSettable to .positionOnly (WindowWorker already passes the facts via FocusedWindow, no change)

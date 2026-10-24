@@ -52,6 +52,26 @@ import ZonesTestSupport
     #expect(snapA.target == layoutA.zones[1].frame)
   }
 
+  /// AC-144 keyboard path: a size-locked focused window snaps position-only even though phase one allowed `.full`.
+  @Test func sizeLockedShortcutIsPositionOnly() throws {
+    let layouts = F.layouts(a: Self.columns2, b: Self.grid4)
+    let locked = F.focused(
+      frame: CGRect(x: 1900, y: 200, width: 600, height: 400), facts: F.facts(sizeSettable: false))
+    let free = F.focused(frame: CGRect(x: 1900, y: 200, width: 600, height: 400))
+    for action in [ShortcutAction.sendToZone(3), .cycleRight, .cycleLeft] {
+      for (window, expected) in [(locked, SnapMode.positionOnly), (free, .full)] {
+        let plan = ShortcutResolver.plan(
+          action, focused: window, verdict: .allow(.full), topology: F.topology, layouts: layouts,
+          registry: OriginalFrameRegistry())
+        guard case .snap(let snap) = plan else {
+          Issue.record("expected a snap plan for \(action), got \(plan)")
+          continue
+        }
+        #expect(snap.mode == expected, "\(action)")
+      }
+    }
+  }
+
   /// Installs a fresh `ArrayLogSink` on `Log.shared` (global, so the suite is serialized) and returns it.
   static func installSink() -> ArrayLogSink {
     let sink = ArrayLogSink()

@@ -32,7 +32,7 @@ public enum ShortcutResolver {
     guard a.isWindowAction else { return .noOp(.windowAbsent) }
     // Gates, first hit wins, one log line each: no window, then the verdict, then the facts (belt and braces).
     guard let focused else { return noOp(.windowAbsent, "\(describe(a)): no focused window", nil) }
-    let mode: SnapMode
+    var mode: SnapMode
     switch verdict {
     case .skip(let reason):
       Log.skip(reason, focused.record.ref, category: .shortcuts)
@@ -47,6 +47,9 @@ public enum ShortcutResolver {
     if !focused.facts.positionSettable {
       return noOp(.positionNotSettable, "\(describe(a)): position is not settable", focused)
     }
+    // Same rule as ExclusionPolicy.phaseTwo: a size-locked window gets a position-only Snap, never a size write
+    // (ADR-0018 C4, AC-144). The verdict passed in is phase one's, which always allows `.full`.
+    if !focused.facts.sizeSettable { mode = .positionOnly }
     let key = focused.record.handle.key
     switch a {
     case .sendToZone(let n):

@@ -55,9 +55,9 @@ enum ShortcutFixtures {
   }
 
   static func facts(
-    fullScreen: Bool = false, positionSettable: Bool = true
+    fullScreen: Bool = false, positionSettable: Bool = true, sizeSettable: Bool = true
   ) -> WindowFacts {
-    WindowFacts(subrole: .standard, isFullScreen: fullScreen, positionSettable: positionSettable, sizeSettable: true)
+    WindowFacts(subrole: .standard, isFullScreen: fullScreen, positionSettable: positionSettable, sizeSettable: sizeSettable)
   }
 
   static func handle(pid: pid_t = getpid()) -> WindowHandle {
