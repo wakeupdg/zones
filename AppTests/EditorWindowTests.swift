@@ -249,6 +249,48 @@ import ZonesWindowing
       #expect(first.minY + visible.minY == zone1.minY && first.maxY + visible.minY == zone1.maxY)
     }
   }
+
+  @Test func dividerDragProducesSetRatio() throws {
+    let visible = CGRect(x: 100, y: 50, width: 1000, height: 500)
+    let layout = Layout(
+      id: LayoutID(rawValue: "22222222-2222-4222-8222-222222222222"), name: "Mixed",
+      root: .split(
+        axis: .horizontal, ratio: 0.5, first: .leaf,
+        second: .split(axis: .vertical, ratio: 0.5, first: .leaf, second: .leaf)),
+      surround: Surround(top: 0, left: 0, bottom: 0, right: 0), insets: Insets(margin: 0, gap: 0))
+    let preview = LayoutMath.resolve(layout, key: .uuid(Self.uuidA), visibleFrame: visible, scale: 1)
+    let origin = visible.origin
+    let dividers = EditorCanvasGeometry.dividers(layout: layout, preview: preview, contentOrigin: origin)
+    #expect(dividers.map(\.path) == [NodePath(steps: []), NodePath(steps: [true])])
+
+    // Root divider: side by side, parent is the whole Layout rectangle in view space.
+    let root = try #require(dividers.first { $0.path.steps.isEmpty })
+    #expect(root.axis == .horizontal)
+    #expect(root.parent == CGRect(x: 0, y: 0, width: 1000, height: 500))
+    #expect(root.line.midX == 500)
+
+    // Pointer at x = 250 of 1000: ratio 0.25, snapping on by default, off with Option.
+    let drag = CGPoint(x: 250, y: 300)
+    #expect(
+      EditorCanvasGeometry.event(forDragOf: root, to: drag, optionHeld: false)
+        == .command(.setRatio(root.path, 0.25, snap: true)))
+    #expect(
+      EditorCanvasGeometry.event(forDragOf: root, to: drag, optionHeld: true)
+        == .command(.setRatio(root.path, 0.25, snap: false)))
+
+    // Nested stacked divider: parent is the right half; first = top, so a pointer 3/4 of the way up is ratio 0.25.
+    let nested = try #require(dividers.first { $0.path.steps == [true] })
+    #expect(nested.axis == .vertical)
+    #expect(nested.parent == CGRect(x: 500, y: 0, width: 500, height: 500))
+    #expect(nested.line.midY == 250)
+    #expect(
+      EditorCanvasGeometry.event(forDragOf: nested, to: CGPoint(x: 800, y: 375), optionHeld: false)
+        == .command(.setRatio(nested.path, 0.25, snap: true)))
+    // Bottom of the parent is ratio 1 (the reducer owns the refusal, the view does not clamp).
+    #expect(
+      EditorCanvasGeometry.event(forDragOf: nested, to: CGPoint(x: 800, y: 0), optionHeld: false)
+        == .command(.setRatio(nested.path, 1, snap: true)))
+  }
 }
 
 /// Test-only factory so the test reads top-down.
