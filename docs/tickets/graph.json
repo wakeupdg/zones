@@ -39,7 +39,10 @@
     "state": "done",
     "tokens_spent": 0,
     "branch": "ticket/T01",
-    "last_report": "merged 98102c8"
+    "last_report": "merged 98102c8",
+    "protocol": "Clock, FileSystem, LogSink, WindowActor, Layout, Preferences",
+    "fake": "FakeClock",
+    "tests": "Tests/ZonesCoreTests/SmokeTests.swift, Tests/ZonesLayoutTests/SmokeTests.swift, Tests/ZonesWindowingTests/SmokeTests.swift"
   },
   {
     "id": "T01b",
@@ -79,7 +82,10 @@
     "state": "done",
     "tokens_spent": 0,
     "branch": "ticket/T01b",
-    "last_report": "merged 8e7922e"
+    "last_report": "merged 8e7922e",
+    "protocol": "WindowSystem, WindowEnumerator, InputSource, DisplayProvider, OverlayPresenter, HotkeyRegistrar, LoginItemService, PermissionProbe, WindowHandle",
+    "fake": "none needed (type declarations and Sendable compile checks only)",
+    "tests": "Tests/ZonesWindowingTests (slices 6-7 tests), AppTests/SmokeTests.swift"
   },
   {
     "id": "T02",
@@ -114,7 +120,10 @@
     "state": "done",
     "tokens_spent": 0,
     "branch": "ticket/T02",
-    "last_report": "merged 70a585a"
+    "last_report": "merged 70a585a",
+    "protocol": "WindowSystem, WindowEnumerator, InputSource, DisplayProvider, OverlayPresenter, HotkeyRegistrar, LoginItemService, PermissionProbe, FileSystem, LogSink",
+    "fake": "FakeWindowSystem, FakeWindowEnumerator, FakeInputSource, FakeDisplayProvider, FakeOverlayPresenter, FakeHotkeyRegistrar, FakeLoginItemService, FakePermissionProbe, FakeFileSystem, ArrayLogSink",
+    "tests": "Tests/ZonesWindowingTests/FakeContractTests.swift, Tests/ZonesLayoutTests/GeneratorTests.swift"
   },
   {
     "id": "T03",
@@ -138,7 +147,10 @@
     "state": "done",
     "tokens_spent": 0,
     "branch": "ticket/T03",
-    "last_report": "merged 61cf3b5"
+    "last_report": "merged 61cf3b5",
+    "protocol": "OverlayPresenter (shape reference only), PanelModel, ZoneDrawing",
+    "fake": "none needed (script/spike)",
+    "tests": "docs/spikes/SPK-002.md, docs/spikes/SPK-009.md, docs/spikes/SPK-001.md verdict notes"
   },
   {
     "id": "T04",
@@ -161,7 +173,10 @@
     "state": "done",
     "tokens_spent": 0,
     "branch": "ticket/T04",
-    "last_report": "merged 2a75bab"
+    "last_report": "merged 2a75bab",
+    "protocol": "WindowEnumerator, InputSource, TapConfig, WindowRef (shape reference only; implements none)",
+    "fake": "none needed (script/spike)",
+    "tests": "docs/spikes/SPK-003.md, docs/spikes/SPK-017.md verdict notes"
   },
   {
     "id": "T05",
@@ -185,7 +200,10 @@
     "state": "done",
     "tokens_spent": 0,
     "branch": "ticket/T05",
-    "last_report": "merged d9a3002"
+    "last_report": "merged d9a3002",
+    "protocol": "WindowEnumerator, WindowRef, WindowID (shape reference only; implements none)",
+    "fake": "none needed (script/spike)",
+    "tests": "docs/spikes/SPK-004.md, docs/spikes/SPK-008.md, docs/spikes/SPK-016.md verdict notes"
   },
   {
     "id": "T06",
@@ -209,7 +227,10 @@
     "state": "done",
     "tokens_spent": 0,
     "branch": "ticket/T06",
-    "last_report": "merged 4fdf870"
+    "last_report": "merged 4fdf870",
+    "protocol": "WindowSystem, AXStatus, AXNotice, PermissionConfig (design reference only; implements none)",
+    "fake": "none needed (script/spike)",
+    "tests": "docs/spikes/SPK-006.md, docs/spikes/SPK-007.md, docs/spikes/SPK-013.md verdict notes"
   },
   {
     "id": "T07",
@@ -232,7 +253,10 @@
     "state": "done",
     "tokens_spent": 0,
     "branch": "ticket/T07",
-    "last_report": "merged 5c42e15"
+    "last_report": "merged 5c42e15",
+    "protocol": "FrameWriting, FrameWriteResult, EnhancedUIPolicy, AppHealth (probe-local mirrors only; consumes none)",
+    "fake": "none needed (script/spike)",
+    "tests": "docs/spikes/SPK-005.md, docs/spikes/SPK-010.md verdict notes"
   },
   {
     "id": "T08",
@@ -257,7 +281,10 @@
     "state": "done",
     "tokens_spent": 0,
     "branch": "ticket/T08",
-    "last_report": "merged a00cbd8"
+    "last_report": "merged a00cbd8",
+    "protocol": "HotkeyRegistrar, LoginItemService (shape reference only; none implemented)",
+    "fake": "none needed (script/spike)",
+    "tests": "docs/spikes/SPK-011.md, docs/spikes/SPK-012.md, docs/spikes/SPK-014.md, docs/spikes/SPK-018.md verdict notes"
   },
   {
     "id": "T09",
@@ -290,7 +317,10 @@
     "state": "done",
     "tokens_spent": 0,
     "branch": "ticket/T09",
-    "last_report": "merged ae0a0c5"
+    "last_report": "merged ae0a0c5",
+    "protocol": "LayoutMath, Grid, ZoneNumbering, CoordinateSpace",
+    "fake": "none needed (pure functions)",
+    "tests": "Tests/ZonesLayoutTests/LayoutTilingTests.swift, Tests/ZonesLayoutTests/ZoneNumberingTests.swift, Tests/ZonesLayoutTests/GridRoundingTests.swift, Tests/ZonesCoreTests/CoordinateSpaceTests.swift"
   },
   {
     "id": "T10",
@@ -331,7 +361,10 @@
     "state": "done",
     "tokens_spent": 0,
     "branch": "ticket/T10",
-    "last_report": "merged 466f585"
+    "last_report": "merged 466f585",
+    "protocol": "ZonesDocument, DocumentStore, Migrator, Preferences, PreferencesCodec (implements); FileSystem, Clock (consumed)",
+    "fake": "FakeFileSystem",
+    "tests": "DocumentTests.swift, MigrationTests.swift, FixtureHashTests.swift, PreferencesTests.swift, AppearancePaneModelTests.swift"
   },
   {
     "id": "T11",
@@ -362,7 +395,10 @@
     "state": "done",
     "tokens_spent": 0,
     "branch": "ticket/T11",
-    "last_report": "merged 7cff085"
+    "last_report": "merged 7cff085",
+    "protocol": "LogSink, Log, EventRing, Diagnostics, DiagnosticsReport, BundleInfo, UnifiedLogSink",
+    "fake": "ArrayLogSink (test LogSink)",
+    "tests": "Tests/ZonesWindowingTests/DiagnosticsTests.swift (DiagnosticsTests suite)"
   },
   {
     "id": "T12",
@@ -393,7 +429,10 @@
     "state": "done",
     "tokens_spent": 16758,
     "branch": "ticket/T12",
-    "last_report": "merged 5a950d5"
+    "last_report": "merged 5a950d5",
+    "protocol": "Hit, HitTest, Span, Templates, LayoutValidator, LabelModel, ZoneLabel",
+    "fake": "none needed (pure functions)",
+    "tests": "TemplateTests.swift, BuiltInLayoutTests.swift, HitTestUnitTests.swift, SpanUnitTests.swift (incl. LayoutValidatorTests, LabelModelTests suites)"
   },
   {
     "id": "T13",
@@ -421,7 +460,10 @@
     "state": "done",
     "tokens_spent": 20938,
     "branch": "ticket/T13",
-    "last_report": "merged 9075dab"
+    "last_report": "merged 9075dab",
+    "protocol": "WindowSystem, PermissionProbe, WindowActor, AXWindowSystem, AXPermissionProbe, AXNotice",
+    "fake": "FakeWindowSystem (consumed from T02)",
+    "tests": "WindowActorTests.swift, FrameWriteResultTests.swift; suites AXMappingTests, AXObserverBridgeTests, AXPermissionProbeTests, AXWindowSystemTests"
   },
   {
     "id": "T14",
@@ -448,10 +490,13 @@
     ],
     "est_tokens": 71540,
     "brief_path": "docs/tickets/T14.md",
-    "state": "todo",
-    "tokens_spent": 10291,
-    "branch": "",
-    "last_report": "reset to todo after T15 merged AppHealth"
+    "state": "review",
+    "tokens_spent": 26870,
+    "branch": "ticket/T14",
+    "last_report": "built: All 8 slices green on ticket/T14, committed and pushed. Added ExclusionPolicy (systemAgents, phaseOn",
+    "protocol": "ExclusionPolicy, ExclusionsPaneModel, WindowEnumerator, CGWindowEnumerator (implements); AppHealth, Verdict (consumed)",
+    "fake": "FakeWindowEnumerator (optional, consumed from T02)",
+    "tests": "ExclusionPolicyTests.swift, ExclusionsPaneModelTests.swift, CGWindowEnumeratorTests.swift"
   },
   {
     "id": "T15",
@@ -482,7 +527,10 @@
     "state": "done",
     "tokens_spent": 14932,
     "branch": "ticket/T15",
-    "last_report": "merged 4f35584"
+    "last_report": "merged 4f35584",
+    "protocol": "FrameWriting, FrameWriter, SnapService, SnapOutcome, AppHealth (implements); WindowSystem, Clock, WindowHandle (consumed)",
+    "fake": "FakeWindowSystem, FakeClock",
+    "tests": "SnapServiceTests.swift, AppHealthTests.swift"
   },
   {
     "id": "T16",
@@ -521,7 +569,10 @@
     "state": "done",
     "tokens_spent": 21171,
     "branch": "ticket/T16",
-    "last_report": "merged b27ecbe"
+    "last_report": "merged b27ecbe",
+    "protocol": "DragSessionReducer, ModifierSet (implements); DragState, DragEvent, DragEffect, HitTest (consumed)",
+    "fake": "none needed (pure reducer)",
+    "tests": "DragSessionReducerTests.swift, ModifierMaskTests.swift (harness: Support/DragFixtures.swift)"
   },
   {
     "id": "T17",
@@ -553,7 +604,10 @@
     "state": "done",
     "tokens_spent": 21657,
     "branch": "ticket/T17",
-    "last_report": "merged 987996d"
+    "last_report": "merged 987996d",
+    "protocol": "LayoutStore, AssignmentLookup, ImportExport (implements); ZonesDocument, DocumentStore, Templates, LayoutValidator (consumed)",
+    "fake": "FakeFileSystem (import no-change check)",
+    "tests": "LayoutStoreTests.swift, AssignmentLookupTests.swift, ImportExportTests.swift"
   },
   {
     "id": "T18",
@@ -584,7 +638,10 @@
     "state": "done",
     "tokens_spent": 34237,
     "branch": "ticket/T18",
-    "last_report": "merged bf151af"
+    "last_report": "merged bf151af",
+    "protocol": "EditorCommand, EditorDraft, EditorEngine, UndoStack (implements); EditorError, LayoutValidator, LabelModel, Templates (consumed)",
+    "fake": "none needed (pure functions)",
+    "tests": "Tests/ZonesLayoutTests/EditorCommandTests.swift, docs/spikes/SPK-015.md (SPK-015 note)"
   },
   {
     "id": "T19",
@@ -610,7 +667,10 @@
     "state": "done",
     "tokens_spent": 25659,
     "branch": "ticket/T19",
-    "last_report": "merged 28f3f62"
+    "last_report": "merged 28f3f62",
+    "protocol": "FrameWriter, EnhancedUIRecovery, RecoveryRecord (implements); DocumentStore, FileSystem, WindowSystem (consumed)",
+    "fake": "FakeWindowSystem, FakeFileSystem, FakeClock",
+    "tests": "Tests/ZonesWindowingTests/SnapServiceTests.swift (edit), Tests/ZonesWindowingTests/EnhancedUIRecoveryTests.swift"
   },
   {
     "id": "T20",
@@ -641,10 +701,13 @@
     ],
     "est_tokens": 71982,
     "brief_path": "docs/tickets/T20.md",
-    "state": "todo",
-    "tokens_spent": 0,
-    "branch": "",
-    "last_report": ""
+    "state": "building",
+    "tokens_spent": 20714,
+    "branch": "ticket/T20",
+    "last_report": "",
+    "protocol": "PermissionMachine (implements); PermissionProbe, Clock, DragSessionReducer (consumed)",
+    "fake": "FakeClock, FakePermissionProbe, FakeFileSystem",
+    "tests": "Tests/ZonesWindowingTests/PermissionMachineTests.swift, Tests/ZonesWindowingTests/DragSessionReducerTests.swift (edit)"
   },
   {
     "id": "T21",
@@ -675,7 +738,10 @@
     "state": "todo",
     "tokens_spent": 0,
     "branch": "",
-    "last_report": ""
+    "last_report": "",
+    "protocol": "DragSessionReducer (implements); DragState, DragEvent, DragEffect, ExclusionPolicy, SampleResult (consumed)",
+    "fake": "none needed (pure reducer)",
+    "tests": "Tests/ZonesWindowingTests/DragSessionReducerTests.swift (edit)"
   },
   {
     "id": "T22",
@@ -703,10 +769,13 @@
     ],
     "est_tokens": 60491,
     "brief_path": "docs/tickets/T22.md",
-    "state": "todo",
-    "tokens_spent": 0,
-    "branch": "",
-    "last_report": ""
+    "state": "building",
+    "tokens_spent": 22425,
+    "branch": "ticket/T22",
+    "last_report": "",
+    "protocol": "DragSessionReducer, SpanState, Highlight (implements); HitTest, Span, ArmContext (consumed)",
+    "fake": "none needed (pure reducer)",
+    "tests": "Tests/ZonesWindowingTests/SpanTests.swift, Tests/ZonesWindowingTests/HitTestTests.swift, Tests/ZonesWindowingTests/DragSessionReducerTests.swift (edit)"
   },
   {
     "id": "T23",
@@ -732,10 +801,13 @@
     ],
     "est_tokens": 61419,
     "brief_path": "docs/tickets/T23.md",
-    "state": "todo",
-    "tokens_spent": 0,
-    "branch": "",
-    "last_report": ""
+    "state": "review",
+    "tokens_spent": 21195,
+    "branch": "ticket/T23",
+    "last_report": "built: All 5 slices are green, committed on ticket/T23 and pushed. `swift build` and the full `swift test` ",
+    "protocol": "InputSource, EventTapInputSource, TapRecovery, TapConfig.production (implements); DragSessionReducer (consumed)",
+    "fake": "FakeInputSource (consumed from T02)",
+    "tests": "Tests/ZonesWindowingTests/InputSourceTests.swift, Tests/ZonesWindowingTests/DragSessionReducerTests.swift (add secondMouseDownIgnored)"
   },
   {
     "id": "T24",
@@ -766,7 +838,10 @@
     "state": "done",
     "tokens_spent": 25497,
     "branch": "ticket/T24",
-    "last_report": "merged 26c5403"
+    "last_report": "merged 26c5403",
+    "protocol": "OriginalFrameRegistry, RestoreResult, RestorePlanner, RestoreService (implements); FrameWriting, Clock (consumed)",
+    "fake": "FakeWindowSystem, FakeClock, ArrayLogSink",
+    "tests": "Tests/ZonesWindowingTests/OriginalFrameRegistryTests.swift, Tests/ZonesWindowingTests/RestoreTests.swift"
   },
   {
     "id": "T25",
@@ -799,7 +874,10 @@
     "state": "done",
     "tokens_spent": 27325,
     "branch": "ticket/T25",
-    "last_report": "merged 76630ea"
+    "last_report": "merged 76630ea",
+    "protocol": "TopologyMonitor, TopologyState, LayoutsPaneModel, ScreenDisplayProvider (implements DisplayProvider); AssignmentLookup (consumed)",
+    "fake": "FakeClock, FakeDisplayProvider",
+    "tests": "Tests/ZonesWindowingTests/TopologyTests.swift, Tests/ZonesWindowingTests/LayoutsPaneModelTests.swift, Tests/ZonesCoreTests/DocumentTests.swift (rejectsNonUUIDKey)"
   },
   {
     "id": "T26",
@@ -823,7 +901,10 @@
     "state": "done",
     "tokens_spent": 20531,
     "branch": "ticket/T26",
-    "last_report": "merged db5307c"
+    "last_report": "merged db5307c",
+    "protocol": "OverlayModel, PanelModel, PanelStyle, ZoneDrawing (implements); Highlight, OverlayScene, LabelModel (consumed)",
+    "fake": "none needed (pure functions)",
+    "tests": "Tests/ZonesWindowingTests/OverlayModelTests.swift"
   },
   {
     "id": "T27",
@@ -858,10 +939,13 @@
     ],
     "est_tokens": 86700,
     "brief_path": "docs/tickets/T27.md",
-    "state": "todo",
-    "tokens_spent": 0,
-    "branch": "",
-    "last_report": ""
+    "state": "building",
+    "tokens_spent": 24880,
+    "branch": "ticket/T27",
+    "last_report": "",
+    "protocol": "HotkeyRegistrar (via CarbonHotkeyRegistrar), ShortcutStore, ShortcutRules, ShortcutDispatcher; ModifierConfig, DragSessionReducer (consumed)",
+    "fake": "FakeHotkeyRegistrar, ArrayLogSink",
+    "tests": "Tests/ZonesWindowingTests/ShortcutStoreTests.swift, Tests/ZonesWindowingTests/ShortcutDispatchTests.swift, Tests/ZonesWindowingTests/DragSessionReducerTests.swift (edit)"
   },
   {
     "id": "T28",
@@ -886,10 +970,13 @@
     ],
     "est_tokens": 61893,
     "brief_path": "docs/tickets/T28.md",
-    "state": "todo",
-    "tokens_spent": 0,
-    "branch": "",
-    "last_report": ""
+    "state": "building",
+    "tokens_spent": 28318,
+    "branch": "ticket/T28",
+    "last_report": "",
+    "protocol": "CycleResolver, ShortcutResolver, CycleDirection (implements); CommandPlan, FocusedWindow, OriginalFrameRegistry, SnapPlan (consumed)",
+    "fake": "FakeWindowSystem, ArrayLogSink",
+    "tests": "Tests/ZonesWindowingTests/ShortcutResolverTests.swift, Tests/ZonesWindowingTests/CycleResolverTests.swift"
   },
   {
     "id": "T29",
@@ -925,7 +1012,10 @@
     "state": "todo",
     "tokens_spent": 0,
     "branch": "",
-    "last_report": ""
+    "last_report": "",
+    "protocol": "MenuModel, StatusItemModel, GeneralPaneModel, AppLifecycle (implements); PermissionMachine, LayoutStore, PermissionProbe (consumed)",
+    "fake": "FakeWindowSystem, FakeClock",
+    "tests": "MenuModelTests.swift, StatusItemModelTests.swift, GeneralPaneModelTests.swift, AppLifecycleTests.swift, AppLaunchTests.swift"
   },
   {
     "id": "T30",
@@ -954,7 +1044,10 @@
     "state": "todo",
     "tokens_spent": 0,
     "branch": "",
-    "last_report": ""
+    "last_report": "",
+    "protocol": "EditorModel (implements); EditorState, EditorEvent, EditorEffect, EditorEngine, UndoStack, LabelModel (consumed)",
+    "fake": "FakeFileSystem, FakeClock",
+    "tests": "Tests/ZonesLayoutTests/EditorModelTests.swift"
   },
   {
     "id": "T31",
@@ -986,7 +1079,10 @@
     "state": "todo",
     "tokens_spent": 0,
     "branch": "",
-    "last_report": ""
+    "last_report": "",
+    "protocol": "PanelOverlayPresenter (implements OverlayPresenter); PanelModel, OverlayModel, Highlight, OverlayScene (consumed)",
+    "fake": "none needed (injected screen-provider closure; FakeOverlayPresenter not used)",
+    "tests": "AppTests/OverlayPanelTests.swift"
   },
   {
     "id": "T32",
@@ -1025,7 +1121,10 @@
     "state": "todo",
     "tokens_spent": 0,
     "branch": "",
-    "last_report": ""
+    "last_report": "",
+    "protocol": "LoginItemService, SMLoginItemService, WindowPlacement, LoginItemToggleModel, AboutModel (implements); LoginItemStatus, LoginItemError, BundleInfo (consumed)",
+    "fake": "FakeLoginItemService",
+    "tests": "Tests/ZonesWindowingTests/WindowPlacementTests.swift, Tests/ZonesWindowingTests/LoginItemToggleTests.swift, Tests/ZonesWindowingTests/AboutModelTests.swift"
   },
   {
     "id": "T33",
@@ -1052,7 +1151,10 @@
     "state": "todo",
     "tokens_spent": 0,
     "branch": "",
-    "last_report": ""
+    "last_report": "",
+    "protocol": "OnboardingViewState (implements, optional); PermissionProbe, PermissionEffect, PermissionState, StatusItemModel, MenuModel (consumed)",
+    "fake": "FakePermissionProbe",
+    "tests": "OnboardingViewStateTests, OnboardingControllerTests, StatusItemBindingTests (suites)"
   },
   {
     "id": "T34",
@@ -1083,7 +1185,10 @@
     "state": "todo",
     "tokens_spent": 0,
     "branch": "",
-    "last_report": ""
+    "last_report": "",
+    "protocol": "Preferences, PreferencesCodec, ImportExport, LayoutsPaneModel, ExclusionsPaneModel, ShortcutStore (consumed; implements none)",
+    "fake": "none needed (isolated UserDefaults suite; no fake named)",
+    "tests": "AppTests/SettingsPanesSmokeTests.swift, Tests/ZonesWindowingTests/SettingsPaneFlowTests.swift (optional)"
   },
   {
     "id": "T35",
@@ -1109,7 +1214,10 @@
     "state": "todo",
     "tokens_spent": 0,
     "branch": "",
-    "last_report": ""
+    "last_report": "",
+    "protocol": "EditorWindowController, EditorCanvasView (App/Editor); consumes EditorModel, EditorEvent, EditorEffect, EditorCommand, LayoutStore, DocumentStore",
+    "fake": "fake effect sink (test-local), FakeFileSystem (in-memory, via DocumentStore)",
+    "tests": "AppTests/EditorWindowTests.swift"
   },
   {
     "id": "T36",
@@ -1150,7 +1258,10 @@
     "state": "todo",
     "tokens_spent": 0,
     "branch": "",
-    "last_report": ""
+    "last_report": "",
+    "protocol": "Clock (ProductionClock implements); DragSessionReducer, PermissionMachine, TapRecovery, TopologyMonitor, ShortcutStore, SnapService, RestoreService, MenuModel (consumed)",
+    "fake": "FakeClock, FakeInputSource, FakeWindowSystem",
+    "tests": "CompositionSmokeTests.swift, ProductionClockTests, DragDriverTests, PermissionDriverTests, ShortcutDriverTests, TopologyDriverTests, MenuControllerTests, LifecycleTests, DiagnosticsControllerTests"
   },
   {
     "id": "T37",
@@ -1183,7 +1294,10 @@
     "state": "todo",
     "tokens_spent": 0,
     "branch": "",
-    "last_report": ""
+    "last_report": "",
+    "protocol": "Generator.dragEvents (implements); DragSessionReducer, PermissionMachine, TapRecovery, TopologyMonitor (consumed)",
+    "fake": "FakeClock",
+    "tests": "ReducerInvariantTests.swift, BudgetTests.swift, IdleScheduleTests.swift, DragSessionReducerTests.swift (noSamplesAfterMoving)"
   },
   {
     "id": "T38",
@@ -1219,6 +1333,9 @@
     "state": "done",
     "tokens_spent": 18288,
     "branch": "ticket/T38",
-    "last_report": "merged 624cd3b"
+    "last_report": "merged 624cd3b",
+    "protocol": "BundleInfo (consumed; declares no Swift)",
+    "fake": "shim scripts for codesign, hdiutil, xcrun (PATH stubs in the release dry-run test)",
+    "tests": "Tests/ZonesCoreTests/GateScriptTests.swift"
   }
 ]
