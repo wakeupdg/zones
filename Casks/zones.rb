@@ -8,7 +8,7 @@ cask "zones" do
   desc "Menu-bar window snapping into zone layouts"
   homepage "https://github.com/wakeupdg/zones"
 
-  depends_on macos: ">= :sonoma"
+  depends_on macos: :sonoma
 
   app "Zones.app"
 
