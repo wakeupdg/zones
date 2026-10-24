@@ -1,2 +1,3 @@
 - slice 1: OnboardingViewStateTests.notGrantedShowsOpenSettingsOnly green — OnboardingViewState struct + derive for notGranted (Sources/ZonesWindowing/Shell)
 - slice 2: OnboardingViewStateTests.revokedNeverOffersQuitAndReopen green — revoked status line, Open System Settings only, never relaunch
+- slice 3: OnboardingViewStateTests.needsRelaunchOffersQuitAndReopenWithSentence green — Quit and Reopen only in needsRelaunch and only while offerRelaunch is true, with explanation sentence

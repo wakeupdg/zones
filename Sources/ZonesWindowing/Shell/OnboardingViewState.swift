@@ -18,8 +18,15 @@ public struct OnboardingViewState: Hashable, Sendable {
     self.windowVisible = windowVisible
   }
 
+  static let relaunchSentence = "Zones must quit and reopen to pick up the restored Accessibility permission."
+
   public static func derive(_ p: PermissionState, relaunchOffered: Bool) -> OnboardingViewState {
     switch p {
+    case .needsRelaunch:
+      OnboardingViewState(
+        statusLine: "Zones can't recover Accessibility without restarting", showOpenSettings: true,
+        showQuitAndReopen: relaunchOffered,
+        relaunchExplanation: relaunchOffered ? Self.relaunchSentence : nil, windowVisible: true)
     case .revoked:
       OnboardingViewState(
         statusLine: "Accessibility access was turned off", showOpenSettings: true, showQuitAndReopen: false,

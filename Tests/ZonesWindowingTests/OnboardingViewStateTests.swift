@@ -21,4 +21,15 @@ import ZonesWindowing
       #expect(s.statusLine == "Accessibility access was turned off", "\(p)")
     }
   }
+
+  @Test func needsRelaunchOffersQuitAndReopenWithSentence() {
+    let s = OnboardingViewState.derive(.needsRelaunch, relaunchOffered: true)
+    #expect(s.showQuitAndReopen)
+    #expect(s.showOpenSettings)
+    #expect(s.windowVisible)
+    #expect(s.statusLine == "Zones can't recover Accessibility without restarting")
+    #expect(!(s.relaunchExplanation ?? "").isEmpty)
+    // Quit and Reopen follows offerRelaunch, never the state alone.
+    #expect(!OnboardingViewState.derive(.needsRelaunch, relaunchOffered: false).showQuitAndReopen)
+  }
 }
