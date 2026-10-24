@@ -33,6 +33,14 @@ public struct LayoutsFlow {
     self.session = session
   }
 
+  /// Replaces the Layouts and Assignments with `document`, the owner's current truth, so an action built on this
+  /// flow never writes a copy that another writer (the editor, a topology pick) has since moved on. A pending
+  /// import, the session picks and the last messages are kept.
+  public mutating func adopt(_ document: ZonesDocument) {
+    store = LayoutStore(document: document, defaults: defaults)
+    assignments = document.assignments
+  }
+
   /// All custom Layouts and Assignments, or one Layout and the Assignments that use it.
   public func exportDocument(only: LayoutID?) -> ZonesDocument {
     ImportExport.export(store, assignments: assignments, only: only)

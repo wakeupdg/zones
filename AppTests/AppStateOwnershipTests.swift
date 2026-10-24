@@ -91,4 +91,83 @@ import ZonesWindowing
     #expect(onDisk.assignments[Self.uuidB]?.layout == columns)
     #expect(root.state.assignments.mapValues(\.layout) == onDisk.assignments.mapValues(\.layout))
   }
+
+  // MARK: Settings > Layouts
+
+  private static let importURL = URL(filePath: "/import/layouts.json")
+
+  /// A Settings controller built as production builds it (its own flow over the root's documents), bound to the
+  /// root's state; its panel "chooses" a file already placed in the fake file system.
+  private func settingsController(_ h: Harness, root: CompositionRoot, importing document: ZonesDocument?)
+    throws -> ImportExportController
+  {
+    if let document { try h.files.writeAtomic(document.encoded(for: nil), to: Self.importURL) }
+    let flow = LayoutsFlow(
+      documents: root.documents, layouts: root.state.document, assignments: root.state.assignments,
+      defaults: root.state.preferences.appearance.defaultInsets)
+    let controller = ImportExportController(
+      flow: flow, fs: h.files,
+      panels: FilePanels(chooseImport: { Self.importURL }, chooseExport: { _ in nil }),
+      now: { 1_000 })
+    controller.bind(to: root.state)
+    return controller
+  }
+
+  private static func imported(_ id: String, name: String) -> Layout {
+    var layout = EditorWindowTests.blankLayout()
+    layout.id = LayoutID(rawValue: id)
+    layout.name = name
+    return layout
+  }
+
+  private func menuLayoutIDs(_ root: CompositionRoot) -> [LayoutID] {
+    root.menu.rebuild().compactMap { if case .layout(let id, _, _) = $0 { id } else { nil } }
+  }
+
+  @Test func settingsImportReachesMenu() throws {
+    let h = Harness()
+    let root = h.makeRoot()
+    h.displays.enqueue(.snapshot(EditorWindowTests.topology()))
+    root.topology.forceSnapshot()
+    let importedID = LayoutID(rawValue: "22222222-2222-4222-8222-222222222222")
+    #expect(!menuLayoutIDs(root).contains(importedID))
+
+    let file = ZonesDocument(
+      version: Constants.documentVersion, layouts: [Self.imported(importedID.rawValue, name: "Imported")],
+      assignments: [:])
+    let controller = try settingsController(h, root: root, importing: file)
+    controller.startImport()
+    controller.applyImport(.replace)
+
+    #expect(controller.flow.importError == nil)
+    #expect(root.state.layouts.layout(importedID)?.name == "Imported")
+    #expect(menuLayoutIDs(root).contains(importedID))
+  }
+
+  @Test func settingsMergeKeepsAnEditorSavedLayout() throws {
+    let h = Harness()
+    let root = h.makeRoot()
+    // Settings builds its flow first; the editor then saves and assigns a Layout it has never seen.
+    let importedID = LayoutID(rawValue: "22222222-2222-4222-8222-222222222222")
+    let file = ZonesDocument(
+      version: Constants.documentVersion, layouts: [Self.imported(importedID.rawValue, name: "Imported")],
+      assignments: [:])
+    let controller = try settingsController(h, root: root, importing: file)
+    let rig = EditorRig(root: root)
+    rig.saveTwoColumnsAndAssign()
+    let editorID = rig.model.draft.layout.id
+
+    controller.startImport()
+    controller.applyImport(.merge)
+
+    #expect(root.state.layouts.layout(editorID) != nil)
+    #expect(root.state.layouts.layout(importedID) != nil)
+    #expect(root.state.assignments[Self.uuidA]?.layout == editorID)
+    let onDisk = try JSONDecoder().decode(
+      ZonesDocument.self, from: h.files.read(URL(filePath: "/zones-support/layouts.json")))
+    #expect(Set(onDisk.layouts.map(\.id)) == [editorID, importedID])
+    let assignments = try JSONDecoder().decode(
+      ZonesDocument.self, from: h.files.read(URL(filePath: "/zones-support/assignments.json")))
+    #expect(assignments.assignments[Self.uuidA]?.layout == editorID)
+  }
 }
