@@ -1,4 +1,5 @@
 import AppKit
+import ApplicationServices
 import SwiftUI
 import Testing
 import ZonesCore
@@ -142,5 +143,49 @@ import ZonesWindowing
       #expect(clears == 2)
       #expect(!field.isRecording)
     }
+  }
+
+  /// SwiftUI's accessibility tree is only reachable through the AX API on the test host's own pid (the
+  /// in-process walk stops at the hosting view), and SwiftUI builds it lazily once accessibility is switched on.
+  private func wakeAccessibility() {
+    typealias SetEnabled = @convention(c) (Bool) -> Void
+    let handle = dlopen("/usr/lib/libAccessibility.dylib", RTLD_NOW)
+    if let symbol = dlsym(handle ?? UnsafeMutableRawPointer(bitPattern: -2), "_AXSApplicationAccessibilitySetEnabled") {
+      unsafeBitCast(symbol, to: SetEnabled.self)(true)
+    }
+    _ = NSApp.accessibilityChildren()
+  }
+
+  private func axAttribute(_ element: AXUIElement, _ name: String) -> CFTypeRef? {
+    var value: CFTypeRef?
+    return AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success ? value : nil
+  }
+
+  private func axButtons(under element: AXUIElement, depth: Int = 0) -> [AXUIElement] {
+    guard depth < 40 else { return [] }
+    var found: [AXUIElement] = []
+    if (axAttribute(element, "AXRole") as? String) == "AXButton" { found.append(element) }
+    for child in (axAttribute(element, "AXChildren") as? [AXUIElement]) ?? [] {
+      found += axButtons(under: child, depth: depth + 1)
+    }
+    return found
+  }
+
+  /// QA-2.3: each Clear button names its action to VoiceOver instead of reading just "Clear".
+  @Test func clearButtonsNameTheirAction() throws {
+    try #require(AXIsProcessTrusted(), "the AX walk needs Accessibility for the test host")
+    wakeAccessibility()
+    let isolated = IsolatedDefaults()
+    defer { isolated.tearDown() }
+    let model = ShortcutsModel(
+      preferences: PreferencesController(defaults: isolated.defaults), registrar: nil, granted: true)
+    let (window, _) = host(model)
+    defer { window.close() }
+    spin(0.6)
+    let buttons = axButtons(under: AXUIElementCreateApplication(getpid()))
+    let labels = buttons.compactMap { axAttribute($0, "AXDescription") as? String }.filter { $0.contains("Clear") }
+    let expected = ShortcutAction.allCases.map { "Clear \(ShortcutsFlow.name(of: $0))" }
+    #expect(labels.count == ShortcutAction.allCases.count, "found \(labels)")
+    #expect(Set(labels) == Set(expected))
   }
 }
