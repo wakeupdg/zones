@@ -1,0 +1,1 @@
+- slice 1: splitKeys green — EditorCommand/EditorDraft/EditorEngine.split; deviation: EditorError gained 'Error' conformance in ZonesCore/Results.swift (Result<_, EditorError> needs it)

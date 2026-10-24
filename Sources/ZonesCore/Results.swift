@@ -38,7 +38,7 @@ public enum DocumentError: Error, Hashable, Sendable {
     nonUUIDKey(String), io(String)
 }
 
-public enum EditorError: Hashable, Sendable {
+public enum EditorError: Error, Hashable, Sendable {
   case notSiblings(hint: String), tooSmall, rootMerge, invalidRatio, nothingSelected
 }
 
