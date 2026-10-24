@@ -18,6 +18,21 @@ enum DragFixtures {
     appearance: Preferences.defaults.appearance,
     options: AccessibilityOptions(reduceTransparency: false, reduceMotion: false), hasOriginalFrame: false)
 
+  /// The same nine-Zone context restricted to the Displays at `indices` of `threeDisplays` (the arm snapshot).
+  static func context(displays indices: [Int]) -> ArmContext {
+    let kept = indices.map { topology.displays[$0] }
+    let snapshot = TopologySnapshot(displays: kept, separateSpaces: topology.separateSpaces, primaryFrame: topology.primaryFrame)
+    var ctx = context
+    ctx.topology = snapshot
+    ctx.layouts = context.layouts.filter { pair in kept.contains { $0.key == pair.key } }
+    return ctx
+  }
+
+  static func center(of display: Int) -> CGPoint {
+    let f = topology.displays[display].frame
+    return CGPoint(x: f.midX, y: f.midY)
+  }
+
   static let downFrame = CGRect(x: 100, y: 100, width: 400, height: 300)
   static let downPoint = CGPoint(x: 300, y: 250)
 
@@ -49,8 +64,11 @@ enum DragFixtures {
 
   static func dragged(_ p: CGPoint = CGPoint(x: 320, y: 260)) -> DragEvent { .dragged(point: p, flags: []) }
 
-  static func sample(_ frame: CGRect, id: UInt32 = 1) -> DragEvent {
-    .frameSample([WindowID(rawValue: id): .frame(frame, nil)])
+  /// Phase-two facts of an ordinary, movable, standard window.
+  static let standardFacts = WindowFacts(subrole: .standard, isFullScreen: false, positionSettable: true, sizeSettable: true)
+
+  static func sample(_ frame: CGRect, id: UInt32 = 1, facts: WindowFacts? = standardFacts) -> DragEvent {
+    .frameSample([WindowID(rawValue: id): .frame(frame, facts)])
   }
 
   static func unmoved(id: UInt32 = 1) -> DragEvent { sample(downFrame, id: id) }

@@ -14,8 +14,9 @@ public enum DragSessionReducer {
   /// A `wake` ends the session from every state (AC-024): idle, `hideOverlay`, and `stopSampling` when a pressed
   /// session was polling frames. No snap, no restore: the wake-time frame is not a drop.
   ///
-  /// EXTENSION(T22): `topologyChanged` and `spaceChanged` are inert in every state for now; the Display
-  /// change and Space change handling lands with the cross-Display ticket.
+  /// `topologyChanged` and `spaceChanged` act in armed only (pressed and moving hold no snapshot) and are inert
+  /// in every other state.
+  /// EXTENSION(T22): cross-Display handling beyond the re-arm lands with the cross-Display ticket.
   public static func reduce(_ s: DragState, _ e: DragEvent) -> (DragState, [DragEffect]) {
     if case .wake = e { return (.idle, wakeEffects(s)) }
     switch s {
@@ -34,14 +35,15 @@ public enum DragSessionReducer {
   private static func idle(_ s: DragState, _ e: DragEvent) -> (DragState, [DragEffect]) {
     guard case .mouseDown(let point, let flags, let candidates, let phaseOne, let config) = e else { return (s, []) }
     if case .skip(let reason) = phaseOne { return (.idle, [.skip(reason, candidates.first)]) }
-    guard !candidates.isEmpty else { return (.idle, []) }
-    // EXTENSION(T21): `.allow(mode)` is accepted and the mode is not stored; SnapPlan mode is `.full` for now.
-    // EXTENSION(T21): candidate resolution (ambiguity, cooldown) beyond the first `candidateCap` windows.
-    let capped = Array(candidates.prefix(Constants.candidateCap))
-    let frames = Dictionary(capped.map { ($0.id, $0.frame) }, uniquingKeysWith: { first, _ in first })
+    guard !candidates.isEmpty else { return (.idle, [.log("mouseDown: no candidate window under the cursor")]) }
+    // More candidates than the cap cannot be told apart in one batched read: skip before any sampling.
+    guard candidates.count <= Constants.candidateCap else { return (.idle, [.skip(.ambiguousMatch, nil)]) }
+    // EXTENSION(T21): `.allow(mode)` is accepted and the mode is not stored; SnapPlan mode is `.full` for now
+    // (phase one only ever allows `.full`; see the ledger note on `positionOnly`).
+    let frames = Dictionary(candidates.map { ($0.id, $0.frame) }, uniquingKeysWith: { first, _ in first })
     return (
       .pressed(
-        candidates: capped, down: point, downFrames: frames, flags: flags, config: config, samples: 0,
+        candidates: candidates, down: point, downFrames: frames, flags: flags, config: config, samples: 0,
         retried: false), []
     )
   }
@@ -68,32 +70,43 @@ public enum DragSessionReducer {
     case .mouseUp, .windowGone:
       return (.idle, samples > 0 ? [.stopSampling] : [])
     case .frameSample(let results):
-      // Walk the candidates in z-order; the first whose frame differs from its mouse-down frame decides.
-      // EXTENSION(T21): retry, cooldown, ambiguity and the phase-two skip from facts; candidates beyond the first
-      // decisive one. `.timedOut` and `.gone` count as unmoved for now.
-      for ref in candidates {
-        guard case .frame(let r, _)? = results[ref.id], let was = downFrames[ref.id] else { continue }
-        // A size delta over the tolerance is a resize, checked before the origin so a top-left resize that also
-        // shifts the origin still ends the session (AC-048).
-        if abs(r.width - was.width) > Constants.frameTolerance
-          || abs(r.height - was.height) > Constants.frameTolerance
-        {
-          return (.idle, [.stopSampling])
+      let tick = CandidateTick.classify(candidates: candidates, downFrames: downFrames, results: results)
+      // A size change over the tolerance is a resize, checked before any mover so a top-left resize that also
+      // shifts the origin still ends the session (AC-048).
+      if tick.resized { return (.idle, [.stopSampling]) }
+      // One mover wins at once, even when another candidate timed out in the same tick.
+      if tick.movers.count == 1, let winner = tick.movers.first {
+        // Phase two: the facts riding on the first moved sample decide whether the window may be moved at all.
+        // Missing facts mean no safe phase two (ledger decision). `allow(.positionOnly)` moves on; the mode has
+        // no carrier in `moving`/`armed`, so SnapPlan mode stays `.full` (ledger note).
+        guard let facts = winner.facts else { return (.idle, [.stopSampling, .skip(.unresponsive, winner.ref)]) }
+        if case .skip(let reason) = ExclusionPolicy.phaseTwo(facts) {
+          return (.idle, [.stopSampling, .skip(reason, winner.ref)])
         }
-        if abs(r.origin.x - was.origin.x) > Constants.frameTolerance
-          || abs(r.origin.y - was.origin.y) > Constants.frameTolerance
-        {
-          var fx: [DragEffect] = [.stopSampling]
-          if flags.contains(ModifierSet(config.activation)) {
-            fx.append(.requestArmContext(window: ref, point: down))
-          }
-          return (.moving(window: ref, downFrame: was, flags: flags, config: config), fx)
+        var fx: [DragEffect] = [.stopSampling]
+        if flags.contains(ModifierSet(config.activation)) {
+          fx.append(.requestArmContext(window: winner.ref, point: down))
         }
+        return (.moving(window: winner.ref, downFrame: winner.downFrame, flags: flags, config: config), fx)
       }
+      // `samples` counts the requests issued, so it equals the number of this returned sample.
+      if tick.movers.count > 1, samples >= Constants.settleSamples {
+        return (.idle, [.stopSampling, .skip(.ambiguousMatch, nil)])
+      }
+      let survivors = tick.survivors
+      guard !survivors.isEmpty else { return (.idle, [.stopSampling]) }
+      // No mover and a timed-out read: one immediate retry per press, then give up on the app.
+      var nowRetried = retried
+      if tick.movers.isEmpty, let slow = tick.timedOut.first {
+        if retried { return (.idle, [.stopSampling, .skip(.unresponsive, slow)]) }
+        nowRetried = true
+      }
+      let alive = Set(survivors.map(\.id))
+      let kept = downFrames.filter { alive.contains($0.key) }
       return (
         .pressed(
-          candidates: candidates, down: down, downFrames: downFrames, flags: flags, config: config,
-          samples: samples + 1, retried: retried), [.requestSample(ids)]
+          candidates: survivors, down: down, downFrames: kept, flags: flags, config: config,
+          samples: samples + 1, retried: nowRetried), [.requestSample(survivors.map(\.id))]
       )
     default:
       return (s, [])
@@ -113,9 +126,7 @@ public enum DragSessionReducer {
       )
     case .armContext(let ctx):
       guard flags.contains(ModifierSet(config.activation)) else { return (s, []) }
-      let scene = OverlayScene(
-        layouts: ctx.topology.displays.compactMap { ctx.layouts[$0.key] }, appearance: ctx.appearance,
-        options: ctx.options)
+      let scene = overlayScene(for: ctx)
       let span = SpanState(zones: [], display: nil, frozen: false, suspended: false)
       return (
         .armed(
@@ -160,6 +171,11 @@ public enum DragSessionReducer {
       var fx: [DragEffect] = [.hideOverlay]
       if upFlags.contains(ModifierSet(config.activation)) {
         let cursor = SpanLogic.cursor(at: point, in: ctx)
+        guard let cursorDisplay = cursor.display, ctx.layouts[cursorDisplay] != nil else {
+          // The cursor is over a Display the arm snapshot does not know: nothing to snap or restore (AC-045).
+          fx.append(.log("drop outside the arm snapshot: no Display or Layout under \(point)"))
+          return (.idle, fx)
+        }
         let dropSpan = SpanLogic.accumulate(span, at: cursor, flags: upFlags, config: config)
         let drop = SpanLogic.drop(at: cursor, span: dropSpan, in: ctx)
         if drop.restore {
@@ -174,10 +190,49 @@ public enum DragSessionReducer {
         }
       }
       return (.idle, fx)
+    case .topologyChanged(let newCtx):
+      // Re-arm from the new snapshot (ADR-0014: no re-layout): a fresh overlay and a re-hit. `armed` keeps no
+      // cursor point, so the stand-in is the center of the Zone the cursor was last over, in the OLD layout.
+      let point = lastHitPoint(display: display, hit: hit, in: ctx)
+      let cursor = rehit(point, previous: display, in: newCtx)
+      let state = DragState.armed(
+        window: window, downFrame: downFrame, flags: flags, config: config, context: newCtx, display: cursor.display,
+        hit: cursor.hit, span: span)
+      var fx: [DragEffect] = [.showOverlay(overlayScene(for: newCtx))]
+      if let highlight = SpanLogic.highlight(of: state) { fx.append(.updateHighlight(highlight)) }
+      return (state, fx)
+    case .spaceChanged:
+      // A Space switch can drop the overlay panels; re-assert them and refresh the highlight (AC-062).
+      var fx: [DragEffect] = [.reassertPanels]
+      if let highlight = SpanLogic.highlight(of: s) { fx.append(.updateHighlight(highlight)) }
+      return (s, fx)
     case .windowGone:
       return (.idle, [.hideOverlay])
     default:
       return (s, [])
     }
+  }
+
+  private static func overlayScene(for ctx: ArmContext) -> OverlayScene {
+    OverlayScene(
+      layouts: ctx.topology.displays.compactMap { ctx.layouts[$0.key] }, appearance: ctx.appearance,
+      options: ctx.options)
+  }
+
+  /// A pure stand-in for the cursor: the center of the hit Zone in `ctx`'s layout for `display`; nil when the
+  /// cursor was over no Zone.
+  private static func lastHitPoint(display: DisplayKey?, hit: Hit, in ctx: ArmContext) -> CGPoint? {
+    guard let display, let layout = ctx.layouts[display] else { return nil }
+    guard let number = SpanLogic.zones(of: hit).first else { return nil }
+    guard let zone = layout.zones.first(where: { $0.number == number }) else { return nil }
+    return CGPoint(x: zone.frame.midX, y: zone.frame.midY)
+  }
+
+  /// The re-hit after a snapshot change: nothing when the previous Display is gone or there is no point.
+  private static func rehit(_ point: CGPoint?, previous: DisplayKey?, in ctx: ArmContext) -> SpanLogic.Cursor {
+    guard let point, let previous, ctx.topology.display(previous) != nil else {
+      return SpanLogic.Cursor(display: nil, hit: .none)
+    }
+    return SpanLogic.cursor(at: point, in: ctx)
   }
 }
