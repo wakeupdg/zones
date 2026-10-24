@@ -182,4 +182,35 @@ struct EditorModelTests {
     #expect(offline.scale == 2)
     #expect(offline.preview == LayoutMath.resolve(layout, key: .uuid(goneUUID), visibleFrame: stored, scale: 2))
   }
+
+  @Test func assignWritesOnce() {
+    let layout = columns()
+    let state = EditorModel.open(layout, display: primaryKey, topology: topology, assignments: [:])
+    let primaryUUID = "11111111-1111-4111-8111-111111111111"
+    let leftUUID = "22222222-2222-4222-8222-222222222222"
+
+    let (same, effects) = step(state, .assign)
+    #expect(effects.count == 1)
+    #expect(effects == [.writeAssignment(PersistentDisplayKey(uuid: primaryUUID), layout.id)])
+    #expect(same == state)
+    #expect(!effects.contains { if case .writeLayouts = $0 { true } else { false } })
+
+    // After a switch the key is the new Display's, and the Layout id is the draft's.
+    let (switched, _) = step(state, .switchDisplay(leftKey, confirmed: false))
+    let (_, switchedEffects) = step(switched, .assign)
+    #expect(switchedEffects.count == 1)
+    #expect(switchedEffects == [.writeAssignment(PersistentDisplayKey(uuid: leftUUID), layout.id)])
+
+    // A dirty draft is assigned as it stands: still one effect, still no layouts write.
+    let (dirty, _) = step(state, .command(.setGap(6)))
+    #expect(step(dirty, .assign).1 == [.writeAssignment(PersistentDisplayKey(uuid: primaryUUID), layout.id)])
+
+    // A disconnected Display is still keyed by its UUID.
+    let gone = EditorModel.open(layout, display: .uuid(goneUUID), topology: topology, assignments: [:])
+    #expect(step(gone, .assign).1 == [.writeAssignment(PersistentDisplayKey(uuid: goneUUID), layout.id)])
+
+    // An unstable key is never persisted.
+    let unstable = EditorModel.open(layout, display: .unstable("session-7"), topology: topology, assignments: [:])
+    #expect(step(unstable, .assign).1.isEmpty)
+  }
 }

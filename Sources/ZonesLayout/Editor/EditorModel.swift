@@ -75,7 +75,10 @@ public enum EditorModel {
       if s.draft.dirty && !confirmed { return (s, [.promptUnsaved(key)]) }
       let geometry = resolveGeometry(key, topology: context.topology, assignments: context.document.assignments)
       return (state(draft: s.draft, undo: s.undo, redo: s.redo, display: key, geometry: geometry), [])
-    case .assign, .save, .cancel:
+    case .assign:
+      guard case .uuid(let uuid) = s.display else { return (s, []) }
+      return (s, [.writeAssignment(PersistentDisplayKey(uuid: uuid), s.draft.layout.id)])
+    case .save, .cancel:
       return (s, [])
     }
   }

@@ -2,3 +2,4 @@
 - slice 2: marginGapLive green — command/undo/redo through UndoStack, preview and warnings recomputed in the same step
 - slice 3: labelsMatchOverlay green — compared against real OverlayModel (in tree, ZonesWindowing); passed on arrival because slices 1-2 already recompute preview each step; plus seeded 50-command loop
 - slice 4: switchDisplayPromptsWhenDirty green — dirty+unconfirmed prompts, else re-resolve via context topology and document assignments
+- slice 5: assignWritesOnce green — one writeAssignment for the edited Display's UUID key and draft layout id; unstable key emits nothing
