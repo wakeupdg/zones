@@ -47,4 +47,20 @@ public struct CGWindowEnumerator: Sendable {
     }
     return refs
   }
+
+  /// Hit-test order: the hinted window first (the event field is authoritative, so it is included even
+  /// when `point` misses its frame), then every ref whose frame contains `point`, in the given
+  /// (front to back) order, without repeating the hint. Uncapped. `hinted` is the hint resolved
+  /// through `windows(ids:)`; it is ignored when `hint` is nil.
+  static func hitTest(
+    _ refs: [ZonesCore.WindowRef], at point: CGPoint, hint: WindowID?,
+    hinted: [ZonesCore.WindowRef]
+  ) -> [ZonesCore.WindowRef] {
+    var result: [ZonesCore.WindowRef] = []
+    if let hint, let first = hinted.first(where: { $0.id == hint }) { result.append(first) }
+    for ref in refs where ref.frame.contains(point) && !result.contains(where: { $0.id == ref.id }) {
+      result.append(ref)
+    }
+    return result
+  }
 }

@@ -60,4 +60,45 @@ import ZonesCore
     #expect(refs.count == 1)
     #expect(refs[0].bundleID == nil)
   }
+
+  static func ref(_ id: UInt32, _ frame: CGRect) -> WindowRef {
+    WindowRef(id: WindowID(rawValue: id), pid: Int32(id), bundleID: nil, frame: frame, layer: 0)
+  }
+
+  @Test func hitTestOrder() {
+    let big = CGRect(x: 0, y: 0, width: 500, height: 500)
+    let small = CGRect(x: 100, y: 100, width: 50, height: 50)
+    let far = CGRect(x: 800, y: 600, width: 100, height: 100)
+    let front = Self.ref(1, small)
+    let middle = Self.ref(2, big)
+    let back = Self.ref(3, far)
+    let all = [front, middle, back]
+    let point = CGPoint(x: 120, y: 120)
+
+    // containing windows, front to back
+    #expect(
+      CGWindowEnumerator.hitTest(all, at: point, hint: nil, hinted: []).map(\.id.rawValue) == [1, 2])
+
+    // hint first, even when the point misses it, and not repeated when it also contains the point
+    #expect(
+      CGWindowEnumerator.hitTest(all, at: point, hint: WindowID(rawValue: 3), hinted: [back])
+        .map(\.id.rawValue) == [3, 1, 2])
+    #expect(
+      CGWindowEnumerator.hitTest(all, at: point, hint: WindowID(rawValue: 2), hinted: [middle])
+        .map(\.id.rawValue) == [2, 1])
+
+    // a hint that resolved to nothing is ignored
+    #expect(
+      CGWindowEnumerator.hitTest(all, at: point, hint: WindowID(rawValue: 99), hinted: [])
+        .map(\.id.rawValue) == [1, 2])
+
+    // point outside every window, no hint
+    #expect(
+      CGWindowEnumerator.hitTest(all, at: CGPoint(x: 700, y: 50), hint: nil, hinted: []).isEmpty)
+
+    // uncapped
+    let stack = (0..<50).map { Self.ref(UInt32(100 + $0), big) }
+    let hits = CGWindowEnumerator.hitTest(stack, at: CGPoint(x: 10, y: 10), hint: nil, hinted: [])
+    #expect(hits == stack)
+  }
 }

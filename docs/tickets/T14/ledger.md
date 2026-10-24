@@ -7,3 +7,4 @@
 - slice 4: ExclusionsPaneModelTests.bundleIdentifierKeyed green — rows/add/Row (AC-142)
 - slice 5: ExclusionsPaneModelTests.addFromFileURL green — bundleID(forAppAt:) and add(appAt:to:)
 - slice 6: CGWindowEnumeratorTests.parseKeepsLayerZeroAndNoNames green — CGWindowEnumerator.refs(from:primaryFrame:bundleID:)
+- slice 7: CGWindowEnumeratorTests.hitTestOrder green — CGWindowEnumerator.hitTest
