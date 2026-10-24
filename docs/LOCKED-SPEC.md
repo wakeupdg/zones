@@ -869,9 +869,9 @@ Verify: `swift test --filter WindowActorTests.timeoutsSetAtLaunch` and a compile
 
 ### Maintainer gates
 ### AC-160 (auto) — One command, CI
-Statement: `swift test` from the repository root exits 0, and the single CI workflow `.github/workflows/ci.yml` has a step running `swift test`, a step running `xcodebuild` with the `build` action, and an `on.push.branches` list containing `integration` and the ticket-branch glob `ticket/**` (ticket branches are named `ticket/<id>`, the pattern `scripts/check-state.sh` checks; ADR-0024), so every push to a ticket branch or to `integration` runs both steps.
+Statement: `swift test` from the repository root exits 0; the single CI workflow `.github/workflows/ci.yml` has a step running `swift test` and a step running `xcodebuild` with the `build` action, and triggers on `pull_request` to `main` and on `workflow_dispatch` with no `push` trigger (ADR-0026, challenge C11); and `scripts/merge-ticket.sh` runs `swift build`, `swift test` and `xcodebuild` before every merge into `integration`, so every ticket merge and every release pull request runs both checks.
 Covers: US-137
-Verify: `swift test` exits 0; `grep -c 'swift test' .github/workflows/ci.yml` prints a number of at least 1; `grep -cE 'xcodebuild .*\bbuild\b' .github/workflows/ci.yml` prints a number of at least 1; `grep -cE 'branches:.*\bintegration\b' .github/workflows/ci.yml` prints a number of at least 1; `grep -c 'ticket/\*\*' .github/workflows/ci.yml` prints a number of at least 1; `ls .github/workflows | wc -l` prints `1`.
+Verify: `swift test` exits 0; `swift test --filter 'GateScriptTests/ciTriggersArePullRequestToMainAndManual'` passes; `grep -c 'swift test' .github/workflows/ci.yml` prints a number of at least 1; `grep -cE 'xcodebuild .*\bbuild\b' .github/workflows/ci.yml` prints a number of at least 1; `grep -c 'workflow_dispatch:' .github/workflows/ci.yml` prints a number of at least 1; `grep -c '^  push:' .github/workflows/ci.yml` prints `0`; `ls .github/workflows | wc -l` prints `1`.
 ### AC-161 (auto) — Strict concurrency
 Statement: `Package.swift` sets `swiftLanguageModes: [.v6]` (Swift 6 language mode, which enforces complete strict concurrency) for the whole package, `project.yml` sets `SWIFT_STRICT_CONCURRENCY: complete` and `SWIFT_TREAT_WARNINGS_AS_ERRORS: YES` for the app target, the package including its test targets builds with warnings as errors, the app target builds with both flags forced on the command line, and the package and app sources together contain exactly one `@unchecked Sendable`, on the window handle box type in the `ZonesWindowing` target.
 Covers: US-138
@@ -995,6 +995,7 @@ Each spike returns a verdict note before the dependent tickets start. "Depends" 
 - C8 ADR-0006: names AX frame polling; the platform persona proposes CG window description polling so a plain drag costs the target app nothing. Not adopted; SPK-016 measures it for a possible new ADR.
 - C9 ADR-0012: the UUID can read nil mid-reconfiguration and may collide for identical panels with zero serials; refinement adopted is a Clock-driven retry and an unstable, never-persisted fallback key with a session-only Assignment. The UUID remains the only persisted key.
 - C10 ADR-0008: silent on Span Modifier release; the freeze rule above is the decision.
+- C11 ADR-0024 / AC-160 (2026-10-24, user decision): CI on every push exhausted the free GitHub Actions allowance for macOS runners on a private repository. CI now runs on pull requests to `main` and on manual dispatch; `scripts/merge-ticket.sh` is the per-ticket gate; the repository goes public at release. Recorded as ADR-0026; AC-160 amended.
 
 ## 9. Traceability
 
