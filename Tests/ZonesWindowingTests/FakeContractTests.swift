@@ -241,4 +241,47 @@ import ZonesWindowing
     clock.advance(by: 1)
     #expect(overlay.completed == [.hide])
   }
+
+  @Test @MainActor func hotkeyRegistrar() async {
+    let clock = FakeClock()
+    let keys = FakeHotkeyRegistrar(clock: clock)
+    let chord = Chord(key: .arrowLeft, modifiers: [.control, .option])
+
+    // Queue: .inUse first (nothing bound), then the default .registered binds the chord.
+    keys.enqueue(.registration(.inUse))
+    #expect(keys.register(chord, for: .cycleLeft) == .inUse)
+    #expect(keys.bound(.cycleLeft) == nil)
+    #expect(keys.register(chord, for: .cycleLeft) == .registered)
+    #expect(keys.bound(.cycleLeft) == chord)
+    keys.unregister(.cycleLeft)
+    #expect(keys.bound(.cycleLeft) == nil)
+    #expect(
+      keys.calls == [
+        .register(chord, .cycleLeft), .bound(.cycleLeft), .register(chord, .cycleLeft),
+        .bound(.cycleLeft), .unregister(.cycleLeft), .bound(.cycleLeft),
+      ])
+
+    // press(_:) reaches the presses stream.
+    keys.press(.restore)
+    keys.press(.sendToZone(3))
+    var presses = keys.presses.makeAsyncIterator()
+    #expect(await presses.next() == .restore)
+    #expect(await presses.next() == .sendToZone(3))
+
+    // Latency 2 completes at the second advance(by: 1).
+    keys.reset()
+    keys.latency = 2
+    keys.unregister(.restore)
+    clock.advance(by: 1)
+    #expect(keys.completed.isEmpty)
+    clock.advance(by: 1)
+    #expect(keys.completed == [.unregister(.restore)])
+
+    // reset() clears bindings, queue, log.
+    keys.reset()
+    _ = keys.register(chord, for: .restore)
+    keys.reset()
+    #expect(keys.calls.isEmpty)
+    #expect(keys.bound(.restore) == nil)
+  }
 }

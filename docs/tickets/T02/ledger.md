@@ -5,3 +5,4 @@ T02 started
 - slice 4: FakeContractTests.inputSource green — FakeInputSource (start/reenable/recreate queues, emit event and signal, streams finish on reset)
 - slice 5: FakeContractTests.displayProvider green — FakeDisplayProvider (snapshot queue repeats last, emit(change) on changes, latency, reset)
 - slice 6: FakeContractTests.overlayPresenter green — FakeOverlayPresenter (@MainActor recorder, isShown, latency, reset; no queue since methods return nothing)
+- slice 7: FakeContractTests.hotkeyRegistrar green — FakeHotkeyRegistrar (@MainActor; .registered binds the chord, .inUse/.invalid do not; press(_:) on presses)
