@@ -12,3 +12,4 @@
 - note: backup/quarantine names use the kind stem, e.g. layouts.20261024-170200.bak (kind file name without .json)
 - slice 6: DocumentTests.newerVersionRefusedAndUntouched green — newer disk file left byte-identical with notice, save refuses with .newerVersion
 - slice 7: MigrationTests.goldenFixturesMigrate green — table-driven over layouts/assignments v1..documentVersion
+- slice 8: MigrationTests.migrationWritesBackupFirst green — backup written before migrated file, .migrated(doc, from:, backup:)

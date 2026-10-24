@@ -45,7 +45,9 @@ public struct DocumentStore: Sendable {
     let raw: Data
     do { raw = try fs.read(target) } catch { return quarantine(kind, reason: "unreadable: \(error)") }
     switch Migrator.migrate(raw, current: currentVersion, steps: steps) {
-    case .success(let (document, _)): return .loaded(document)
+    case .success(let (document, from)) where from == document.version && from == currentVersion:
+      return .loaded(document)
+    case .success(let (document, from)): return persistMigration(document, from: from, original: raw, kind: kind)
     case .failure(.newerVersion(let found, let supported)):
       emit(
         .notice,
@@ -54,6 +56,22 @@ public struct DocumentStore: Sendable {
       return .newerLeftUntouched(version: found)
     case .failure(let error): return quarantine(kind, reason: error.message)
     }
+  }
+
+  /// Backup first, then the migrated file. If the backup cannot be written the disk is left alone.
+  private func persistMigration(
+    _ document: ZonesDocument, from: Int, original: Data, kind: DocumentKind
+  ) -> LoadResult {
+    let backup = backupName(kind, now: wallClock())
+    do { try fs.writeAtomic(original, to: directory.appending(path: backup)) } catch {
+      emit(.error, "\(kind.rawValue) migration skipped: backup \(backup) failed: \(error)")
+      return .loaded(document)
+    }
+    do { try fs.writeAtomic(document.encoded(for: kind), to: url(kind)) } catch {
+      emit(.error, "\(kind.rawValue) migrated in memory only: write failed: \(error)")
+    }
+    emit(.notice, "\(kind.rawValue) migrated from version \(from) to \(document.version); backup \(backup)")
+    return .migrated(document, from: from, backup: backup)
   }
 
   /// `<kind>.<yyyyMMdd-HHmmss>.bak`, UTC, from seconds since 1970.
