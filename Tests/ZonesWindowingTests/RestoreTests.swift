@@ -118,4 +118,42 @@ import ZonesTestSupport
       entry, handle: direct.handle, target: Self.original, mode: .full, health: &direct.health)
     #expect(result == .applied(Self.original))
   }
+
+  /// AC-092: full-screen and no-entry are no-ops. No write, one `.restore` log line, entry kept.
+  @Test @WindowActor func noOpReasons() {
+    // Full-screen focused window with an entry.
+    var full = Rig()
+    full.capture()
+    let entry = OriginalFrameEntry(key: full.key, frame: Self.original, via: .mouse)
+    #expect(
+      RestorePlanner.plan(
+        entry, window: full.ref(), facts: Self.facts(fullScreen: true), topology: Self.oneDisplay)
+        == .failure(.fullScreen))
+    #expect(full.restoreFocused(facts: Self.facts(fullScreen: true)) == .noOp(.fullScreen))
+    #expect(full.ws.calls.isEmpty)
+    #expect(full.registry.entry(full.key) == entry)
+    #expect(full.sink.events.count == 1)
+    let line = full.sink.events.first
+    #expect(line?.category == .restore)
+    #expect(line?.level == .info)
+    #expect(line?.message.contains("fullScreen") == true)
+    #expect(line?.pid == getpid())
+    #expect(line?.bundleID == "com.example.app")
+
+    // No entry at all.
+    var empty = Rig()
+    #expect(empty.restoreFocused() == .noOp(.noEntry))
+    #expect(empty.ws.calls.isEmpty)
+    #expect(empty.registry.entry(empty.key) == nil)
+    #expect(empty.sink.events.count == 1)
+    #expect(empty.sink.events.first?.category == .restore)
+    #expect(empty.sink.events.first?.message.contains("noEntry") == true)
+
+    // Facts not yet read (nil) do not block a Restore.
+    var unknown = Rig()
+    unknown.capture()
+    unknown.ws.enqueue(.frame(.value(Self.original)))
+    #expect(unknown.restoreFocused(facts: nil) == .applied(Self.original))
+    #expect(unknown.sink.events.isEmpty)
+  }
 }

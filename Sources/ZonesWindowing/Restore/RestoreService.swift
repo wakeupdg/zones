@@ -49,11 +49,11 @@ public struct RestoreService: Sendable {
     registry: inout OriginalFrameRegistry, key: WindowKey, window: WindowRef, facts: WindowFacts?,
     handle: WindowHandle, topology: TopologySnapshot, mode: SnapMode, health: inout AppHealth
   ) -> RestoreResult {
-    guard let entry = registry.entry(key) else { return .noOp(.noEntry) }
+    guard let entry = registry.entry(key) else { return noOp(.noEntry, window) }
     let target: CGRect
     switch RestorePlanner.plan(entry, window: window, facts: facts, topology: topology) {
     case .success(let frame): target = frame
-    case .failure(let reason): return .noOp(reason)
+    case .failure(let reason): return noOp(reason, window)
     }
     let result = restore(entry, handle: handle, target: target, mode: mode, health: &health)
     switch result {
@@ -61,5 +61,14 @@ public struct RestoreService: Sendable {
     case .noOp, .failed: break
     }
     return result
+  }
+
+  /// One log line per no-op: the reason, pid and bundleID, never a title (LI-003).
+  private func noOp(_ reason: NoOpReason, _ window: WindowRef) -> RestoreResult {
+    log.event(
+      LogEvent(
+        time: clock.now, category: .restore, level: .info, message: "restore noOp " + reason.rawValue,
+        bundleID: window.bundleID, pid: window.pid))
+    return .noOp(reason)
   }
 }
