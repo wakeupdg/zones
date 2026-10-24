@@ -3,3 +3,4 @@
 - slice 1: TemplateTests.countsShapesAndNames green — Templates.builtInID/generate with column, row, grid, priority and focus trees
 - slice 2: HitTestTests.gapAndMarginAreNearest and displayAtPoint green — HitTest.hit and HitTest.display
 - slice 3: HitTestTests.zoneCentersAreZones green — 200 seeded layouts, zone centers hit their zone, no .none inside the frame (passes on first run; HitTest already complete from slice 2)
+- slice 4: SpanTests.unionIncludesGaps green — Span.rect bounding union, unknown numbers ignored, empty is .zero
