@@ -16,6 +16,7 @@ final class CompositionRoot {
   let permission: PermissionDriver
   let topology: TopologyDriver
   let drag: DragDriver
+  let shortcuts: ShortcutDriver
   /// The launch steps the root performed, in order (AC-159, AC-076, ADR-0021).
   private(set) var launchTrace: [String] = []
 
@@ -36,6 +37,11 @@ final class CompositionRoot {
     drag = DragDriver(
       clock: adapters.clock, enumerator: adapters.enumerator, overlay: adapters.overlay, worker: worker,
       appState: state, topology: topology, options: adapters.accessibilityOptions, ownPid: adapters.ownPid)
+    shortcuts = ShortcutDriver(
+      hotkeys: adapters.hotkeys, worker: worker, appState: state, topology: topology, ui: adapters.ui,
+      isIdle: { [drag] in drag.isIdle })
+    drag.onIdleChange = { [shortcuts] idle in shortcuts.receive(.reducerIdle(idle)) }
+    permission.onWindowHotkeys = { [shortcuts] granted in shortcuts.receive(.permission(granted: granted)) }
     topology.onChange = { [drag] snapshot in drag.topologyChanged(snapshot) }
     topology.onSpaceChanged = { [drag] in drag.spaceChanged() }
     permission.dragIdle = { [drag] in drag.isIdle }
@@ -56,5 +62,6 @@ final class CompositionRoot {
       adapters.surfaces.showOnboarding()
     }
     permission.receive(.probe(trusted))
+    shortcuts.receive(.launch)
   }
 }
