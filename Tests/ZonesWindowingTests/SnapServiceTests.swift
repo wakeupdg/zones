@@ -120,4 +120,31 @@ import ZonesWindowing
     #expect(outcome.result == .clamped(aligned))
     #expect(outcome.readBack == aligned)
   }
+
+  /// AC-041: every call in the log names the plan's handle; the second window is never touched.
+  @Test @WindowActor func writesOnlyTargetHandle() {
+    var rig = Rig()
+    let other = WindowHandle(element: AXUIElementCreateApplication(1), pid: 1)
+    #expect(other != rig.handle)
+    rig.ws.enqueue(.windows([rig.handle, other]))
+    #expect(rig.ws.windows(of: getpid()) == [rig.handle, other])
+    rig.ws.reset()
+
+    // A clamped Snap, so the follow-up write is covered too.
+    let accepted = CGRect(x: 60, y: 20, width: 650, height: 500)
+    rig.script(current: Self.elsewhere, readBack: accepted)
+    rig.ws.enqueue(.frame(.value(accepted)))
+    _ = rig.run(rig.plan())
+
+    var handles: [WindowHandle] = []
+    for call in rig.ws.calls {
+      switch call {
+      case .frame(let h), .setPosition(_, let h), .setSize(_, let h): handles.append(h)
+      default: Issue.record("unexpected call \(call)")
+      }
+    }
+    #expect(handles.count == rig.ws.calls.count)
+    #expect(handles.allSatisfy { $0 == rig.handle })
+    #expect(!handles.contains(other))
+  }
 }
