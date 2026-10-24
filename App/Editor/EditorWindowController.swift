@@ -163,7 +163,8 @@ final class EditorWindowController: EditorEffectSink {
     canvas?.zoneStyle = appearance()
     canvas?.state = state
     toolbar?.update(state: state, topology: currentTopology(), assignments: document.assignments)
-    toolbar?.show(message: lastMessage ?? "")
+    // A message was already shown (and announced) by `showMessage`; only clear a stale one, never re-announce.
+    if lastMessage == nil { toolbar?.show(message: "") }
   }
 
   // MARK: EditorEffectSink
