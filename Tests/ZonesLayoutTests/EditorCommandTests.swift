@@ -94,6 +94,40 @@ struct EditorCommandTests {
     let single = draft()
     #expect(run(.merge, single) == .failure(.rootMerge))
   }
+
+  @Test func minimumFractionAndWarning() throws {
+    let two = draft(.split(axis: .horizontal, ratio: 0.5, first: .leaf, second: .leaf))
+    let root = NodePath(steps: [])
+    #expect(run(.setRatio(root, 0.05, snap: false), two) == .failure(.tooSmall))
+    #expect(run(.setRatio(root, 0.95, snap: false), two) == .failure(.tooSmall))
+    let edge = try run(.setRatio(root, 1.0 / 12, snap: false), two).get()
+    #expect(edge.dirty)
+    #expect(edge.layout.root == .split(axis: .horizontal, ratio: 1.0 / 12, first: .leaf, second: .leaf))
+    // out of range or not a divider
+    #expect(run(.setRatio(root, 0, snap: false), two) == .failure(.invalidRatio))
+    #expect(run(.setRatio(root, 1.5, snap: false), two) == .failure(.invalidRatio))
+    #expect(run(.setRatio(root, .nan, snap: false), two) == .failure(.invalidRatio))
+    #expect(run(.setRatio(NodePath(steps: [true]), 0.5, snap: false), two) == .failure(.invalidRatio))
+    // a nested ratio is judged against the leaf's share of the whole unit square
+    let nested = draft(
+      .split(
+        axis: .horizontal, ratio: 0.5, first: .leaf,
+        second: .split(axis: .horizontal, ratio: 0.5, first: .leaf, second: .leaf)))
+    #expect(run(.setRatio(NodePath(steps: [true]), 0.1, snap: false), nested) == .failure(.tooSmall))
+    #expect(throws: Never.self) { try run(.setRatio(NodePath(steps: [true]), 0.2, snap: false), nested).get() }
+
+    func resolved(_ t: Template, _ count: Int, _ frame: CGRect) -> ResolvedLayout {
+      let layout = Templates.generate(t, count: count, insets: zeroInsets)
+      return LayoutMath.resolve(layout, key: .uuid("D1"), visibleFrame: frame, scale: 1)
+    }
+    #expect(
+      EditorEngine.warnings(resolved(.grid, 9, CGRect(x: 0, y: 0, width: 300, height: 200)))
+        == Set(1...9))
+    #expect(EditorEngine.warnings(resolved(.grid, 4, CGRect(x: 0, y: 0, width: 1920, height: 1080))).isEmpty)
+    #expect(EditorEngine.warnings(resolved(.columns, 2, CGRect(x: 0, y: 0, width: 240, height: 80))).isEmpty)
+    #expect(EditorEngine.warnings(resolved(.columns, 2, CGRect(x: 0, y: 0, width: 238, height: 80))) == Set(1...2))
+    #expect(EditorEngine.warnings(resolved(.rows, 2, CGRect(x: 0, y: 0, width: 120, height: 158))) == Set(1...2))
+  }
 }
 
 extension EditorDraft {

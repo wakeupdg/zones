@@ -11,6 +11,7 @@ public enum EditorEngine {
     case .select(let path): select(path, d)
     case .split(let axis): split(axis, d)
     case .merge: merge(d)
+    case .setRatio(let path, let ratio, _): setRatio(path, ratio, d)
     default: .failure(.invalidRatio)
     }
   }
@@ -54,6 +55,26 @@ public enum EditorEngine {
     next.layout.root = replacing(parentSteps[...], in: d.layout.root, with: .leaf)
     next.selection = NodePath(steps: parentSteps)
     return validated(next)
+  }
+
+  // MARK: setRatio
+
+  private static func setRatio(_ path: NodePath, _ ratio: Double, _ d: EditorDraft) -> Result<EditorDraft, EditorError> {
+    guard ratio > 0, ratio < 1, case .split(let axis, _, let first, let second)? = node(at: path.steps[...], in: d.layout.root)
+    else { return .failure(.invalidRatio) }
+    var next = d
+    next.layout.root = replacing(
+      path.steps[...], in: d.layout.root, with: .split(axis: axis, ratio: ratio, first: first, second: second))
+    return validated(next)
+  }
+
+  // MARK: warnings
+
+  /// Numbers of Zones resolving under `Constants.usableSize` (120 x 80 pt) on the current Display.
+  public static func warnings(_ r: ResolvedLayout) -> Set<Int> {
+    Set(
+      r.zones.filter { $0.frame.width < Constants.usableSize.width || $0.frame.height < Constants.usableSize.height }
+        .map(\.number))
   }
 
   // MARK: shared helpers
