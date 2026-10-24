@@ -91,10 +91,12 @@ public enum DragState: Hashable, Sendable {
   case pressed(
     candidates: [WindowRef], down: CGPoint, downFrames: [WindowID: CGRect], flags: ModifierSet,
     config: ModifierConfig, samples: Int, retried: Bool)
-  case moving(window: WindowRef, downFrame: CGRect, flags: ModifierSet, config: ModifierConfig)
+  /// `mode` is phaseTwo's verdict payload: `.positionOnly` for a size-locked window (ADR-0018 C4), carried to the Snap.
+  case moving(window: WindowRef, downFrame: CGRect, flags: ModifierSet, config: ModifierConfig, mode: SnapMode = .full)
   case armed(
     window: WindowRef, downFrame: CGRect, flags: ModifierSet, config: ModifierConfig,
-    context: ArmContext, display: DisplayKey?, hit: Hit, span: SpanState, point: CGPoint?)
+    context: ArmContext, display: DisplayKey?, hit: Hit, span: SpanState, point: CGPoint?,
+    mode: SnapMode = .full)
 }
 
 public enum DragEvent: Hashable, Sendable {

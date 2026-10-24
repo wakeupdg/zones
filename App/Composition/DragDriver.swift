@@ -142,7 +142,7 @@ final class DragDriver {
   }
 
   private func rearm(_ snapshot: TopologySnapshot) async {
-    guard case .armed(_, _, _, _, let old, _, _, _, _) = state else { return }
+    guard case .armed(_, _, _, _, let old, _, _, _, _, _) = state else { return }
     let layouts = appState.resolvedLayouts(for: snapshot, session: topology.sessionAssignments)
     let context = ArmContext(
       topology: snapshot, layouts: layouts, appearance: appState.preferences.appearance, options: options(),

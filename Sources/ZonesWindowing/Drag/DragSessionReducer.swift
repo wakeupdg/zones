@@ -38,8 +38,7 @@ public enum DragSessionReducer {
     guard !candidates.isEmpty else { return (.idle, [.log("mouseDown: no candidate window under the cursor")]) }
     // More candidates than the cap cannot be told apart in one batched read: skip before any sampling.
     guard candidates.count <= Constants.candidateCap else { return (.idle, [.skip(.ambiguousMatch, nil)]) }
-    // EXTENSION(T21): `.allow(mode)` is accepted and the mode is not stored; SnapPlan mode is `.full` for now
-    // (phase one only ever allows `.full`; see the ledger note on `positionOnly`).
+    // Phase one only ever allows `.full`; the SnapMode comes from phase two on the first moved sample.
     let frames = Dictionary(candidates.map { ($0.id, $0.frame) }, uniquingKeysWith: { first, _ in first })
     return (
       .pressed(
@@ -77,17 +76,19 @@ public enum DragSessionReducer {
       // One mover wins at once, even when another candidate timed out in the same tick.
       if tick.movers.count == 1, let winner = tick.movers.first {
         // Phase two: the facts riding on the first moved sample decide whether the window may be moved at all.
-        // Missing facts mean no safe phase two (ledger decision). `allow(.positionOnly)` moves on; the mode has
-        // no carrier in `moving`/`armed`, so SnapPlan mode stays `.full` (ledger note).
+        // Missing facts mean no safe phase two (ledger decision). `allow(.positionOnly)` moves on and its mode
+        // rides in `moving`/`armed` to the mouseUp SnapPlan (AC-144).
         guard let facts = winner.facts else { return (.idle, [.stopSampling, .skip(.unresponsive, winner.ref)]) }
-        if case .skip(let reason) = ExclusionPolicy.phaseTwo(facts) {
-          return (.idle, [.stopSampling, .skip(reason, winner.ref)])
+        let mode: SnapMode
+        switch ExclusionPolicy.phaseTwo(facts) {
+        case .skip(let reason): return (.idle, [.stopSampling, .skip(reason, winner.ref)])
+        case .allow(let allowed): mode = allowed
         }
         var fx: [DragEffect] = [.stopSampling]
         if flags.contains(ModifierSet(config.activation)) {
           fx.append(.requestArmContext(window: winner.ref, point: down))
         }
-        return (.moving(window: winner.ref, downFrame: winner.downFrame, flags: flags, config: config), fx)
+        return (.moving(window: winner.ref, downFrame: winner.downFrame, flags: flags, config: config, mode: mode), fx)
       }
       // `samples` counts the requests issued, so it equals the number of this returned sample.
       if tick.movers.count > 1, samples >= Constants.settleSamples {
@@ -114,14 +115,14 @@ public enum DragSessionReducer {
   }
 
   private static func moving(_ s: DragState, _ e: DragEvent) -> (DragState, [DragEffect]) {
-    guard case .moving(let window, let downFrame, let flags, let config) = s else { return (s, []) }
+    guard case .moving(let window, let downFrame, let flags, let config, let mode) = s else { return (s, []) }
     switch e {
     case .flagsChanged(let f):
       // The Activation Modifier pressed after the move arms the session too (AC-037).
       let activation = ModifierSet(config.activation)
       let newly = f.contains(activation) && !flags.contains(activation)
       return (
-        .moving(window: window, downFrame: downFrame, flags: f, config: config),
+        .moving(window: window, downFrame: downFrame, flags: f, config: config, mode: mode),
         newly ? [.requestArmContext(window: window, point: downFrame.origin)] : []
       )
     case .armContext(let ctx):
@@ -131,7 +132,7 @@ public enum DragSessionReducer {
       return (
         .armed(
           window: window, downFrame: downFrame, flags: flags, config: config, context: ctx, display: nil,
-          hit: .none, span: span, point: nil), [.showOverlay(scene)]
+          hit: .none, span: span, point: nil, mode: mode), [.showOverlay(scene)]
       )
     case .mouseUp, .windowGone:
       return (.idle, [])
@@ -141,7 +142,7 @@ public enum DragSessionReducer {
   }
 
   private static func armed(_ s: DragState, _ e: DragEvent) -> (DragState, [DragEffect]) {
-    guard case .armed(let window, let downFrame, let flags, let config, let ctx, let display, let hit, let span, let lastPoint) = s
+    guard case .armed(let window, let downFrame, let flags, let config, let ctx, let display, let hit, let span, let lastPoint, let mode) = s
     else { return (s, []) }
     switch e {
     case .dragged(let point, _):
@@ -150,19 +151,19 @@ public enum DragSessionReducer {
       let newSpan = SpanLogic.accumulate(span, at: cursor, flags: flags, config: config)
       let state = DragState.armed(
         window: window, downFrame: downFrame, flags: flags, config: config, context: ctx, display: cursor.display,
-        hit: cursor.hit, span: newSpan, point: point)
+        hit: cursor.hit, span: newSpan, point: point, mode: mode)
       return (state, SpanLogic.highlightChange(from: s, to: state))
     case .flagsChanged(let f):
       // Releasing the Activation Modifier hides the overlay and cancels; the Span is dropped (AC-035).
       guard f.contains(ModifierSet(config.activation)) else {
-        return (.moving(window: window, downFrame: downFrame, flags: f, config: config), [.hideOverlay])
+        return (.moving(window: window, downFrame: downFrame, flags: f, config: config, mode: mode), [.hideOverlay])
       }
       // Releasing the Span Modifier freezes the set; pressing it again resumes adding.
       let cursor = SpanLogic.Cursor(display: display, hit: hit)
       let newSpan = SpanLogic.flagsChanged(span, from: flags, to: f, at: cursor, config: config)
       let state = DragState.armed(
         window: window, downFrame: downFrame, flags: f, config: config, context: ctx, display: display, hit: hit,
-        span: newSpan, point: lastPoint)
+        span: newSpan, point: lastPoint, mode: mode)
       return (state, SpanLogic.highlightChange(from: s, to: state))
     case .mouseUp(let point, let upFlags):
       // The overlay is on screen in armed, so it is always hidden first (AC-053). A snap or restore needs the
@@ -181,12 +182,12 @@ public enum DragSessionReducer {
         if drop.restore {
           fx.append(.restore(window, downFrame: downFrame))
         } else if let dropDisplay = drop.display, let layout = ctx.layouts[dropDisplay], !drop.zones.isEmpty {
-          // EXTENSION(T21): SnapPlan mode comes from the phase-one verdict; `.full` for now.
+          // The mode is phaseTwo's verdict from the first moved sample (`.positionOnly` for a size-locked window).
           fx.append(
             .snap(
               SnapPlan(
                 window: window, display: dropDisplay, zones: drop.zones, target: Span.rect(drop.zones, in: layout),
-                mode: .full, via: .mouse, originalFrame: ctx.hasOriginalFrame ? nil : downFrame)))
+                mode: mode, via: .mouse, originalFrame: ctx.hasOriginalFrame ? nil : downFrame)))
         }
       }
       return (.idle, fx)
@@ -206,7 +207,7 @@ public enum DragSessionReducer {
       let newSpan = SpanLogic.accumulate(span, at: cursor, flags: flags, config: config)
       let state = DragState.armed(
         window: window, downFrame: downFrame, flags: flags, config: config, context: newCtx, display: cursor.display,
-        hit: cursor.hit, span: newSpan, point: lastPoint)
+        hit: cursor.hit, span: newSpan, point: lastPoint, mode: mode)
       var fx: [DragEffect] = [.showOverlay(overlayScene(for: newCtx))]
       if let highlight = SpanLogic.highlight(of: state) { fx.append(.updateHighlight(highlight)) }
       return (state, fx)

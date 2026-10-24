@@ -53,7 +53,7 @@ import ZonesWindowing
   static func drag(to p: CGPoint, flags: ModifierSet = shiftControl) -> DragEvent { .dragged(point: p, flags: flags) }
 
   static func span(_ s: DragState) -> SpanState {
-    guard case .armed(_, _, _, _, _, _, _, let span, _) = s else {
+    guard case .armed(_, _, _, _, _, _, _, let span, _, _) = s else {
       Issue.record("not armed: \(s)")
       return SpanState(zones: [], display: nil, frozen: false, suspended: false)
     }

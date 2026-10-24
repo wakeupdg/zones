@@ -1,0 +1,1 @@
+- slice 1: DragSessionReducerTests.sizeLockedSnapsPositionOnly green — phaseTwo SnapMode carried in moving/armed (mode: SnapMode = .full) into the mouseUp SnapPlan
