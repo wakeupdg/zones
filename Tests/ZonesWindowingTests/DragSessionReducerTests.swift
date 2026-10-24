@@ -483,4 +483,96 @@ import ZonesWindowing
     #expect(fromIdle != .idle)
     #expect(F.isPressed(fromIdle))
   }
+
+  /// Armed over Zone 2, with the Original Frame flag set as asked.
+  static func armed(hasOriginalFrame: Bool) -> DragState {
+    var context = F.context
+    context.hasOriginalFrame = hasOriginalFrame
+    let w = windowCentered(in: 2)
+    return F.run(
+      [
+        F.mouseDown(flags: .shift, candidates: [w], point: F.center(2)), F.dragged(F.center(2)),
+        F.sample(w.frame.offsetBy(dx: 30, dy: 10)),
+      ], context: context
+    ).state
+  }
+
+  @Test func nearestSnaps() throws {
+    let z1 = F.zoneFrame(1)
+    let gap = CGPoint(x: z1.maxX + 4, y: z1.midY)
+    let visible = F.layout().visibleFrame
+    let margin = CGPoint(x: visible.minX + 1, y: z1.midY)
+    for hasOriginalFrame in [false, true] {
+      let armed = Self.armed(hasOriginalFrame: hasOriginalFrame)
+      for (point, zone) in [(gap, 1), (margin, 1)] {
+        // The highlight already shows the nearest Zone, undimmed.
+        let (next, light) = DragSessionReducer.reduce(armed, .dragged(point: point, flags: .shift))
+        #expect(
+          light == [
+            .updateHighlight(Highlight(display: F.primaryKey, primary: [zone], secondary: [], dimAll: false))
+          ])
+        guard case .armed(_, _, _, _, _, _, let hit, _) = next else {
+          Issue.record("not armed")
+          return
+        }
+        #expect(hit == .nearest(zone))
+
+        let (idle, fx) = DragSessionReducer.reduce(next, .mouseUp(point: point, flags: .shift))
+        #expect(idle == .idle)
+        let hide = try #require(fx.firstIndex(where: F.isHideOverlay))
+        let snap = try #require(fx.firstIndex(where: F.isSnap))
+        #expect(hide < snap)
+        #expect(!fx.contains(where: F.isRestore))
+        guard case .snap(let plan) = fx[snap] else { return }
+        #expect(plan.zones == [zone])
+        #expect(plan.target == F.zoneFrame(zone))
+      }
+    }
+  }
+
+  /// A point in the menu bar strip of the primary Display: on the Display, outside its visible frame.
+  static var menuBar: CGPoint {
+    let v = F.layout().visibleFrame
+    return CGPoint(x: v.midX, y: v.maxY + 5)
+  }
+
+  @Test func noneHitDimsOnlyWithOriginalFrame() throws {
+    let w = Self.windowCentered(in: 2)
+
+    // With an Original Frame: dim every fill, and drop restores.
+    let withFrame = Self.armed(hasOriginalFrame: true)
+    let (dimmed, dimFx) = DragSessionReducer.reduce(withFrame, .dragged(point: Self.menuBar, flags: .shift))
+    #expect(
+      dimFx == [
+        .updateHighlight(Highlight(display: F.primaryKey, primary: [], secondary: [], dimAll: true))
+      ])
+    let (idle, upFx) = DragSessionReducer.reduce(dimmed, .mouseUp(point: Self.menuBar, flags: .shift))
+    #expect(idle == .idle)
+    #expect(upFx == [.hideOverlay, .restore(w, downFrame: w.frame)])
+
+    // Back over a Zone the dim lifts.
+    let (_, backFx) = DragSessionReducer.reduce(dimmed, .dragged(point: F.center(4), flags: .shift))
+    #expect(
+      backFx == [
+        .updateHighlight(Highlight(display: F.primaryKey, primary: [4], secondary: [], dimAll: false))
+      ])
+
+    // Restore needs the Activation Modifier at the drop, like a snap.
+    let (_, noMod) = DragSessionReducer.reduce(dimmed, .mouseUp(point: Self.menuBar, flags: []))
+    #expect(noMod == [.hideOverlay])
+
+    // Without an Original Frame: the highlight is cleared, nothing dims, and the drop does nothing.
+    let without = Self.armed(hasOriginalFrame: false)
+    let (cleared, clearFx) = DragSessionReducer.reduce(without, .dragged(point: Self.menuBar, flags: .shift))
+    #expect(
+      clearFx == [
+        .updateHighlight(Highlight(display: F.primaryKey, primary: [], secondary: [], dimAll: false))
+      ])
+    let (idle2, upFx2) = DragSessionReducer.reduce(cleared, .mouseUp(point: Self.menuBar, flags: .shift))
+    #expect(idle2 == .idle)
+    #expect(upFx2 == [.hideOverlay])
+    #expect(!upFx2.contains(where: F.isSnap))
+    #expect(!upFx2.contains(where: F.isRestore))
+    #expect(!upFx2.contains { if case .skip = $0 { true } else { false } })
+  }
 }
