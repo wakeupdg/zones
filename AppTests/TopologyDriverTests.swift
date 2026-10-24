@@ -62,7 +62,7 @@ import ZonesWindowing
     w.root.topology.timerFired(.topologyDebounce)
     // The change was posted to the drag inbox; the loop is not running in this test, so deliver it by hand.
     await w.root.drag.handle(.topology(smaller))
-    guard case .armed(_, _, _, _, let context, _, _, _, _) = w.root.drag.state else {
+    guard case .armed(_, _, _, _, let context, _, _, _, _, _) = w.root.drag.state else {
       Issue.record("expected still armed")
       return
     }
