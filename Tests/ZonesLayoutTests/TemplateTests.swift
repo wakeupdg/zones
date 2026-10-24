@@ -80,3 +80,74 @@ struct TemplateTests {
     #expect(HitTest.hit(CGPoint(x: 600, y: 801), in: r) == .none)
   }
 }
+
+struct LayoutValidatorTests {
+  private let zero = Surround(top: 0, left: 0, bottom: 0, right: 0)
+
+  private func layout(
+    _ root: SplitNode, name: String = "Custom", surround: Surround? = nil
+  ) -> Layout {
+    Layout(
+      id: LayoutID(rawValue: "x"), name: name, root: root, surround: surround ?? zero,
+      insets: Insets(margin: 0, gap: 0))
+  }
+
+  private func twoLevel(inner ratio: Double) -> SplitNode {
+    .split(
+      axis: .horizontal, ratio: 0.5, first: .leaf,
+      second: .split(axis: .vertical, ratio: ratio, first: .leaf, second: .leaf))
+  }
+
+  @Test func acceptsBuiltInsAndRejectsFaults() {
+    for built in Templates.all(insets: zeroInsets) { #expect(LayoutValidator.validate(built) == nil, "\(built.id)") }
+    #expect(LayoutValidator.validate(layout(.leaf)) == nil)
+
+    // Ratio outside (0,1), reported at the right path.
+    for bad in [0.0, 1.0, -0.2, Double.nan] {
+      #expect(
+        LayoutValidator.validate(layout(.split(axis: .horizontal, ratio: bad, first: .leaf, second: .leaf)))
+          == .ratioOutOfRange(NodePath(steps: [])), "root ratio \(bad)")
+      #expect(
+        LayoutValidator.validate(layout(twoLevel(inner: bad))) == .ratioOutOfRange(NodePath(steps: [true])),
+        "nested ratio \(bad)")
+    }
+    // First bad ratio in depth-first order wins.
+    let twoBad = SplitNode.split(
+      axis: .horizontal, ratio: 0.5,
+      first: .split(axis: .vertical, ratio: 1.5, first: .leaf, second: .leaf),
+      second: .split(axis: .vertical, ratio: 0, first: .leaf, second: .leaf))
+    #expect(LayoutValidator.validate(layout(twoBad)) == .ratioOutOfRange(NodePath(steps: [false])))
+
+    // Leaf narrower than 1/12 of the Layout rectangle.
+    let tiny = SplitNode.split(axis: .horizontal, ratio: 0.05, first: .leaf, second: .leaf)
+    #expect(LayoutValidator.validate(layout(tiny)) == .leafTooSmall(NodePath(steps: [false])))
+    let tinyBoth = SplitNode.split(axis: .horizontal, ratio: 0.5, first: .leaf, second: .split(axis: .vertical, ratio: 0.95, first: .leaf, second: .leaf))
+    #expect(LayoutValidator.validate(layout(tinyBoth)) == .leafTooSmall(NodePath(steps: [true, true])))
+    let edge = SplitNode.split(axis: .horizontal, ratio: 1.0 / 12, first: .leaf, second: .leaf)
+    #expect(LayoutValidator.validate(layout(edge)) == nil)
+
+    // Surround.
+    func sur(_ v: Double) -> Surround { Surround(top: v, left: 0, bottom: 0, right: 0) }
+    #expect(LayoutValidator.validate(layout(.leaf, surround: sur(0.46))) == .surroundOutOfRange)
+    #expect(LayoutValidator.validate(layout(.leaf, surround: sur(0.45))) == nil)
+    #expect(LayoutValidator.validate(layout(.leaf, surround: sur(-0.01))) == .surroundOutOfRange)
+    #expect(LayoutValidator.validate(layout(.leaf, surround: sur(.nan))) == .surroundOutOfRange)
+    #expect(
+      LayoutValidator.validate(layout(.leaf, surround: Surround(top: 0, left: 0, bottom: 0, right: 0.5)))
+        == .surroundOutOfRange)
+
+    // Name.
+    #expect(LayoutValidator.validate(layout(.leaf, name: "  ")) == .emptyName)
+    #expect(LayoutValidator.validate(layout(.leaf, name: "")) == .emptyName)
+    #expect(LayoutValidator.validate(layout(.leaf, name: " a ")) == nil)
+
+    // Precedence: emptyName > surroundOutOfRange > ratioOutOfRange > leafTooSmall.
+    let badRatio = SplitNode.split(axis: .horizontal, ratio: 0, first: .leaf, second: .leaf)
+    #expect(LayoutValidator.validate(layout(badRatio, name: " ", surround: sur(0.9))) == .emptyName)
+    #expect(LayoutValidator.validate(layout(badRatio, surround: sur(0.9))) == .surroundOutOfRange)
+    let ratioAndTiny = SplitNode.split(
+      axis: .horizontal, ratio: 0.01, first: .leaf,
+      second: .split(axis: .vertical, ratio: 1, first: .leaf, second: .leaf))
+    #expect(LayoutValidator.validate(layout(ratioAndTiny)) == .ratioOutOfRange(NodePath(steps: [true])))
+  }
+}

@@ -8,3 +8,4 @@
 - slice 6: LabelModelTests.textScaleAndNoChord green — LabelModel.labels with text, scale, noChord and WCAG black/white outline
 - slice 7: LabelModelTests.outlineContrast green — 500 fills x 3 opacities all at or above 4.5 (passes on first run; outline chosen in slice 6)
 - slice 8: BuiltInLayoutTests.deterministicIdsAndDuplicate green — Templates.all (12, deterministic) and duplicate; built-in encodes without builtIn key
+- slice 9: LayoutValidatorTests.acceptsBuiltInsAndRejectsFaults green — LayoutValidator.validate with name, surround, ratio, leaf-size precedence
