@@ -320,4 +320,17 @@ import ZonesWindowing
     #expect(plan.originalFrame == nil)
     #expect(plan.zones == [4])
   }
+
+  @Test func hideOverlayPrecedesSnap() throws {
+    let (armed, _) = Self.armedOverZone2()
+    let (_, snapStep) = DragSessionReducer.reduce(armed, .mouseUp(point: F.center(3), flags: .shift))
+    let hide = try #require(snapStep.firstIndex(where: F.isHideOverlay))
+    let snap = try #require(snapStep.firstIndex(where: F.isSnap))
+    #expect(hide < snap)
+
+    let (_, plainStep) = DragSessionReducer.reduce(armed, .mouseUp(point: F.center(3), flags: []))
+    #expect(plainStep.first == .hideOverlay)
+    #expect(!plainStep.contains(where: F.isSnap))
+    #expect(!plainStep.contains(where: F.isRestore))
+  }
 }
