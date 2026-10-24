@@ -11,6 +11,8 @@ final class PreferencesController {
 
   private(set) var preferences: Preferences
   @ObservationIgnored private let defaults: UserDefaults
+  /// Told the coerced value after every persisted change, so the composition root's `AppState` follows Settings.
+  @ObservationIgnored var onChange: ((Preferences) -> Void)?
 
   init(defaults: UserDefaults = .standard) {
     self.defaults = defaults
@@ -29,6 +31,7 @@ final class PreferencesController {
     guard next != preferences else { return }
     preferences = next
     defaults.set(PreferencesCodec.encode(next), forKey: Self.defaultsKey)
+    onChange?(next)
   }
 
   /// A write-through replacement for a whole value, used by panes that report a full `Preferences`.

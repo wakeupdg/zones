@@ -24,6 +24,14 @@ final class StatusItemController {
     statusItem.menu = Self.makeMenu(from: items, onGrant: onGrant, onEditLayouts: onEditLayouts)
   }
 
+  /// The live menu from `MenuController` (rebuilt on every open): the status item shows it as is.
+  func attach(_ menu: NSMenu) { statusItem.menu = menu }
+
+  /// Icon only, for callers that own the menu (the composition root's `MenuController`).
+  func apply(_ model: StatusItemModel) {
+    statusItem.button?.image = Self.icon(badged: Self.badged(model))
+  }
+
   nonisolated static func badged(_ model: StatusItemModel) -> Bool { model.badged }
 
   static func makeMenu(
