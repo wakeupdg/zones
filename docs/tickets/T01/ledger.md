@@ -3,3 +3,5 @@
 - decision: Zone and ResolvedLayout live in Layout.swift but are added in slice 3 because they need DisplayKey
 - slice 3: assignmentJSONUsesFlatRect, zonesDocumentRoundTripBothArrays, topologyTypesConstruct green — DisplayKey, PersistentDisplayKey, DisplaySnapshot, TopologySnapshot, Assignment (flat rect, ISO-8601), Window types, Zone, ResolvedLayout, ZonesDocument (DocumentKind/LoadResult/DocumentStore/Migrator wait for slice 5: they need DocumentError, FileSystem, Clock)
 - decision: Foundation alone does not export CGRect/CGSize conformances here; Core files and tests using CG types add `import CoreGraphics`
+- slice 4: preferencesDefaultsMatchContract, preferencesJSONRoundTrip, shortcutActionAllCasesIsFourteenInOrder, isWindowActionTrueForFirstFour, chordCommandOrControlIsComputed green — Modifier, ModifierSet, Key, Chord (computed hasCommandOrControl), ShortcutAction (hand allCases), Shortcut, Preferences + defaults, Appearance, NoticeFlag, PreferencesCodec shell
+- decision: Preferences.defaults uses shortcuts [] with comment per brief gap 1; Appearance placeholder fill RGBA(0,0.478,1,1), opacity 0.35, insets 8/8
