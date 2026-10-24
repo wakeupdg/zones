@@ -65,7 +65,11 @@ public enum TopologyMonitor {
       case .topologyDebounce, .nilUUIDRetry: return (state, [.readSnapshot])
       default: return (state, [])
       }
-    case .snapshot(let snapshot, _):
+    case .snapshot(let snapshot, let nilUUIDs):
+      if nilUUIDs > 0, state.uuidRetries < nilUUIDRetryLimit {
+        state.uuidRetries += 1
+        return (state, [.schedule(.nilUUIDRetry, nilUUIDRetryInterval)])
+      }
       return commit(snapshot, into: state, assignments: assignments)
     case .assignmentPicked(let key, let layout):
       return pick(layout, for: state.mirrorMaster[key] ?? key, in: state, assignments: assignments)

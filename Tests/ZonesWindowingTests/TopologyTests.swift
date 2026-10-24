@@ -288,4 +288,61 @@ private struct Harness {
     #expect(kept.current?.displays.count == 2)
     #expect(kept.mirrorMaster.isEmpty)
   }
+
+  static func withNil(_ id: Int = 7) -> TopologySnapshot {
+    var nilDisplay = Self.b
+    nilDisplay.key = .unstable("nil:\(id)")
+    return Self.topology([Self.a, nilDisplay])
+  }
+
+  /// AC-123
+  @Test func nilUUIDRetryThenUnstable() {
+    // (a) late success.
+    var h = Harness()
+    h.provider.enqueue(.snapshot(Self.topology([Self.a, Self.b])))
+    h.send(.snapshot(Self.withNil(), nilUUIDs: 1))
+    #expect(h.effects == [.schedule(.nilUUIDRetry, 1.0)])
+    #expect(h.state.current == nil)
+    h.advance(by: 0.99)
+    #expect(h.reads == 0)
+    h.advance(by: 0.01)
+    #expect(h.reads == 1)
+    #expect(h.changes == [Self.topology([Self.a, Self.b])])
+
+    // (b) three failures, then the unstable key commits.
+    var g = Harness()
+    for _ in 0..<4 { g.provider.enqueue(.snapshot(Self.withNil())) }
+    g.send(.snapshot(Self.withNil(), nilUUIDs: 1))
+    for _ in 0..<3 { g.advance(by: 1) }
+    #expect(g.readTimes.count == 3)
+    #expect(zip(g.readTimes, g.readTimes.dropFirst()).allSatisfy { $1 - $0 >= 1 - 1e-9 })
+    #expect(g.changes.isEmpty == false)
+    #expect(g.changes == [Self.withNil()])
+    #expect(g.state.uuidRetries == 0)
+    g.advance(by: 5)
+    #expect(g.readTimes.count == 3)
+    let unstableKey = DisplayKey.unstable("nil:7")
+    #expect(g.state.current?.display(unstableKey) != nil)
+
+    // (c) a pick on the unstable key is session-only.
+    g.send(.assignmentPicked(unstableKey, LayoutID(rawValue: "builtin:focus:1")))
+    #expect(g.effects.contains(.sessionAssignment(unstableKey, LayoutID(rawValue: "builtin:focus:1"))))
+    #expect(
+      AssignmentLookup.layoutID(for: unstableKey, in: g.assignments, session: g.state.session)
+        == LayoutID(rawValue: "builtin:focus:1"))
+    for case .persistAssignment(let key, _) in g.effects { #expect(UUID(uuidString: key.uuid) != nil) }
+    #expect(!g.effects.contains { if case .persistAssignment = $0 { true } else { false } })
+
+    // (d) a raw event mid-retry cancels the retry and restarts the debounce.
+    var r = Harness()
+    r.provider.enqueue(.snapshot(Self.withNil()))
+    r.send(.snapshot(Self.withNil(), nilUUIDs: 1))
+    r.advance(by: 0.5)
+    r.send(.raw(.reconfiguration))
+    #expect(r.effects.suffix(3) == [.cancel(.nilUUIDRetry), .cancel(.topologyDebounce), .schedule(.topologyDebounce, 0.2)])
+    #expect(r.state.uuidRetries == 0)
+    #expect(r.clock.pending == [.topologyDebounce])
+    r.advance(by: 0.2)
+    #expect(r.reads == 1)
+  }
 }
