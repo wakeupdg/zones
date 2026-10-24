@@ -75,4 +75,27 @@ import ZonesWindowing
     #expect(scene.layouts.count == Fixtures.threeDisplays.displays.count)
     #expect(Set(scene.layouts.map(\.display)) == Set(Fixtures.threeDisplays.displays.map(\.key)))
   }
+
+  @Test func pauseThenMoveStillArms() {
+    var (state, _) = DragSessionReducer.reduce(.idle, F.mouseDown(flags: .shift))
+    (state, _) = DragSessionReducer.reduce(state, F.dragged())
+    for _ in 0..<3 {
+      let (next, fx) = DragSessionReducer.reduce(state, F.unmoved())
+      #expect(F.isPressed(next))
+      #expect(fx == [.requestSample([F.window.id])])
+      state = next
+    }
+    // A timed-out or gone read counts as unmoved too.
+    let (afterTimeout, fx) = DragSessionReducer.reduce(state, .frameSample([F.window.id: .timedOut]))
+    #expect(F.isPressed(afterTimeout))
+    #expect(fx == [.requestSample([F.window.id])])
+
+    let (moving, _) = DragSessionReducer.reduce(afterTimeout, F.moved())
+    #expect(F.isMoving(moving))
+
+    let whole = F.run([
+      F.mouseDown(flags: .shift), F.dragged(), F.unmoved(), F.unmoved(), F.unmoved(), F.moved(),
+    ])
+    #expect(F.isArmed(whole.state))
+  }
 }
