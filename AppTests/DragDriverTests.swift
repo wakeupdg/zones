@@ -190,7 +190,7 @@ struct DragWorld {
     // Resolve the handle first (a tick would arm); seed the registry for the same key through a second probe.
     await root.worker.capture(OriginalFrameEntry(key: w.handle.key, frame: CGRect(x: 5, y: 5, width: 50, height: 50), via: .mouse))
     await root.drag.handle(.tick)
-    guard case .armed(_, _, _, _, let context, _, _, _) = root.drag.state else {
+    guard case .armed(_, _, _, _, let context, _, _, _, _) = root.drag.state else {
       Issue.record("expected armed, got \(root.drag.state)")
       return
     }
@@ -209,7 +209,7 @@ struct DragWorld {
     await w.root.drag.handle(w.event(.leftDragged, CGPoint(x: 205, y: 205)))
     _ = w.scriptMove()
     await w.root.drag.handle(.tick)
-    guard case .armed(_, _, _, _, let context, _, _, _) = w.root.drag.state else {
+    guard case .armed(_, _, _, _, let context, _, _, _, _) = w.root.drag.state else {
       Issue.record("expected armed")
       return
     }
