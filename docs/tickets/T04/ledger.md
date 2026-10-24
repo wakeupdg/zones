@@ -3,3 +3,4 @@
 - slice 3: tap-latency green — per-event delay/callback, dragged rate, CGGetEventTapList (listen-only reports 0.0 usec), SUMMARY on exit; host saw 23 foreign click pairs, no drags
 - slice 4: cgwindowlist-denied built+run — list read on mouse-down; bounds/layer/pid present (0 missing); host has Screen Recording GRANTED (scratch preflight true) so names present: denied case NOT reproducible here, PENDING-HUMAN
 - slice 5: resolve-dragged-window green — pid+size resolver and field-id agreement; logic self-test PASS on fabricated lists (SYNTHETIC-LOGIC); real drag run needs a human
+- slice 6: verdicts written — SPK-003 and SPK-017 PARTIAL (host macOS 27.0.1; host has SR+IM+AX granted, no human drag); macOS 14/15 and clean current rows PENDING-HUMAN; no ADR-0020 escalation
