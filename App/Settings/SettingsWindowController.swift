@@ -13,6 +13,11 @@ final class SettingsWindowController {
   /// the window key. Only 27 is recorded; 14 and 15 are untested, so there the hotkey orders front only.
   nonisolated static let hotkeyKeyOSMajors: Set<Int> = [27]
 
+  /// The tab strip is 564 pt wide and sits beside the traffic lights: narrower than this and AppKit clips it
+  /// into the toolbar overflow (QA-2.0).
+  nonisolated static let defaultContentSize = NSSize(width: 760, height: 460)
+  nonisolated static let minimumContentSize = NSSize(width: 720, height: 360)
+
   private let topology: () -> TopologySnapshot?
   private let cursor: () -> CGPoint
   private let selection = SettingsSelection()
@@ -58,13 +63,14 @@ final class SettingsWindowController {
     }
   }
 
-  private func makeWindow() -> NSWindow {
+  func makeWindow() -> NSWindow {
     let window = SettingsWindow(
-      contentRect: NSRect(x: 0, y: 0, width: 640, height: 460),
+      contentRect: NSRect(origin: .zero, size: Self.defaultContentSize),
       styleMask: NSWindow.StyleMask(rawValue: WindowPlacement.settingsStyleMaskRaw),
       backing: .buffered, defer: false)
     window.title = "Zones Settings"
     window.isReleasedWhenClosed = false
+    window.contentMinSize = Self.minimumContentSize
     window.collectionBehavior = [.moveToActiveSpace]
     window.contentView = makeContent(selection, coordinator)
     return window
