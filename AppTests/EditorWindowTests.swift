@@ -291,6 +291,61 @@ import ZonesWindowing
       EditorCanvasGeometry.event(forDragOf: nested, to: CGPoint(x: 800, y: 0), optionHeld: false)
         == .command(.setRatio(nested.path, 1, snap: true)))
   }
+
+  // MARK: toolbar model
+
+  @Test func displaySwitcherListsDisconnectedAndPrompts() throws {
+    let topology = Self.topology()
+    let gone = "CCCCCCCC-CCCC-4CCC-8CCC-CCCCCCCCCCCC"
+    let alsoGone = "DDDDDDDD-DDDD-4DDD-8DDD-DDDDDDDDDDDD"
+    func record(_ name: String) -> Assignment {
+      Assignment(
+        layout: Self.blankLayout().id, displayName: name, lastVisibleFrame: CGRect(x: 0, y: 0, width: 800, height: 600),
+        lastScale: 1, lastSeen: nil)
+    }
+    let assignments = [
+      Self.uuidA: record("stale name for A"),  // connected: the live snapshot name wins, no duplicate row
+      gone: record("Studio Display"), alsoGone: record("Dell"),
+    ]
+    let choices = EditorToolbarModel.displayChoices(topology: topology, assignments: assignments)
+    #expect(
+      choices == [
+        .init(key: .uuid(Self.uuidA), name: "Built-in", isConnected: true),
+        .init(key: .uuid(Self.uuidB), name: "Side", isConnected: true),
+        .init(key: .uuid(alsoGone), name: "Dell", isConnected: false),
+        .init(key: .uuid(gone), name: "Studio Display", isConnected: false),
+      ])
+
+    // Dirty draft: picking prompts and leaves the Display alone; confirming switches (to stored geometry for a
+    // disconnected Display, AC-125) and clears nothing else.
+    let document = ZonesDocument(assignments: assignments)
+    let context = (topology: topology, document: document)
+    var state = EditorModel.open(
+      Self.blankLayout(), display: .uuid(Self.uuidA), topology: topology, assignments: assignments)
+    state = EditorModel.reduce(state, .command(.select(NodePath(steps: []))), context: context).0
+    state = EditorModel.reduce(state, .command(.split(.horizontal)), context: context).0
+    #expect(state.draft.dirty)
+
+    let target = DisplayKey.uuid(gone)
+    let (afterPick, pickEffects) = EditorModel.reduce(state, EditorToolbarModel.pickDisplay(target), context: context)
+    #expect(pickEffects == [.promptUnsaved(target)])
+    #expect(afterPick.display == .uuid(Self.uuidA))
+
+    #expect(EditorToolbarModel.confirmSwitch(to: target) == .switchDisplay(target, confirmed: true))
+    let (switched, confirmEffects) = EditorModel.reduce(
+      afterPick, EditorToolbarModel.confirmSwitch(to: target), context: context)
+    #expect(confirmEffects.isEmpty)
+    #expect(switched.display == target)
+    #expect(switched.visibleFrame == CGRect(x: 0, y: 0, width: 800, height: 600))
+    #expect(switched.draft == state.draft)
+
+    // Clean draft: no prompt, the switch happens straight away.
+    let clean = EditorModel.open(
+      Self.blankLayout(), display: .uuid(Self.uuidA), topology: topology, assignments: assignments)
+    let (direct, directEffects) = EditorModel.reduce(clean, EditorToolbarModel.pickDisplay(target), context: context)
+    #expect(directEffects.isEmpty)
+    #expect(direct.display == target)
+  }
 }
 
 /// Test-only factory so the test reads top-down.
