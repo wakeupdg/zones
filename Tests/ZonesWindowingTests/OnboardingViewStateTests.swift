@@ -32,4 +32,10 @@ import ZonesWindowing
     // Quit and Reopen follows offerRelaunch, never the state alone.
     #expect(!OnboardingViewState.derive(.needsRelaunch, relaunchOffered: false).showQuitAndReopen)
   }
+
+  @Test func grantedAndSuspectHaveNoWindow() {
+    for p in [PermissionState.granted, .suspect(since: 1)] {
+      #expect(!OnboardingViewState.derive(p, relaunchOffered: false).windowVisible, "\(p)")
+    }
+  }
 }

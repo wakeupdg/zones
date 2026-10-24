@@ -31,10 +31,15 @@ public struct OnboardingViewState: Hashable, Sendable {
       OnboardingViewState(
         statusLine: "Accessibility access was turned off", showOpenSettings: true, showQuitAndReopen: false,
         relaunchExplanation: nil, windowVisible: true)
-    default:
+    case .notGranted:
       OnboardingViewState(
         statusLine: "Waiting for Accessibility access", showOpenSettings: true, showQuitAndReopen: false,
         relaunchExplanation: nil, windowVisible: true)
+    case .granted, .suspect:
+      // The window is closed by the `dismissOnboarding` effect, not by the view.
+      OnboardingViewState(
+        statusLine: "Accessibility access granted", showOpenSettings: false, showQuitAndReopen: false,
+        relaunchExplanation: nil, windowVisible: false)
     }
   }
 }
