@@ -4,3 +4,5 @@
 - slice 4: GeneralPaneModelTests.statusRows green — two rows Accessibility/Event tap; suspect counts as Granted, unavailable as Dead
 - slice 5: MenuModelTests.orderAndStateForDisplayUnderCursor green — MenuModel.build/MenuItem with separators between groups
 - slice 6-8: MenuModelTests.grantItemOnlyWhenNotGranted/excludeItemFollowsFrontmost/nilDisplayAndMissingLayout/separatorsNeverAdjacentOrAtEnds green — behaviours already in build; nil display checks nothing; reducer agrees grant item absent only for granted/suspect
+- slice 9: MenuModelTests.buildsWithoutActorCalls green — build is sync/pure; fake window system sees zero calls
+- slice 10: AppLaunchTests.loginLaunchShowsNoWindow green — DEVIATION: reducer on notGranted+probe(false) emits only cancel/schedule (no badge(true)/grantMenuItem(true)), no window effect; badge+Grant item asserted via StatusItemModel/MenuModel derived from state instead of the literal effect set (reducer not edited)

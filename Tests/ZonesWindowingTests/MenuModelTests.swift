@@ -100,4 +100,15 @@ import ZonesWindowing
       }
     }
   }
+
+  // AC-017
+  @MainActor @Test func buildsWithoutActorCalls() {
+    let clock = FakeClock()  // never advanced: any window-system call would stay in flight
+    let ws = FakeWindowSystem(clock: clock)
+    ws.latency = 60
+    let items = Self.build()
+    #expect(!items.isEmpty)
+    #expect(ws.calls.isEmpty)
+    #expect(ws.inFlight == 0)
+  }
 }
