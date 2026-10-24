@@ -7,10 +7,21 @@ public enum DisplayKey: Hashable, Sendable {
   case unstable(String)
 }
 
-/// A display UUID that may be persisted. Decoder validation (AC-123) belongs to the persistence ticket.
+/// A display UUID that may be persisted. Encodes as a bare string; the decoder rejects non-UUID text (AC-123).
 public struct PersistentDisplayKey: Hashable, Codable, Sendable {
   public let uuid: String
   public init(uuid: String) { self.uuid = uuid }
+
+  public init(from decoder: any Decoder) throws {
+    let text = try decoder.singleValueContainer().decode(String.self)
+    guard UUID(uuidString: text) != nil else { throw DocumentError.nonUUIDKey(text) }
+    uuid = text
+  }
+
+  public func encode(to encoder: any Encoder) throws {
+    var container = encoder.singleValueContainer()
+    try container.encode(uuid)
+  }
 }
 
 public struct DisplaySnapshot: Hashable, Sendable {
