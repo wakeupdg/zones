@@ -19,3 +19,4 @@ One line per completed orchestration step. Read this plus docs/tickets/graph.jso
 - T52 (CI triggers, ADR-0026, C11, AC-160 amended) built on ticket/T52 by the orchestrator per user decision; merges after the T47-T51 run ends. Repo goes public at release; fallback: public early with a pre-release/buggy README banner
 - P4 fix run 2 done (wf_ece33885-a2e): T47-T51 merged
 - 8:47 AM PT: user approved making wakeupdg/zones public at release with the personal commit email visible; user will run scripts/dev-cert.sh --harden. Switch happens after T53/T54 merge, before the draft PR.
+- 8:51 AM PT: user ran dev-cert --harden (verified: old password rejected, signing ok). T54 finished by orchestrator (GIF 1.6 MB/55 frames/32.7 s; DMG sha256 fec98598…; cask set) -> state review, not merged. T53 docs agent still running. ORCHESTRATOR CEILING hit (~300k hook) -> successor card at docs/orchestrator-successor.md
