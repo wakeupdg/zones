@@ -1,0 +1,1185 @@
+[
+  {
+    "id": "AC-001",
+    "kind": "auto",
+    "title": "Menu-bar only",
+    "statement": "The built app's Info.plist has LSUIElement equal to true and declares no NSMainNibFile or main storyboard.",
+    "verify": "`defaults read` on the built bundle's Info.plist prints `LSUIElement = 1` and no main-interface key."
+  },
+  {
+    "id": "AC-002",
+    "kind": "auto",
+    "title": "Hardened runtime, no sandbox",
+    "statement": "The built app is signed with the hardened runtime flag and carries no `com.apple.security.app-sandbox` entitlement.",
+    "verify": "`codesign -dv --entitlements :-` on the built app shows `flags=0x10000(runtime)` and the entitlements XML contains no app-sandbox key."
+  },
+  {
+    "id": "AC-003",
+    "kind": "auto",
+    "title": "Only Accessibility, no private symbols",
+    "statement": "The app binary links none of CGRequestScreenCaptureAccess, CGPreflightScreenCaptureAccess, CGPreflightListenEventAccess, CGRequestListenEventAccess, IOHIDRequestAccess, IOHIDCheckAccess, and no undefined symbol beginning with `CGS` or `SLS`; Info.plist has no NSScreenCaptureUsageDescription or NSInputMonitoringUsageDescription.",
+    "verify": "`nm -u` on the built executable piped through grep for those names returns zero lines; `plutil -p` on Info.plist shows neither key."
+  },
+  {
+    "id": "AC-004",
+    "kind": "manual",
+    "title": "Onboarding window",
+    "statement": "On a clean user account, first launch shows exactly one window whose button opens System Settings at Privacy & Security > Accessibility.",
+    "verify": "Launch on a clean account; count windows (1); click the button; confirm the Accessibility pane is frontmost."
+  },
+  {
+    "id": "AC-005",
+    "kind": "manual",
+    "title": "Grant noticed without relaunch",
+    "statement": "Flipping the Accessibility toggle on dismisses the onboarding window within 1.5 s and the menu-bar icon loses its badge, with no relaunch.",
+    "verify": "Start a stopwatch at the toggle; the window closes under 1.5 s; the badge is gone; the process id is unchanged."
+  },
+  {
+    "id": "AC-006",
+    "kind": "auto",
+    "title": "Poll schedule per permission state",
+    "statement": "With a fake Clock, state notGranted schedules exactly one trust poll every 1 s, state granted schedules exactly one health tick every 5 s and no trust poll, and the first true probe emits dismissOnboarding and startTap in that order.",
+    "verify": "`swift test --filter PermissionMachineTests.pollScheduleMatchesState`."
+  },
+  {
+    "id": "AC-007",
+    "kind": "auto",
+    "title": "Revocation via runtime signals",
+    "statement": "Given granted, an apiDisabled result from any AX call or a nil tap moves to suspect; a successful tap recreation plus one trivial AX read returns to granted; otherwise after 3 s on the Clock the state is revoked and the effects are badge, showOnboarding, unregisterWindowHotkeys and drainEnhancedUI.",
+    "verify": "`swift test --filter PermissionMachineTests.suspectResolvesToGrantedOrRevoked`."
+  },
+  {
+    "id": "AC-008",
+    "kind": "auto",
+    "title": "Relaunch gate",
+    "statement": "In revoked with the probe reading true, three failed tap recreations over 10 s on the Clock move to needsRelaunch, which alone offers \"Quit and Reopen\"; with the probe reading false the state stays revoked indefinitely and never offers the button; a successful recreation from either state returns to granted.",
+    "verify": "`swift test --filter PermissionMachineTests.relaunchOnlyAfterGateWithProbeTrue`."
+  },
+  {
+    "id": "AC-009",
+    "kind": "manual",
+    "title": "Revocation on a real Mac",
+    "statement": "Revoking Accessibility while Zones idles badges the icon at the next Drag Session or within 5 s when the heartbeat is enabled, and the onboarding window returns; the probe's value after revocation is recorded.",
+    "verify": "Revoke in System Settings; note time to badge; open the diagnostics report and record the probe field."
+  },
+  {
+    "id": "AC-010",
+    "kind": "manual",
+    "title": "Re-grant recovery",
+    "statement": "Re-granting the toggle either recovers dragging in place within 3 s or shows \"Quit and Reopen\" after about 10 s, and pressing it yields a trusted app with no onboarding.",
+    "verify": "Re-grant; drag with the modifier; if dead, wait for the button, press it, confirm the relaunched app snaps."
+  },
+  {
+    "id": "AC-011",
+    "kind": "auto",
+    "title": "Tap re-enable rate limit",
+    "statement": "Five tap-disabled events within 60 s each produce a re-enable call; the sixth produces tapLost immediately with a dead-tap retry scheduled at 30 s; a nil tap on creation yields tapUnavailable and no crash.",
+    "verify": "`swift test --filter InputSourceTests.reenableRateLimitThenTapLost` and `InputSourceTests.nilTapReportsUnavailable`."
+  },
+  {
+    "id": "AC-012",
+    "kind": "auto",
+    "title": "Launched-at-login path",
+    "statement": "With the launched-as-login-item flag set, state granted emits no window effect and state notGranted emits only badge and a \"Grant Accessibility\" menu item.",
+    "verify": "`swift test --filter AppLaunchTests.loginLaunchShowsNoWindow`."
+  },
+  {
+    "id": "AC-013",
+    "kind": "auto",
+    "title": "Stable dev signing",
+    "statement": "The dev build's designated requirement names identifier com.dganesh.zones and the \"Zones Dev\" certificate and contains no cdhash term.",
+    "verify": "`codesign -d -r-` on the dev build prints a requirement containing `identifier \"com.dganesh.zones\"` and not containing `cdhash`."
+  },
+  {
+    "id": "AC-014",
+    "kind": "auto",
+    "title": "Ad-hoc release warning",
+    "statement": "`scripts/release.sh --dry-run` (every release step except signing, notarization and DMG creation) run with ZONES_SIGN_IDENTITY unset prints exactly one line containing \"ad-hoc\" to stderr and exits 0; the same command with ZONES_SIGN_IDENTITY set prints no such line.",
+    "verify": "`env -u ZONES_SIGN_IDENTITY scripts/release.sh --dry-run 2>&1 >/dev/null | grep -c ad-hoc` prints `1`; `ZONES_SIGN_IDENTITY=\"Developer ID Application: Example\" scripts/release.sh --dry-run 2>&1 >/dev/null | grep -c ad-hoc` prints `0`."
+  },
+  {
+    "id": "AC-015",
+    "kind": "auto",
+    "title": "Signing identity in the report",
+    "statement": "The diagnostics report contains a `signingIdentity` line whose value is the identity read from the running bundle, or \"ad-hoc\".",
+    "verify": "`swift test --filter DiagnosticsTests.reportNamesSigningIdentity`."
+  },
+  {
+    "id": "AC-016",
+    "kind": "auto",
+    "title": "Menu model",
+    "statement": "Given cursor on Display B assigned \"Columns 3\" and frontmost app excluded, the menu model is, in order: header \"<B name> \u2014 Columns 3\" (disabled), radio group of Templates named with counts then custom Layouts with \"Columns 3\" checked, checkable \"Exclude <App Name>\" checked, Edit Layouts, Settings, \"Grant Accessibility\" only when state is not granted, About, Quit.",
+    "verify": "`swift test --filter MenuModelTests.orderAndStateForDisplayUnderCursor`."
+  },
+  {
+    "id": "AC-017",
+    "kind": "auto",
+    "title": "Menu never waits on the WindowActor",
+    "statement": "Building the menu model with a fake WindowActor that never returns completes and records zero actor calls.",
+    "verify": "`swift test --filter MenuModelTests.buildsWithoutActorCalls`."
+  },
+  {
+    "id": "AC-018",
+    "kind": "auto",
+    "title": "Status item state",
+    "statement": "The status item model is unbadged only when permission is granted and the tap is enabled, badged in revoked, needsRelaunch and dead-tap, and its image is a template image.",
+    "verify": "`swift test --filter StatusItemModelTests.badgeTable`."
+  },
+  {
+    "id": "AC-019",
+    "kind": "auto",
+    "title": "General status rows",
+    "statement": "The General pane model exposes exactly two status rows, \"Accessibility: Granted|Not granted\" and \"Event tap: Alive|Dead\", derived from the permission and tap states.",
+    "verify": "`swift test --filter GeneralPaneModelTests.statusRows`."
+  },
+  {
+    "id": "AC-020",
+    "kind": "manual",
+    "title": "Cheat sheet and key caps",
+    "statement": "The last onboarding page lists the three gestures; changing the Activation Modifier to Command in General redraws the key cap to the Command glyph.",
+    "verify": "Walk onboarding to its last page; change the modifier; observe the key cap."
+  },
+  {
+    "id": "AC-021",
+    "kind": "auto",
+    "title": "Re-run onboarding",
+    "statement": "The re-onboard action from granted moves to notGranted with showOnboarding and leaves the layouts, assignments and preferences stores untouched.",
+    "verify": "`swift test --filter PermissionMachineTests.reonboardLeavesStoresUntouched`."
+  },
+  {
+    "id": "AC-022",
+    "kind": "auto",
+    "title": "Window placement",
+    "statement": "With the cursor on Display B, the Settings window frame is centered in B's visible frame and the editor window's default frame equals B's visible frame; both windows carry the resizable style mask.",
+    "verify": "`swift test --filter WindowPlacementTests.opensOnCursorDisplay`."
+  },
+  {
+    "id": "AC-023",
+    "kind": "manual",
+    "title": "Key status",
+    "statement": "Settings opened from the menu becomes key on the current Space (typing reaches it); opened from Control+Option+Comma with another app frontmost it orders front on the current Space in every case, and becomes key on each macOS version where SPK-014 recorded that a Carbon hotkey handler may take key status.",
+    "verify": "On macOS 14 and 15, open Settings from the menu and type (text lands); then with TextEdit frontmost press Control+Option+Comma: the Settings window is frontmost on the current Space, and typing reaches it exactly when SPK-014's table says it should for that OS."
+  },
+  {
+    "id": "AC-024",
+    "kind": "auto",
+    "title": "Wake handling",
+    "statement": "A wake event in any Drag Session state yields idle with hideOverlay; the permission machine on wake emits revalidateTap, one probe, forceTopologySnapshot and orderPanelsOut.",
+    "verify": "`swift test --filter DragSessionReducerTests.wakeEndsSession` and `PermissionMachineTests.wakeEffects`."
+  },
+  {
+    "id": "AC-025",
+    "kind": "manual",
+    "title": "Wake on a docked Mac",
+    "statement": "After lid-closed sleep on an external Display, the first modifier Drag Session after wake shows the Overlay and Snaps.",
+    "verify": "Sleep lid-closed, wake, Shift-drag a window; observe Overlay and Snap."
+  },
+  {
+    "id": "AC-026",
+    "kind": "auto",
+    "title": "Quit sequence",
+    "statement": "Quit emits disableTap, invalidateTap, orderPanelsOut, drainEnhancedUI and removeRecoveryRecord in that order.",
+    "verify": "`swift test --filter AppLifecycleTests.quitEffectsInOrder`."
+  },
+  {
+    "id": "AC-027",
+    "kind": "auto",
+    "title": "Login toggle derivation",
+    "statement": "The toggle is on only for status enabled; requiresApproval and notFound show it off with the caption and the Login Items button; turning on from notFound calls register; an invalidSignature error shows the signed-release caption; no register call happens at launch.",
+    "verify": "`swift test --filter LoginItemToggleTests.derivationTable`."
+  },
+  {
+    "id": "AC-028",
+    "kind": "manual",
+    "title": "Login item on a clean account",
+    "statement": "From a signed copy in Applications on a clean account, turning the toggle on yields status enabled and Zones launches at next login with no window; disabling it in System Settings yields requiresApproval or notFound (recorded).",
+    "verify": "Perform the sequence; record each status; log in again and confirm badge-only behavior."
+  },
+  {
+    "id": "AC-029",
+    "kind": "auto",
+    "title": "About model",
+    "statement": "The About pane model exposes version and build read from the bundle, the same signingIdentity value as the diagnostics report (AC-015), the license string \"MIT\" and exactly one attribution line containing \"FancyZones\".",
+    "verify": "`swift test --filter AboutModelTests.fieldsAndSingleAttributionLine`."
+  },
+  {
+    "id": "AC-030",
+    "kind": "manual",
+    "title": "About pane on screen",
+    "statement": "Opening About from the menu shows one window with the five items of AC-029 legible in light and dark appearance, and the attribution line reads \"inspired by FancyZones\".",
+    "verify": "Open About in light and in dark appearance; read the five items; count lines containing \"FancyZones\" (1)."
+  },
+  {
+    "id": "AC-031",
+    "kind": "auto",
+    "title": "Modifier first arms after confirmed move",
+    "statement": "Events flagsChanged(Shift), mouseDown, dragged, frameSample(origin moved, size equal) produce state armed and one showOverlay effect covering every Display in the snapshot.",
+    "verify": "`swift test --filter DragSessionReducerTests.modifierFirstArmsAfterMove`."
+  },
+  {
+    "id": "AC-032",
+    "kind": "auto",
+    "title": "A click costs nothing",
+    "statement": "mouseDown then mouseUp with no dragged event requests no frame sample, emits no effect and leaves the registry unchanged.",
+    "verify": "`swift test --filter DragSessionReducerTests.clickRequestsNoSample`."
+  },
+  {
+    "id": "AC-033",
+    "kind": "auto",
+    "title": "Overlay only after move",
+    "statement": "With Shift down, a frame sample equal to the mouse-down frame emits no showOverlay; the first sample whose origin differs emits showOverlay in that same step.",
+    "verify": "`swift test --filter DragSessionReducerTests.overlayOnlyAfterMovedSample`."
+  },
+  {
+    "id": "AC-034",
+    "kind": "auto",
+    "title": "Highlight under cursor",
+    "statement": "In armed, a dragged event at a point inside Zone 3 while the window center lies in Zone 2 emits updateHighlight({3}).",
+    "verify": "`swift test --filter DragSessionReducerTests.highlightFollowsCursorNotWindow`."
+  },
+  {
+    "id": "AC-035",
+    "kind": "auto",
+    "title": "Modifier release cancels",
+    "statement": "In armed, flagsChanged without the Activation Modifier yields moving with hideOverlay and an empty Span; a following mouseUp emits neither snap nor restore.",
+    "verify": "`swift test --filter DragSessionReducerTests.modifierReleaseCancels`."
+  },
+  {
+    "id": "AC-036",
+    "kind": "auto",
+    "title": "Snap keyed on mouse-up flags",
+    "statement": "mouseUp in armed with flags containing the Activation Modifier emits snap; mouseUp whose flags lack it emits nothing.",
+    "verify": "`swift test --filter DragSessionReducerTests.snapOnlyWithModifierAtMouseUp`."
+  },
+  {
+    "id": "AC-037",
+    "kind": "auto",
+    "title": "Modifier late",
+    "statement": "mouseDown, dragged, moved sample, then flagsChanged(Shift) yields armed with showOverlay.",
+    "verify": "`swift test --filter DragSessionReducerTests.modifierLateArms`."
+  },
+  {
+    "id": "AC-038",
+    "kind": "auto",
+    "title": "Plain drag records nothing",
+    "statement": "moving plus mouseUp yields idle with no snap, no restore and no registry write.",
+    "verify": "`swift test --filter DragSessionReducerTests.plainDragIsInert`."
+  },
+  {
+    "id": "AC-039",
+    "kind": "auto",
+    "title": "Hot-path budgets",
+    "statement": "hitTest, spanRect, resolve, grid and Overlay arm allocate zero bytes after warm-up on a 9-Zone Layout, and the reducer processes 10,000 dragged events in under 2 s.",
+    "verify": "`swift test --filter BudgetTests`."
+  },
+  {
+    "id": "AC-040",
+    "kind": "manual",
+    "title": "120 Hz pacing",
+    "statement": "In Instruments on a 120 Hz Display, each highlight update costs under 2 ms on the main actor and the Overlay appears on the display refresh after arm.",
+    "verify": "Record a Shift-drag with Instruments; read per-event main-actor time and arm latency."
+  },
+  {
+    "id": "AC-041",
+    "kind": "auto",
+    "title": "Snap touches one window",
+    "statement": "Executing a snap plan issues frame writes only to the plan's handle; the fake call log shows no call for any other handle.",
+    "verify": "`swift test --filter SnapServiceTests.writesOnlyTargetHandle`."
+  },
+  {
+    "id": "AC-042",
+    "kind": "auto",
+    "title": "Fill and highlight styles",
+    "statement": "Overlay fill alpha equals the Appearance opacity; at opacity 0.10 the highlight style differs from the idle style by at least 0.25 alpha or a distinct color.",
+    "verify": "`swift test --filter OverlayModelTests.highlightDistinctAtLowOpacity`."
+  },
+  {
+    "id": "AC-043",
+    "kind": "auto",
+    "title": "Panel configuration",
+    "statement": "An overlay panel reports ignoresMouseEvents true, canBecomeKey false, canBecomeMain false, level screenSaver, hasShadow false, clear background, and collection behavior containing canJoinAllSpaces, fullScreenAuxiliary, stationary and ignoresCycle.",
+    "verify": "xcodebuild test `OverlayPanelTests.configuration`."
+  },
+  {
+    "id": "AC-044",
+    "kind": "manual",
+    "title": "Drag uninterrupted",
+    "statement": "During an armed Drag Session the frontmost app pid and key window are unchanged, and a CGWindowList probe shows the Zones panels at layer 1000 only while armed.",
+    "verify": "Run the probe script during and after a Shift-drag; compare frontmost pid and key window before and after."
+  },
+  {
+    "id": "AC-045",
+    "kind": "auto",
+    "title": "Displays outside the arm snapshot",
+    "statement": "With Display C excluded from the arm snapshot, mouseUp over C yields idle with one log effect and neither snap nor restore.",
+    "verify": "`swift test --filter DragSessionReducerTests.dropOutsideSnapshotIsNoOp`."
+  },
+  {
+    "id": "AC-046",
+    "kind": "manual",
+    "title": "Full-screen Space Display",
+    "statement": "Dragging a window toward a Display whose active Space is full-screen shows the Overlay there only if the drop is possible, and a drop where it is impossible leaves the window where macOS puts it with no Restore.",
+    "verify": "Put Safari full-screen on Display 2; Shift-drag from Display 1; record Overlay visibility and drop result (SPK-002)."
+  },
+  {
+    "id": "AC-047",
+    "kind": "auto",
+    "title": "Full-screen and skipped windows never arm",
+    "statement": "A first moved sample whose phase-2 facts report fullScreen, sheetOrPopover, nonStandardSubrole or positionNotSettable yields idle with skip logged, polling stopped and no showOverlay.",
+    "verify": "`swift test --filter DragSessionReducerTests.phaseTwoFailureEndsPress`."
+  },
+  {
+    "id": "AC-048",
+    "kind": "auto",
+    "title": "Resize is never a session",
+    "statement": "For each of the eight edges and corners, a sample whose size differs by more than 1 pt yields idle, including the top-left resize that also changes the origin.",
+    "verify": "`swift test --filter DragSessionReducerTests.resizeFromEveryEdgeEndsSession`."
+  },
+  {
+    "id": "AC-049",
+    "kind": "auto",
+    "title": "Background window",
+    "statement": "A candidate whose pid is not the frontmost app passes phase 1 and arms exactly as a frontmost one; the reducer input carries no focus flag.",
+    "verify": "`swift test --filter DragSessionReducerTests.backgroundWindowArms`."
+  },
+  {
+    "id": "AC-050",
+    "kind": "auto",
+    "title": "Stray buttons and presses ignored",
+    "statement": "The input source emits no event for right or middle buttons, and a mouseDown in any state but idle leaves state and effects unchanged.",
+    "verify": "`swift test --filter InputSourceTests.otherButtonsFiltered` and `DragSessionReducerTests.secondMouseDownIgnored`."
+  },
+  {
+    "id": "AC-051",
+    "kind": "auto",
+    "title": "Modifier masking",
+    "statement": "Flags containing Shift plus Caps Lock, Fn and numeric-pad bits match an Activation Modifier of Shift; flags containing only Caps Lock do not.",
+    "verify": "`swift test --filter ModifierMaskTests.ignoresNonModifierBits`."
+  },
+  {
+    "id": "AC-052",
+    "kind": "auto",
+    "title": "Cross-Display hit and drop",
+    "statement": "With the window straddling Displays A and B and the cursor on B, hit testing uses B's Layout and mouseUp emits a snap plan in B's coordinates.",
+    "verify": "`swift test --filter DragSessionReducerTests.straddlingWindowSnapsOnCursorDisplay`."
+  },
+  {
+    "id": "AC-053",
+    "kind": "auto",
+    "title": "Hide before write",
+    "statement": "The reducer step for mouseUp in armed emits hideOverlay before snap or restore within that single step.",
+    "verify": "`swift test --filter DragSessionReducerTests.hideOverlayPrecedesSnap`."
+  },
+  {
+    "id": "AC-054",
+    "kind": "auto",
+    "title": "Window gone mid-drag",
+    "statement": "windowGone in armed yields idle with hideOverlay and no snap effect.",
+    "verify": "`swift test --filter DragSessionReducerTests.windowGoneHidesOverlay`."
+  },
+  {
+    "id": "AC-055",
+    "kind": "auto",
+    "title": "Pause keeps the press",
+    "statement": "Three unmoved samples keep state pressed; a later moved sample yields moving.",
+    "verify": "`swift test --filter DragSessionReducerTests.pauseThenMoveStillArms`."
+  },
+  {
+    "id": "AC-056",
+    "kind": "auto",
+    "title": "Candidate resolution",
+    "statement": "Two stacked candidates resolve to the one whose first sample moved; four candidates are read in one batched call per tick; five candidates yield ambiguousMatch before sampling; two movers after three returned samples yield idle; a timed-out sample after its one retry yields idle with skip(unresponsive).",
+    "verify": "`swift test --filter DragSessionReducerTests.candidateTable`."
+  },
+  {
+    "id": "AC-057",
+    "kind": "manual",
+    "title": "Four identical terminals",
+    "statement": "With four same-size Terminal windows stacked, Shift-dragging any one moves that one and the Overlay appears.",
+    "verify": "Open four Terminal windows at one size; drag each in turn (SPK-008)."
+  },
+  {
+    "id": "AC-058",
+    "kind": "auto",
+    "title": "Accessibility settings in the model",
+    "statement": "With reduceTransparency the Overlay model uses solid fills and draws a suspended Span as an outline; with reduceMotion no animation duration is set; panels and layers report isAccessibilityElement false.",
+    "verify": "`swift test --filter OverlayModelTests.accessibilityOptions` and xcodebuild test `OverlayPanelTests.notAccessibilityElement`."
+  },
+  {
+    "id": "AC-059",
+    "kind": "auto",
+    "title": "Zones inside the visible frame",
+    "statement": "Every resolved Zone rectangle lies within the Display's visible frame while the panel frame equals the full Display frame, for the 3-Display fixture.",
+    "verify": "`swift test --filter OverlayModelTests.zonesWithinVisibleFrame`."
+  },
+  {
+    "id": "AC-060",
+    "kind": "auto",
+    "title": "Topology change mid-session",
+    "statement": "topologyChanged in armed yields armed with a new showOverlay from the new snapshot and a re-hit; in pressed or moving it refreshes the snapshot and keeps state.",
+    "verify": "`swift test --filter DragSessionReducerTests.topologyChangeRearms`."
+  },
+  {
+    "id": "AC-061",
+    "kind": "manual",
+    "title": "Resolution change mid-drag",
+    "statement": "Changing resolution during an armed Drag Session redraws the Overlay to the new geometry; whether macOS ends the drag itself is recorded.",
+    "verify": "Shift-drag, change resolution from a second input; observe and record."
+  },
+  {
+    "id": "AC-062",
+    "kind": "auto",
+    "title": "Space change re-asserts",
+    "statement": "spaceChanged in armed emits reassertPanels and a re-hit without leaving armed.",
+    "verify": "`swift test --filter DragSessionReducerTests.spaceChangeReasserts`."
+  },
+  {
+    "id": "AC-063",
+    "kind": "auto",
+    "title": "Label model",
+    "statement": "Each Zone's label text equals its Zone Number, the label outline contrasts with the fill at ratio 4.5 or better at any opacity, and contentsScale equals the Display scale.",
+    "verify": "`swift test --filter OverlayModelTests.labelsLegibleAndScaled`."
+  },
+  {
+    "id": "AC-064",
+    "kind": "manual",
+    "title": "Accessibility on screen",
+    "statement": "Labels are readable at 10 percent fill opacity on a white wallpaper; with Reduce Transparency fills are solid; with Reduce Motion nothing fades; VoiceOver announces nothing for the Overlay.",
+    "verify": "Set each option in turn and Shift-drag; observe."
+  },
+  {
+    "id": "AC-065",
+    "kind": "auto",
+    "title": "Listen-only tap configuration",
+    "statement": "The tap configuration value used by the production input source is listenOnly with a mask of left mouse down, dragged, up and flagsChanged only.",
+    "verify": "`swift test --filter InputSourceTests.productionTapIsListenOnly`."
+  },
+  {
+    "id": "AC-066",
+    "kind": "manual",
+    "title": "Modifier never consumed",
+    "statement": "With Zones running, Shift-click multi-selection in Finder and Shift-constrained drags in a drawing app behave as without Zones.",
+    "verify": "Perform both gestures with Zones running and quit; compare."
+  },
+  {
+    "id": "AC-067",
+    "kind": "auto",
+    "title": "Excluded at phase 1",
+    "statement": "A candidate whose bundle identifier is excluded, whose pid is Zones' own, or whose bundle is a system agent yields skip at mouseDown with no frame sample ever requested and no showOverlay for that press.",
+    "verify": "`swift test --filter DragSessionReducerTests.phaseOneSkipBeforeSampling`."
+  },
+  {
+    "id": "AC-068",
+    "kind": "auto",
+    "title": "Overlay and Snap share one geometry",
+    "statement": "For the 3-Display fixture at scales 1, 2 and 3, the Snap target rectangle for Zone N equals the Overlay rectangle for Zone N exactly.",
+    "verify": "`swift test --filter GridRoundingTests.overlayEqualsSnapTarget`."
+  },
+  {
+    "id": "AC-069",
+    "kind": "auto",
+    "title": "Divider rounding",
+    "statement": "After the grid step every divider lies on a pixel boundary (1 divided by scale), every Gap measures the same whole number of pixels, neighbours share each divider, and a mirror-image tree produces mirror-image pixels, at scales 1, 2 and 3.",
+    "verify": "`swift test --filter GridRoundingTests.uniformPixelGapsAndSharedDividers`."
+  },
+  {
+    "id": "AC-070",
+    "kind": "manual",
+    "title": "Cross-scale Snap on screen",
+    "statement": "Snapping a window from a 2x Display into a Zone on a 1x Display lands its edges on the Overlay's rectangle with no visible seam, and across three Displays no other window moves.",
+    "verify": "Zoom a screenshot of the landed window and Overlay edges; count moved windows (0)."
+  },
+  {
+    "id": "AC-071",
+    "kind": "auto",
+    "title": "Clamped size placement",
+    "statement": "On clamped with accepted size larger than the Zone, exactly one follow-up position write aligns the top-left inside the visible frame and a log effect records the clamp; no further writes follow.",
+    "verify": "`swift test --filter SnapServiceTests.clampedGetsOneRepositionOnly`."
+  },
+  {
+    "id": "AC-072",
+    "kind": "auto",
+    "title": "Read-back is truth",
+    "statement": "The result of a Snap carries the read-back frame, and the registry's last-Snap record stores that frame, not the requested one.",
+    "verify": "`swift test --filter SnapServiceTests.resultCarriesReadBackFrame`."
+  },
+  {
+    "id": "AC-073",
+    "kind": "auto",
+    "title": "Write order",
+    "statement": "A Snap issues setSize, setPosition, setSize, readPosition, readSize in that order on the fake element.",
+    "verify": "`swift test --filter SnapServiceTests.writeOrderSizePositionSize`."
+  },
+  {
+    "id": "AC-074",
+    "kind": "auto",
+    "title": "Enhanced UI protocol",
+    "statement": "Enhanced UI is read first; the off/on pair is skipped when the attribute is absent or already off; otherwise it is set off before the first size write and restored on every path including refused and timedOut.",
+    "verify": "`swift test --filter SnapServiceTests.enhancedUIRestoredOnEveryPath`."
+  },
+  {
+    "id": "AC-075",
+    "kind": "manual",
+    "title": "Electron and VoiceOver",
+    "statement": "Snaps in Chrome, VS Code and Slack land without animation; with VoiceOver on, VoiceOver keeps working in those apps after ten Snaps.",
+    "verify": "Snap each app ten times with VoiceOver on; observe motion and VoiceOver (SPK-010)."
+  },
+  {
+    "id": "AC-076",
+    "kind": "auto",
+    "title": "Recovery record",
+    "statement": "The recovery record is written once per (bundle identifier, pid, launch date) at an app's first touch in a session, after the frame write sequence completes, with the prior Enhanced UI value; a second Snap writes nothing; at launch only entries matching all three fields with prior value on are restored; clean quit deletes the file.",
+    "verify": "`swift test --filter EnhancedUIRecoveryTests.writeOnceRestoreOnMatch`."
+  },
+  {
+    "id": "AC-077",
+    "kind": "auto",
+    "title": "Timeout protocol",
+    "statement": "A timedOut call is retried once immediately; a second timeout aborts the sequence (only the Enhanced UI restore follows), returns timedOut and marks the pid unresponsive for 10 s on the Clock, during which phase 1 reports skip(unresponsive); after the cooldown exactly one attempt is allowed; the fake's call count is asserted.",
+    "verify": "`swift test --filter SnapServiceTests.timeoutRetryOnceThenAbort` and `AppHealthTests.cooldownThenOneRetry`."
+  },
+  {
+    "id": "AC-078",
+    "kind": "manual",
+    "title": "Hung app on a real Mac",
+    "statement": "With an app stopped by SIGSTOP: a plain click on its title bar reaches macOS with no Zones AX call (the diagnostics ring shows no event for that pid, and the click-to-highlight time on a 60 fps screen recording is within 50 ms of the same click with Zones quit); an armed Drag Session gives up within 0.5 s of mouse-up; and the Zones menu opens in under 200 ms (12 frames at 60 fps) on every attempt before, during and after the Snap attempt.",
+    "verify": "Screen-record at 60 fps; `kill -STOP` the app; click its title bar (compare frame counts with Zones quit, delta at most 3 frames), Shift-drag it (Overlay hidden to give-up at most 30 frames), open the menu three times (each under 12 frames); `kill -CONT`; inspect the diagnostics ring for the click."
+  },
+  {
+    "id": "AC-079",
+    "kind": "auto",
+    "title": "Idempotent Snap",
+    "statement": "A snap plan whose target equals the current frame within 1 pt returns noOp, issues no write and leaves the registry entry unchanged.",
+    "verify": "`swift test --filter SnapServiceTests.sameZoneIsNoOp`."
+  },
+  {
+    "id": "AC-080",
+    "kind": "auto",
+    "title": "Gap and Margin snap to nearest",
+    "statement": "hitTest returns nearest(n) for every point inside the visible frame but outside all Zones (minimum edge distance, ties to the lower Zone Number), and the reducer emits snap, never restore, for a nearest hit.",
+    "verify": "`swift test --filter HitTestTests.gapAndMarginAreNearest` and `DragSessionReducerTests.nearestSnaps`."
+  },
+  {
+    "id": "AC-081",
+    "kind": "auto",
+    "title": "Span accumulation and union",
+    "statement": "Sweeping Zones 1, 2, 3 with the Span Modifier down yields set {1,2,3} whose spanRect is the bounding rectangle including Gaps; {1,4} in a 2x2 yields the whole Layout rectangle; re-sweeping 2 leaves the set unchanged.",
+    "verify": "`swift test --filter SpanTests.accumulateAndUnion`."
+  },
+  {
+    "id": "AC-082",
+    "kind": "auto",
+    "title": "Highlight invariant",
+    "statement": "For random event streams, in every armed state the highlighted set equals the set a mouseUp would snap to, and dimAll appears only when the hit is none and hasOriginalFrame is true.",
+    "verify": "`swift test --filter ReducerInvariantTests.highlightEqualsDropSet`."
+  },
+  {
+    "id": "AC-083",
+    "kind": "auto",
+    "title": "Freeze, resume, clear",
+    "statement": "Releasing the Span Modifier keeps the set frozen; re-pressing resumes adding; releasing the Activation Modifier clears it.",
+    "verify": "`swift test --filter SpanTests.freezeResumeClear`."
+  },
+  {
+    "id": "AC-084",
+    "kind": "auto",
+    "title": "Suspend across a seam",
+    "statement": "The cursor leaving the Span's Display marks the set suspended, the highlight becomes the Zone under the cursor and the suspended set is passed in the secondary style; returning resumes; a mouseUp on the other Display snaps to that Zone.",
+    "verify": "`swift test --filter SpanTests.suspendAndResumeAcrossDisplays`."
+  },
+  {
+    "id": "AC-085",
+    "kind": "manual",
+    "title": "Seam skim on three Displays",
+    "statement": "A three-Zone Span on Display A stays drawn dimmer while the cursor skims Display B, and dropping back on A gives the three-Zone union.",
+    "verify": "Perform the sweep on a 3-Display desk; observe and drop."
+  },
+  {
+    "id": "AC-086",
+    "kind": "auto",
+    "title": "Both modifiers first",
+    "statement": "With both modifiers down before the move, the arming sample yields armed with the Span containing the Zone under the cursor; arming over a Gap yields an empty Span until the first Zone is entered.",
+    "verify": "`swift test --filter SpanTests.bothModifiersBeforeMove`."
+  },
+  {
+    "id": "AC-087",
+    "kind": "auto",
+    "title": "Modifier choice",
+    "statement": "Preferences accept only Shift, Control, Option, Command for each modifier and coerce equal modifiers so the Span Modifier differs, with a one-time notice flag set.",
+    "verify": "`swift test --filter PreferencesTests.modifiersMustDiffer`."
+  },
+  {
+    "id": "AC-088",
+    "kind": "auto",
+    "title": "Focus Template",
+    "statement": "Focus is one leaf with surround 0.2 per side; its only Zone is Zone Number 1 and resolves to the centered 60 percent of the visible frame; hitTest at any point inside the visible frame returns zone(1) or nearest(1).",
+    "verify": "`swift test --filter TemplateTests.focusIsOneCenteredZone`."
+  },
+  {
+    "id": "AC-089",
+    "kind": "auto",
+    "title": "First-Snap capture",
+    "statement": "On the mouse path the registry stores the mouse-down frame of the resolved window; on the keyboard path the pre-write read-back frame; a second applied Snap does not overwrite either.",
+    "verify": "`swift test --filter OriginalFrameRegistryTests.firstSnapCapturesPerPath`."
+  },
+  {
+    "id": "AC-090",
+    "kind": "auto",
+    "title": "Restore command",
+    "statement": "Restore with an entry writes the Original Frame through the write protocol and removes the entry on applied or clamped.",
+    "verify": "`swift test --filter RestoreTests.writesAndRemovesEntry`."
+  },
+  {
+    "id": "AC-091",
+    "kind": "auto",
+    "title": "Mouse Restore and dim cue",
+    "statement": "A none hit with an Original Frame emits updateHighlight(dimAll) and mouseUp emits restore; without an Original Frame the highlight is cleared, nothing dims and mouseUp emits nothing.",
+    "verify": "`swift test --filter DragSessionReducerTests.noneHitDimsOnlyWithOriginalFrame`."
+  },
+  {
+    "id": "AC-092",
+    "kind": "auto",
+    "title": "Restore no-ops",
+    "statement": "Restore on a full-screen focused window or a window with no entry returns noOp(reason) and emits one log line and no write.",
+    "verify": "`swift test --filter RestoreTests.noOpReasons`."
+  },
+  {
+    "id": "AC-093",
+    "kind": "auto",
+    "title": "Forget rules",
+    "statement": "Snap, Restore, hand-move, Snap, Restore returns the hand-placed frame; destroyed and app-terminated notifications evict every entry of that pid; elementGone evicts at next touch; no periodic sweep is scheduled.",
+    "verify": "`swift test --filter OriginalFrameRegistryTests.forgetRules`."
+  },
+  {
+    "id": "AC-094",
+    "kind": "auto",
+    "title": "Restore after Span",
+    "statement": "A Span Snap and a single-Zone Snap record the same kind of entry and Restore returns the same Original Frame.",
+    "verify": "`swift test --filter RestoreTests.spanAndSnapShareMemory`."
+  },
+  {
+    "id": "AC-095",
+    "kind": "auto",
+    "title": "Off-Display clamp",
+    "statement": "An Original Frame intersecting no Display is clamped into the visible frame of the Display the window currently overlaps most before the write.",
+    "verify": "`swift test --filter RestoreTests.clampsOntoOccupiedDisplay`."
+  },
+  {
+    "id": "AC-096",
+    "kind": "manual",
+    "title": "Restore returns to the pre-grab place",
+    "statement": "Shift-dragging a window from the left of a Display into a Zone on the right, then pressing Control+Option+R, puts it back at its left-side position, not under the drop point.",
+    "verify": "Note the window's position, Snap by drag, Restore, compare."
+  },
+  {
+    "id": "AC-097",
+    "kind": "auto",
+    "title": "Defaults match ADR-0010",
+    "statement": "Default shortcuts are Control+Option+1..9 sendToZone, Control+Option+Right and Left cycle, Control+Option+R restore, Control+Option+E openEditor, Control+Option+Comma openSettings.",
+    "verify": "`swift test --filter ShortcutStoreTests.defaultsMatchADR`."
+  },
+  {
+    "id": "AC-098",
+    "kind": "auto",
+    "title": "Send to Zone N",
+    "statement": "sendToZone(3) on a window overlapping Display B most produces a snap plan for B's Zone 3 rectangle from B's current Assignment.",
+    "verify": "`swift test --filter ShortcutResolverTests.sendToZoneUsesOccupiedDisplay`."
+  },
+  {
+    "id": "AC-099",
+    "kind": "auto",
+    "title": "Zone numbering property",
+    "statement": "For random trees, Zone Numbers are a bijection onto 1..N, ordered by top edge then left edge with epsilon, invariant under frame scaling and Margin and Gap changes, and recomputed after each editor command.",
+    "verify": "`swift test --filter ZoneNumberingTests.rowMajorBijection`."
+  },
+  {
+    "id": "AC-100",
+    "kind": "auto",
+    "title": "Cycle table",
+    "statement": "With a last-Snap record whose frame matches the read-back within 2 pt, Right continues after its highest Zone and Left before its lowest (Calculator clamped at 3 cycles Right to 4; a Span of 1 and 2 cycles Right to 3); after a hand move the base is the Zone of maximum intersection, ties to the lower number; with no intersection Right starts at 1 and Left at the last Zone; both wrap.",
+    "verify": "`swift test --filter CycleResolverTests.table`."
+  },
+  {
+    "id": "AC-101",
+    "kind": "auto",
+    "title": "Zone N beyond count",
+    "statement": "sendToZone(7) on a 3-Zone Layout returns noOp(zoneAbsent) with one log line and no write.",
+    "verify": "`swift test --filter ShortcutResolverTests.absentZoneIsNoOp`."
+  },
+  {
+    "id": "AC-102",
+    "kind": "auto",
+    "title": "Command or Control required",
+    "statement": "The validator rejects any chord lacking both Command and Control, including Option-only and Shift+Option chords, and accepts Control+Option+1.",
+    "verify": "`swift test --filter ShortcutStoreTests.requiresCommandOrControl`."
+  },
+  {
+    "id": "AC-103",
+    "kind": "auto",
+    "title": "Recorder states",
+    "statement": "A chord bound to another Zones action yields conflict(duplicate); Command-only, Command+Shift-only, and Control-only with an arrow or digit yield warning that can be accepted; Control+Option+5 yields no warning.",
+    "verify": "`swift test --filter ShortcutStoreTests.recorderStateTable`."
+  },
+  {
+    "id": "AC-104",
+    "kind": "auto",
+    "title": "Registration failure keeps old chord",
+    "statement": "A registration result of inUse yields failed(inUse) and the fake registrar still holds the previous chord for that action.",
+    "verify": "`swift test --filter ShortcutStoreTests.failureKeepsPreviousChord`."
+  },
+  {
+    "id": "AC-105",
+    "kind": "auto",
+    "title": "Registration by permission state",
+    "statement": "openEditor and openSettings are registered in every permission state; window actions are registered only on entering granted and unregistered on leaving it.",
+    "verify": "`swift test --filter ShortcutStoreTests.windowHotkeysOnlyWhileGranted`."
+  },
+  {
+    "id": "AC-106",
+    "kind": "manual",
+    "title": "Shortcuts without the grant",
+    "statement": "With Accessibility not granted, Control+Option+E opens the editor and Control+Option+1 reaches other apps (it is not swallowed).",
+    "verify": "Revoke; press both chords with TextEdit frontmost; observe."
+  },
+  {
+    "id": "AC-107",
+    "kind": "manual",
+    "title": "Editor and Settings chords",
+    "statement": "Control+Option+E opens the editor on the Display under the cursor; Control+Option+Comma opens Settings.",
+    "verify": "Press each chord with the cursor on Display 2; observe which Display the window appears on."
+  },
+  {
+    "id": "AC-108",
+    "kind": "auto",
+    "title": "Command path gates",
+    "statement": "A window command whose focused window is excluded, full-screen, position-not-settable or absent returns noOp(reason) with one log line and no write.",
+    "verify": "`swift test --filter ShortcutResolverTests.gateTable`."
+  },
+  {
+    "id": "AC-109",
+    "kind": "auto",
+    "title": "Cleared shortcut",
+    "statement": "Clearing a shortcut leaves the action unbound (not the default) and issues one unregister call.",
+    "verify": "`swift test --filter ShortcutStoreTests.clearedStaysUnbound`."
+  },
+  {
+    "id": "AC-110",
+    "kind": "auto",
+    "title": "Dispatch during a Drag Session",
+    "statement": "A window command fired while the reducer is not idle is dropped with exactly one log line; a registration diff made then is queued and applied on return to idle.",
+    "verify": "`swift test --filter ShortcutDispatchTests.droppedAndQueuedDuringSession`."
+  },
+  {
+    "id": "AC-111",
+    "kind": "auto",
+    "title": "Preference change diff",
+    "statement": "Changing one shortcut re-registers only that action; changing the Activation Modifier is read by the reducer at the next mouseDown and not mid-session.",
+    "verify": "`swift test --filter ShortcutStoreTests.diffReregistersOnlyChanged` and `DragSessionReducerTests.modifierConfigReadAtMouseDown`."
+  },
+  {
+    "id": "AC-112",
+    "kind": "auto",
+    "title": "Template shapes",
+    "statement": "Columns and Rows at 2..5 produce that many equal-extent Zones (within epsilon); Grid produces 4 and 9; Priority Grid produces three side-by-side Zones at 25/50/25; Focus produces one; Template names equal the CONTEXT glossary names exactly.",
+    "verify": "`swift test --filter TemplateTests.countsShapesAndNames`."
+  },
+  {
+    "id": "AC-113",
+    "kind": "auto",
+    "title": "Default Assignment",
+    "statement": "Lookup for a key absent from the Assignments document returns the Priority Grid built-in identifier.",
+    "verify": "`swift test --filter AssignmentLookupTests.unknownDisplayGetsPriorityGrid`."
+  },
+  {
+    "id": "AC-114",
+    "kind": "auto",
+    "title": "Built-in identifiers and Duplicate",
+    "statement": "Built-in Layout identifiers are identical across two load runs, never appear in the layouts document, and Duplicate yields a fresh identifier, the name \"<Template> copy\" and explicit Margin and Gap equal to the current defaults.",
+    "verify": "`swift test --filter BuiltInLayoutTests.deterministicIdsAndDuplicate`."
+  },
+  {
+    "id": "AC-115",
+    "kind": "auto",
+    "title": "Delete needs a replacement",
+    "statement": "Deleting a Layout referenced by any Assignment without a replacement is refused; with a replacement every referencing Assignment is rewritten in the same transaction.",
+    "verify": "`swift test --filter LayoutStoreTests.deleteAssignedRequiresReplacement`."
+  },
+  {
+    "id": "AC-116",
+    "kind": "auto",
+    "title": "Tiling property",
+    "statement": "For random trees up to depth 8, leaves tile the Layout rectangle with no positive-area overlap and no gap, every ratio is strictly inside 0..1, every leaf is at least 1/12 on each axis, and with Margin and Gap applied every pair is separated by exactly Gap and the outer edge by exactly Margin on unrounded output.",
+    "verify": "`swift test --filter LayoutTilingTests.randomTreesTile`."
+  },
+  {
+    "id": "AC-117",
+    "kind": "auto",
+    "title": "Margin and Gap defaults",
+    "statement": "Built-in Layouts are generated with the Appearance default Margin and Gap; changing the defaults regenerates built-ins and leaves custom Layouts unchanged; every Layout on disk carries explicit numeric Margin and Gap.",
+    "verify": "`swift test --filter LayoutStoreTests.defaultsApplyToBuiltInsOnly`."
+  },
+  {
+    "id": "AC-118",
+    "kind": "auto",
+    "title": "Topology Assignment rules",
+    "statement": "A returning UUID restores its Assignment; a removed Display keeps its Assignment and no move effect is emitted; a new UUID gets the default.",
+    "verify": "`swift test --filter TopologyTests.assignmentsSurviveReconnect`."
+  },
+  {
+    "id": "AC-119",
+    "kind": "manual",
+    "title": "Dock Display replug",
+    "statement": "Unplugging and replugging the dock Display restores its Layout and moves no window; two identical Displays of one model each keep their own Assignment or are labelled \"not saved\".",
+    "verify": "Unplug, replug, Shift-drag to confirm the Layout; count moved windows (0); check the Layouts pane (SPK-012)."
+  },
+  {
+    "id": "AC-120",
+    "kind": "auto",
+    "title": "Layouts pane model",
+    "statement": "The pane model lists attached Displays with name, resolution and picker, disconnected Displays with name, last resolution, Assignment, \"Copy Assignment to <attached>\" and \"Forget\", and labels unstable keys \"not saved\".",
+    "verify": "`swift test --filter LayoutsPaneModelTests.rows`."
+  },
+  {
+    "id": "AC-121",
+    "kind": "auto",
+    "title": "Separate Spaces notice",
+    "statement": "A snapshot with separateSpaces false sets the one-time notice flag once and never again.",
+    "verify": "`swift test --filter TopologyTests.separateSpacesNoticeOnce`."
+  },
+  {
+    "id": "AC-122",
+    "kind": "auto",
+    "title": "Mirror handling",
+    "statement": "A snapshot with mirrorOf collapses the group to the master's key; a Layout picked while mirrored is persisted under the master's key; unmirroring restores each member's own Assignment.",
+    "verify": "`swift test --filter TopologyTests.mirrorKeyedByMaster`."
+  },
+  {
+    "id": "AC-123",
+    "kind": "auto",
+    "title": "Unstable and nil identifiers",
+    "statement": "A nil UUID is retried three times one second apart on the Clock; a late success emits topologyChanged; three failures yield an unstable key that accepts an in-session Assignment, is never encoded, and the document decoder rejects any non-UUID key.",
+    "verify": "`swift test --filter TopologyTests.nilUUIDRetryThenUnstable` and `DocumentTests.rejectsNonUUIDKey`."
+  },
+  {
+    "id": "AC-124",
+    "kind": "auto",
+    "title": "Debounce and resize",
+    "statement": "Five reconfiguration callbacks within 200 ms yield one topologyChanged; a resolution change yields Zone rectangles recomputed from fractions and panel frames equal to the new Display frames.",
+    "verify": "`swift test --filter TopologyTests.stormCoalescesAndResizes`."
+  },
+  {
+    "id": "AC-125",
+    "kind": "auto",
+    "title": "Disconnected Display editing",
+    "statement": "Opening the editor for a disconnected Display resolves the draft against the stored last visible frame and last scale from its Assignment record.",
+    "verify": "`swift test --filter EditorModelTests.disconnectedDisplayUsesStoredGeometry`."
+  },
+  {
+    "id": "AC-126",
+    "kind": "manual",
+    "title": "Editor backdrop",
+    "statement": "Control+Option+E opens the editor over a translucent backdrop through which the desktop windows behind it remain visible, drawing the Zones at real scale so that each editor Zone covers the same screen area the Overlay would highlight for it (frame rule: AC-022).",
+    "verify": "Open the editor over a desk with three visible windows; confirm all three show through the backdrop; Shift-drag a window with the editor still open and compare the Overlay's Zone 1 edges to the editor's Zone 1 edges in a screenshot (equal)."
+  },
+  {
+    "id": "AC-127",
+    "kind": "auto",
+    "title": "Single-key split",
+    "statement": "H on a selected leaf splits it side by side at ratio 0.5 and V stacks it; the leaf count rises by one each time.",
+    "verify": "`swift test --filter EditorCommandTests.splitKeys`."
+  },
+  {
+    "id": "AC-128",
+    "kind": "auto",
+    "title": "Divider snapping and nudging",
+    "statement": "A divider dragged within 6 pt of 1/2, 1/3, 1/4 of its parent or a collinear divider snaps there; with Option it does not; arrows move the selected divider by 1 pt, Shift+arrows by 10 pt, expressed as ratio deltas for the current Display.",
+    "verify": "`swift test --filter EditorCommandTests.dividerSnapAndNudge`."
+  },
+  {
+    "id": "AC-129",
+    "kind": "auto",
+    "title": "Merge rules",
+    "statement": "M on a leaf whose sibling is a leaf collapses the parent; M on any other pair returns notSiblings with the hint \"split the parent the other way first\" and leaves the draft unchanged.",
+    "verify": "`swift test --filter EditorCommandTests.mergeSiblingsOnly`."
+  },
+  {
+    "id": "AC-130",
+    "kind": "auto",
+    "title": "Undo and redo",
+    "statement": "100 random valid commands followed by 100 undos restore the original draft and 100 redos restore the final draft.",
+    "verify": "`swift test --filter EditorCommandTests.undoRedoRoundTrip`."
+  },
+  {
+    "id": "AC-131",
+    "kind": "auto",
+    "title": "Live Margin and Gap",
+    "statement": "setMargin and setGap commands change the draft and the preview model's resolved rectangles in the same step.",
+    "verify": "`swift test --filter EditorModelTests.marginGapLive`."
+  },
+  {
+    "id": "AC-132",
+    "kind": "auto",
+    "title": "Editor labels equal Overlay labels",
+    "statement": "After every editor command the editor's label model equals the Overlay label model for the same draft.",
+    "verify": "`swift test --filter EditorModelTests.labelsMatchOverlay`."
+  },
+  {
+    "id": "AC-133",
+    "kind": "auto",
+    "title": "Display switch",
+    "statement": "Switching the edited Display with a dirty draft emits a prompt effect; with a clean draft it switches and re-resolves.",
+    "verify": "`swift test --filter EditorModelTests.switchDisplayPromptsWhenDirty`."
+  },
+  {
+    "id": "AC-134",
+    "kind": "auto",
+    "title": "Assign",
+    "statement": "The Assign command, reachable from the editor's Assign button and its key equivalent Command-Shift-A (a window key equivalent, not a global shortcut), writes exactly one Assignment for the edited Display's key referencing the draft's Layout identifier.",
+    "verify": "`swift test --filter EditorModelTests.assignWritesOnce`."
+  },
+  {
+    "id": "AC-135",
+    "kind": "auto",
+    "title": "Validator limits",
+    "statement": "A ratio that would leave any leaf under 1/12 on an axis returns tooSmall and leaves the draft unchanged; a Zone resolving under 120x80 pt on the current Display sets its warning flag.",
+    "verify": "`swift test --filter EditorCommandTests.minimumFractionAndWarning`."
+  },
+  {
+    "id": "AC-136",
+    "kind": "auto",
+    "title": "Save and Cancel",
+    "statement": "Save validates, writes the layouts document once atomically, then replaces the live Layout; Cancel writes nothing; after Save returns the file decodes to the saved document.",
+    "verify": "`swift test --filter EditorModelTests.saveWritesOnceCancelWritesNothing`."
+  },
+  {
+    "id": "AC-137",
+    "kind": "auto",
+    "title": "Zone count edges",
+    "statement": "A tenth Zone is badged noChord and accepted; merging the root leaf is refused.",
+    "verify": "`swift test --filter EditorCommandTests.noChordBadgeAndRootMerge`."
+  },
+  {
+    "id": "AC-138",
+    "kind": "auto",
+    "title": "Template picker",
+    "statement": "The Template command replaces the draft with the chosen Template at the chosen count and keeps the draft's name.",
+    "verify": "`swift test --filter EditorCommandTests.templatePicker`."
+  },
+  {
+    "id": "AC-139",
+    "kind": "manual",
+    "title": "Keyboard-only editor loop",
+    "statement": "From a fresh Layout with its single Zone selected, the keystrokes H, H, Command-S, Command-Shift-A, Command-W produce a three-column Layout (three Zones side by side, per AC-127) saved and assigned to the current Display without touching the mouse.",
+    "verify": "Perform the keystrokes; Shift-drag a window to confirm the Overlay shows three side-by-side Zones on that Display, and the Layouts pane shows the new Layout assigned to it."
+  },
+  {
+    "id": "AC-140",
+    "kind": "auto",
+    "title": "Appearance preferences",
+    "statement": "Fill color and opacity round-trip through preferences, and the Appearance sample model lists the Layouts that follow the default Margin and Gap.",
+    "verify": "`swift test --filter PreferencesTests.appearanceRoundTrip` and `AppearancePaneModelTests.listsFollowers`."
+  },
+  {
+    "id": "AC-141",
+    "kind": "manual",
+    "title": "Appearance applies live",
+    "statement": "Changing opacity from 0.3 to 0.8 and the Activation Modifier to Command is visible on the very next Drag Session with no relaunch.",
+    "verify": "Change both; Command-drag; observe."
+  },
+  {
+    "id": "AC-142",
+    "kind": "auto",
+    "title": "Exclusions model",
+    "statement": "Exclusions are a set of bundle identifiers; the pane model shows the identifier beside each name; adding from the running-apps list or a file URL stores the bundle identifier.",
+    "verify": "`swift test --filter ExclusionsPaneModelTests.bundleIdentifierKeyed`."
+  },
+  {
+    "id": "AC-143",
+    "kind": "auto",
+    "title": "Exclusion policy table",
+    "statement": "Phase 1 skips ownProcess, systemAgent (Dock, WindowManager, Notification Center, Control Center, loginwindow, UserNotificationCenter), excludedBundle and unresponsive from CG facts only; phase 2 skips nonStandardSubrole, sheetOrPopover, systemDialog (subroles systemDialog, systemFloatingWindow), fullScreen and positionNotSettable; sizeNotSettable returns allow with positionOnly; one row per reason per phase.",
+    "verify": "`swift test --filter ExclusionPolicyTests.table`."
+  },
+  {
+    "id": "AC-144",
+    "kind": "manual",
+    "title": "Automatic skips on screen",
+    "statement": "A Save sheet, a popover and Zones' own Settings window show no Overlay when Shift-dragged; Calculator Snaps by position only at the Zone's top-left.",
+    "verify": "Shift-drag each; observe."
+  },
+  {
+    "id": "AC-145",
+    "kind": "auto",
+    "title": "Export shape",
+    "statement": "Exporting all Layouts and Assignments, or one Layout, produces a document with a top-level version that decodes with the same decoder as the disk documents and re-imports to equal content.",
+    "verify": "`swift test --filter DocumentTests.exportRoundTrip`."
+  },
+  {
+    "id": "AC-146",
+    "kind": "auto",
+    "title": "Merge and Replace",
+    "statement": "Merge keeps existing Layouts, renames incoming name collisions with a numeric suffix and gives colliding identifiers fresh ones; Replace writes a timestamped backup of both documents, returns its name, then swaps both in one transaction.",
+    "verify": "`swift test --filter DocumentTests.mergeAndReplace`."
+  },
+  {
+    "id": "AC-147",
+    "kind": "auto",
+    "title": "Newer versions",
+    "statement": "Importing a document with version greater than supported is refused with a message naming both versions; a disk document with a newer version is left byte-identical and reported.",
+    "verify": "`swift test --filter DocumentTests.newerVersionRefusedAndUntouched`."
+  },
+  {
+    "id": "AC-148",
+    "kind": "auto",
+    "title": "Dormant Assignments",
+    "statement": "An imported Assignment for an absent key is kept in the one map, reported dormant, and used on the first snapshot containing that key.",
+    "verify": "`swift test --filter AssignmentLookupTests.dormantAppliesOnArrival`."
+  },
+  {
+    "id": "AC-149",
+    "kind": "auto",
+    "title": "Corrupt file",
+    "statement": "An undecodable document is renamed aside with a timestamp suffix, defaults load, and one notice event is emitted.",
+    "verify": "`swift test --filter DocumentTests.corruptFileQuarantined`."
+  },
+  {
+    "id": "AC-150",
+    "kind": "auto",
+    "title": "Atomic writes",
+    "statement": "With a fake filesystem that fails mid-write, the original document remains intact and decodable.",
+    "verify": "`swift test --filter DocumentTests.atomicWriteSurvivesFailure`."
+  },
+  {
+    "id": "AC-151",
+    "kind": "auto",
+    "title": "Import validation",
+    "statement": "A document with one Layout whose ratio is 1.0, or whose leaves overlap, or whose leaf is under 1/12, is refused naming that Layout, and neither disk document changes.",
+    "verify": "`swift test --filter DocumentTests.importValidatesWholeFile`."
+  },
+  {
+    "id": "AC-152",
+    "kind": "auto",
+    "title": "Migrations and golden fixtures",
+    "statement": "Each golden fixture from version 1 to current migrates to a valid document after a timestamped backup is written, and the fixture-hash test fails if a golden changes without a version bump.",
+    "verify": "`swift test --filter MigrationTests` and `FixtureHashTests`."
+  },
+  {
+    "id": "AC-153",
+    "kind": "auto",
+    "title": "Preferences coercion",
+    "statement": "Preferences carry schemaVersion; a blob with one unknown modifier value or one chord lacking Command or Control decodes with only that field at its default, all other fields intact, and the one-time notice flag set.",
+    "verify": "`swift test --filter PreferencesTests.fieldByFieldCoercion`."
+  },
+  {
+    "id": "AC-154",
+    "kind": "auto",
+    "title": "Diagnostics report",
+    "statement": "The report contains version, build, signing identity, macOS version, permission state, tap state, each Display with key and frames, Assignments, preferences, the last 200 events and skip counts grouped by bundle identifier; the event type has no title field; the report is delivered to a preview effect before any copy effect.",
+    "verify": "`swift test --filter DiagnosticsTests.reportContentsAndPreviewFirst`."
+  },
+  {
+    "id": "AC-155",
+    "kind": "auto",
+    "title": "Skip reasons logged",
+    "statement": "Every skip produces one log event with its reason and increments that reason's count in the ring.",
+    "verify": "`swift test --filter DiagnosticsTests.skipReasonsCounted`."
+  },
+  {
+    "id": "AC-156",
+    "kind": "auto",
+    "title": "Idle schedule",
+    "statement": "With the fake Clock and no Drag Session, tap recovery or Display reconfiguration in flight, exactly these timers exist per permission state: notGranted and revoked a 1 s trust poll; granted a 5 s health tick and no trust poll; needsRelaunch a 1 s trust poll; suspect its 3 s resolve timer (AC-007) and no trust poll; nothing else. The only other timers are transient and exist solely while their trigger is pending, each cancelled when it resolves: the 30 s dead-tap retry after tapLost (AC-011), the 1 s nil-UUID retry at most three times (AC-123) and the 200 ms topology debounce (AC-124). Frame sampling is requested only in pressed and never after moving.",
+    "verify": "`swift test --filter IdleScheduleTests.exactTimersPerState`, `IdleScheduleTests.transientTimersCancelWhenResolved` and `DragSessionReducerTests.noSamplesAfterMoving`."
+  },
+  {
+    "id": "AC-157",
+    "kind": "manual",
+    "title": "Idle CPU",
+    "statement": "With twenty snapped windows and no interaction for ten minutes, Zones averages under 1 percent CPU in Activity Monitor.",
+    "verify": "Snap twenty windows; wait ten minutes; read the average."
+  },
+  {
+    "id": "AC-158",
+    "kind": "auto",
+    "title": "Heartbeat isolation",
+    "statement": "Heartbeat results feed only the permission machine, never AppHealth; at most one heartbeat is in flight; none is issued while the reducer is not idle.",
+    "verify": "`swift test --filter PermissionMachineTests.heartbeatIsolation`."
+  },
+  {
+    "id": "AC-159",
+    "kind": "auto",
+    "title": "Typed results and timeouts",
+    "statement": "FrameWriteResult has exactly the cases applied, clamped, refused, timedOut, elementGone, noOp; the WindowActor sets a 250 ms per-app and a 1 s process-wide messaging timeout at launch.",
+    "verify": "`swift test --filter WindowActorTests.timeoutsSetAtLaunch` and a compile-time exhaustive switch in `FrameWriteResultTests`."
+  },
+  {
+    "id": "AC-160",
+    "kind": "auto",
+    "title": "One command, CI",
+    "statement": "`swift test` from the repository root exits 0, and the single CI workflow `.github/workflows/ci.yml` has a step running `swift test`, a step running `xcodebuild` with the `build` action, and an `on.push.branches` list containing `integration` and the ticket-branch glob `ticket/**` (ticket branches are named `ticket/<id>`, the pattern `scripts/check-state.sh` checks; ADR-0024), so every push to a ticket branch or to `integration` runs both steps.",
+    "verify": "`swift test` exits 0; `grep -c 'swift test' .github/workflows/ci.yml` prints a number of at least 1; `grep -cE 'xcodebuild .*\\bbuild\\b' .github/workflows/ci.yml` prints a number of at least 1; `grep -cE 'branches:.*\\bintegration\\b' .github/workflows/ci.yml` prints a number of at least 1; `grep -c 'ticket/\\*\\*' .github/workflows/ci.yml` prints a number of at least 1; `ls .github/workflows | wc -l` prints `1`."
+  },
+  {
+    "id": "AC-161",
+    "kind": "auto",
+    "title": "Strict concurrency",
+    "statement": "`Package.swift` sets `swiftLanguageModes: [.v6]` (Swift 6 language mode, which enforces complete strict concurrency) for the whole package, `project.yml` sets `SWIFT_STRICT_CONCURRENCY: complete` and `SWIFT_TREAT_WARNINGS_AS_ERRORS: YES` for the app target, the package including its test targets builds with warnings as errors, the app target builds with both flags forced on the command line, and the package and app sources together contain exactly one `@unchecked Sendable`, on the window handle box type in the `ZonesWindowing` target.",
+    "verify": "`grep -cE 'swiftLanguageModes:\\s*\\[\\s*\\.v6\\s*\\]' Package.swift` prints `1`; `grep -c 'SWIFT_STRICT_CONCURRENCY: complete' project.yml` prints `1` and `grep -c 'SWIFT_TREAT_WARNINGS_AS_ERRORS: YES' project.yml` prints `1`; `swift build --build-tests -Xswiftc -warnings-as-errors` exits 0; `xcodegen generate && xcodebuild -quiet -project Zones.xcodeproj -scheme Zones -configuration Debug CODE_SIGN_IDENTITY=- CODE_SIGNING_ALLOWED=NO SWIFT_TREAT_WARNINGS_AS_ERRORS=YES SWIFT_STRICT_CONCURRENCY=complete build` exits 0; `grep -rn '@unchecked Sendable' Sources App | wc -l` prints `1` and that line's path lies under `Sources/ZonesWindowing/`."
+  },
+  {
+    "id": "AC-162",
+    "kind": "auto",
+    "title": "App-target hygiene gate",
+    "statement": "`scripts/hygiene-gate.sh` scans the app target's Swift sources and exits 0 only when they contain zero occurrences of `try!`, `as!` or `fatalError(` on a line without the `zones:allow` marker, zero `import ApplicationServices` lines and zero uses of symbols beginning with `CGWindowList`; those imports and symbols appear only in the production adapter sources; the CI workflow runs the script as a step after `swift test`.",
+    "verify": "`scripts/hygiene-gate.sh` from the repository root exits 0 and prints exactly three lines: `unsafe-ops: 0`, `ax-imports: 0`, `cgwindowlist-uses: 0`; adding `try!` to any app-target source makes it exit 1 with `unsafe-ops: 1`; the CI workflow definition contains a step invoking `scripts/hygiene-gate.sh`."
+  },
+  {
+    "id": "AC-163",
+    "kind": "auto",
+    "title": "Fakes for every seam",
+    "statement": "Each protocol seam (WindowSystem, WindowEnumerator, InputSource, DisplayProvider, OverlayPresenter, HotkeyRegistrar, LoginItemService, PermissionProbe, Clock) has a scriptable fake with a response queue, a call log and fake-Clock latency.",
+    "verify": "`swift test --filter FakeContractTests` (one case per seam exercising queue, log and latency)."
+  },
+  {
+    "id": "AC-164",
+    "kind": "auto",
+    "title": "One coordinate conversion",
+    "statement": "AppKit to AX to AppKit round-trips to identity for random rectangles on the 3-Display fixture (primary centered, 2x Display left, 1x portrait Display above with negative origin), and display(for:) picks the maximum-intersection Display.",
+    "verify": "`swift test --filter CoordinateSpaceTests.roundTripAndDisplayFor`."
+  },
+  {
+    "id": "AC-165",
+    "kind": "auto",
+    "title": "Seed in failure message",
+    "statement": "The generator's failure reporter, invoked in a passing test for a seeded case that the test marks as failing, returns a message containing the seed as an integer and the generated Layout's description; the suite itself passes.",
+    "verify": "`swift test --filter GeneratorTests.failureMessageNamesSeed`."
+  },
+  {
+    "id": "AC-166",
+    "kind": "auto",
+    "title": "Reducer invariants",
+    "statement": "For random event streams: an Overlay is shown only on entry to armed; every path to idle hides a shown Overlay; snap is emitted only with the Activation Modifier down at mouseUp; restore is never emitted from moving; a Span release then re-press preserves the set; no AX-bound effect is emitted from pressed before the first returned sample.",
+    "verify": "`swift test --filter ReducerInvariantTests`."
+  },
+  {
+    "id": "AC-167",
+    "kind": "auto",
+    "title": "Ticket shape",
+    "statement": "Every ticket object in `docs/tickets/graph.json` carries non-empty string fields `protocol` (the protocol seam it implements, or the literal `none`), `fake` (the fake it ships, or `none`) and `tests` (the Swift Testing suites or cases it adds, never `none`); `scripts/ticket-lint.sh` exits 1 naming the first ticket id that lacks any of the three.",
+    "verify": "`scripts/ticket-lint.sh` from the repository root exits 0 and prints `tickets: <N>, missing-fields: 0`; removing `fake` from one ticket in a scratch copy and running `scripts/ticket-lint.sh <copy>` exits 1 and names that ticket id."
+  },
+  {
+    "id": "AC-168",
+    "kind": "manual",
+    "title": "Release checklist",
+    "statement": "`docs/release-checklist.md` is a one-page table with a header recording the release tag, the macOS version and the tester, and one row per check below; each row names the AC whose expected result is its pass condition and has a result cell holding `pass` or `fail`. The rows, with their pass conditions by reference: grant from a clean account (one onboarding window, dismissed within 1.5 s of the toggle: AC-004, AC-005); Shift-drag on every Display dropping on a Zone (lands on the Overlay rectangle, no other window moves: AC-070); dropping on a Gap (Snaps into the nearest Zone, never Restores: AC-080); dropping on the menu bar with an Original Frame (fills dim, window returns to its pre-grab frame: AC-091, AC-096) and without one (nothing dims, window stays where macOS left it: AC-091); pause on the title bar then drag (Overlay appears, Snap works: AC-055); Control-sweep a diagonal Span, release Control, skim a seam, drop (union of the swept Zones on the Span's Display: AC-081, AC-083, AC-085); send to each Zone by chord including N beyond the count (lands in Zone N; the absent N does nothing: AC-098, AC-101); chord mid-drag (ignored, one log line: AC-110); cycle after a Span and after a clamp (next Zone per the cycle table: AC-100); Restore, hand-move, Snap, Restore (returns to the hand-placed frame: AC-093); revoke mid-drag and while idle (badge and onboarding window return, no crash: AC-007, AC-009); unplug a Display mid-session (Overlay re-arms from the new geometry, no window moves: AC-060, AC-119); mirror, pick a Layout, unmirror (mirror set keyed by the master, each Display resumes its own Assignment: AC-122); import with Merge and with Replace (merged names suffixed, Replace writes a named backup first: AC-146); Stage Manager on (Shift-drag on the current stage Snaps and no window on another stage moves: AC-070, AC-041).",
+    "verify": "Before the release is tagged, every row of `docs/release-checklist.md` is marked `pass` and the header carries the release tag and the macOS version it was run on; a row marked `fail` or left blank blocks the release; `grep -cE 'AC-[0-9]{3}' docs/release-checklist.md` prints a number equal to the row count, and `grep -cE '\\|\\s*fail\\s*\\|' docs/release-checklist.md` prints `0` for the committed copy on the release tag."
+  },
+  {
+    "id": "AC-169",
+    "kind": "auto",
+    "title": "Logger facade",
+    "statement": "The logger exposes one category per module, a production sink of the unified log and a test sink that is an array, and the ring never exceeds 200 events.",
+    "verify": "`swift test --filter DiagnosticsTests.ringBoundedAndSinks`."
+  }
+]
