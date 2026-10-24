@@ -136,6 +136,26 @@ public enum DragSessionReducer {
         window: window, downFrame: downFrame, flags: f, config: config, context: ctx, display: display, hit: hit,
         span: span)
       return (state, [])
+    case .mouseUp(let point, let upFlags):
+      // The overlay is on screen in armed, so it is always hidden first (AC-053). A snap needs the Activation
+      // Modifier in the mouse-up's own flags (LI-007) and a hit recomputed from the mouse-up point, never a stale one.
+      // EXTENSION(T22): a modifier-drag that ends over no Zone restores the Original Frame (AC-091); Span drop set.
+      var fx: [DragEffect] = [.hideOverlay]
+      if upFlags.contains(ModifierSet(config.activation)) {
+        let (dropDisplay, dropHit) = hitUnderCursor(point, ctx)
+        if let dropDisplay, let layout = ctx.layouts[dropDisplay] {
+          let zone = zones(of: dropHit)
+          if !zone.isEmpty {
+            // EXTENSION(T21): SnapPlan mode comes from the phase-one verdict; `.full` for now.
+            fx.append(
+              .snap(
+                SnapPlan(
+                  window: window, display: dropDisplay, zones: zone, target: Span.rect(zone, in: layout),
+                  mode: .full, via: .mouse, originalFrame: ctx.hasOriginalFrame ? nil : downFrame)))
+          }
+        }
+      }
+      return (.idle, fx)
     default:
       return (s, [])
     }

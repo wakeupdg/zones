@@ -254,4 +254,70 @@ import ZonesWindowing
     #expect(whole.effects.filter(F.isHideOverlay).count == 1)
     #expect(whole.effects.filter(F.isShowOverlay).count == 1)
   }
+
+  @Test func snapOnlyWithModifierAtMouseUp() throws {
+    let (armed, _) = Self.armedOverZone2()
+    let w = Self.windowCentered(in: 2)
+
+    let (idle, fx) = DragSessionReducer.reduce(armed, .mouseUp(point: F.center(3), flags: .shift))
+    #expect(idle == .idle)
+    #expect(fx.count == 2)
+    guard case .snap(let plan)? = fx.last else {
+      Issue.record("no snap in \(fx)")
+      return
+    }
+    #expect(plan.zones == [3])
+    #expect(plan.target == F.zoneFrame(3))
+    #expect(plan.display == F.primaryKey)
+    #expect(plan.window == w)
+    #expect(plan.mode == .full)
+    #expect(plan.via == .mouse)
+    #expect(plan.originalFrame == w.frame)
+
+    // Stored flags are not consulted: the mouse-up flags decide.
+    let (_, noMod) = DragSessionReducer.reduce(armed, .mouseUp(point: F.center(3), flags: []))
+    #expect(noMod == [.hideOverlay])
+    let (_, wrongMod) = DragSessionReducer.reduce(armed, .mouseUp(point: F.center(3), flags: .option))
+    #expect(wrongMod == [.hideOverlay])
+
+    // The hit is recomputed from the mouse-up point, not the last highlight.
+    let (_, fresh) = DragSessionReducer.reduce(armed, .mouseUp(point: F.center(7), flags: .shift))
+    guard case .snap(let freshPlan)? = fresh.last else {
+      Issue.record("no snap in \(fresh)")
+      return
+    }
+    #expect(freshPlan.zones == [7])
+
+    // A drop in the Gap between Zones goes to the nearest Zone (lower number on a tie).
+    let z1 = F.zoneFrame(1)
+    let gap = CGPoint(x: z1.maxX + 4, y: z1.midY)
+    let (_, gapFx) = DragSessionReducer.reduce(armed, .mouseUp(point: gap, flags: .shift))
+    guard case .snap(let gapPlan)? = gapFx.last else {
+      Issue.record("no snap in \(gapFx)")
+      return
+    }
+    #expect(gapPlan.zones == [1])
+
+    // Off every Display: nothing to snap to.
+    let (_, off) = DragSessionReducer.reduce(armed, .mouseUp(point: CGPoint(x: 9000, y: 9000), flags: .shift))
+    #expect(off == [.hideOverlay])
+  }
+
+  @Test func snapOmitsOriginalFrameWhenOneIsRecorded() {
+    var context = F.context
+    context.hasOriginalFrame = true
+    let w = Self.windowCentered(in: 2)
+    let r = F.run(
+      [
+        F.mouseDown(flags: .shift, candidates: [w], point: F.center(2)), F.dragged(F.center(2)),
+        F.sample(w.frame.offsetBy(dx: 30, dy: 10)), .mouseUp(point: F.center(4), flags: .shift),
+      ], context: context)
+    #expect(r.state == .idle)
+    guard case .snap(let plan)? = r.effects.last else {
+      Issue.record("no snap")
+      return
+    }
+    #expect(plan.originalFrame == nil)
+    #expect(plan.zones == [4])
+  }
 }

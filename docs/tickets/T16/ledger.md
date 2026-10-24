@@ -8,3 +8,4 @@
 - slice 7: DragSessionReducerTests.modifierLateArms and plainDragIsInert green — moving flagsChanged requests arm context when the modifier is newly present
 - slice 8: DragSessionReducerTests.highlightFollowsCursorNotWindow green — armed dragged hit-tests the cursor Display and Zone, emits updateHighlight on change only
 - slice 9: DragSessionReducerTests.modifierReleaseCancels green — armed flagsChanged without the Activation Modifier hides the overlay and returns to moving
+- slice 10: DragSessionReducerTests.snapOnlyWithModifierAtMouseUp green — armed mouseUp snaps only with the Activation Modifier in its own flags, hit recomputed from the mouse-up point
