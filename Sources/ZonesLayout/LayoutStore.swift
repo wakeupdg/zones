@@ -21,6 +21,16 @@ public struct LayoutStore: Hashable, Sendable {
     builtIns = Templates.all(insets: i)
   }
 
+  /// Adds a custom Layout, or replaces the one with the same id in place. Built-ins cannot be upserted.
+  public mutating func upsert(_ l: Layout) {
+    guard l.builtIn == nil, !l.id.rawValue.hasPrefix("builtin:") else { return }
+    if let index = custom.firstIndex(where: { $0.id == l.id }) {
+      custom[index] = l
+    } else {
+      custom.append(l)
+    }
+  }
+
   /// Custom Layouts only; Assignments live in their own document.
   public var document: ZonesDocument {
     ZonesDocument(version: Constants.documentVersion, layouts: custom, assignments: [:])

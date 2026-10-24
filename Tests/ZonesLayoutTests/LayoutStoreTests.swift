@@ -44,4 +44,29 @@ struct LayoutStoreTests {
     #expect(store.custom.isEmpty)
     #expect(store.document.layouts.isEmpty)
   }
+
+  @Test func upsertAddsAndReplaces() {
+    var store = LayoutStore(
+      document: ZonesDocument(layouts: [custom("A", "A"), custom("B", "B")]), defaults: Insets(margin: 8, gap: 8))
+    store.upsert(custom("C", "C"))
+    #expect(store.custom.map(\.id.rawValue) == ["A", "B", "C"])
+
+    let renamed = custom("B", "B renamed", insets: Insets(margin: 1, gap: 2))
+    store.upsert(renamed)
+    #expect(store.custom.map(\.id.rawValue) == ["A", "B", "C"])
+    #expect(store.layout(LayoutID(rawValue: "B")) == renamed)
+
+    let before = store
+    store.upsert(Templates.generate(.rows, count: 2, insets: Insets(margin: 0, gap: 0)))
+    var fake = custom("builtin:fake:1", "Fake")
+    store.upsert(fake)
+    fake = custom("D", "D")
+    fake.builtIn = BuiltInRef(template: .grid, count: 4)
+    store.upsert(fake)
+    #expect(store == before)
+
+    #expect(store.layout(Templates.builtInID(.priorityGrid, count: 3))?.builtIn != nil)
+    #expect(store.layout(LayoutID(rawValue: "A"))?.name == "A")
+    #expect(store.layout(LayoutID(rawValue: "missing")) == nil)
+  }
 }
