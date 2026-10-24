@@ -10,3 +10,4 @@
 - slice 9: DragSessionReducerTests.modifierReleaseCancels green — armed flagsChanged without the Activation Modifier hides the overlay and returns to moving
 - slice 10: DragSessionReducerTests.snapOnlyWithModifierAtMouseUp green — armed mouseUp snaps only with the Activation Modifier in its own flags, hit recomputed from the mouse-up point
 - slice 11: DragSessionReducerTests.hideOverlayPrecedesSnap green — passed on first run, slice 10 emits hideOverlay first
+- slice 12: DragSessionReducerTests.windowGoneHidesOverlay green — armed windowGone hides and returns to idle with no snap

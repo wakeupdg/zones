@@ -333,4 +333,20 @@ import ZonesWindowing
     #expect(!plainStep.contains(where: F.isSnap))
     #expect(!plainStep.contains(where: F.isRestore))
   }
+
+  @Test func windowGoneHidesOverlay() {
+    let (armed, _) = Self.armedOverZone2()
+    let (state, fx) = DragSessionReducer.reduce(armed, .windowGone)
+    #expect(state == .idle)
+    #expect(fx == [.hideOverlay])
+    #expect(!fx.contains(where: F.isSnap))
+
+    // Before the overlay is up there is nothing to hide.
+    let (pressed, _) = DragSessionReducer.reduce(.idle, F.mouseDown())
+    #expect(DragSessionReducer.reduce(pressed, .windowGone).1.isEmpty)
+    let moving = DragSessionReducer.reduce(
+      DragSessionReducer.reduce(DragSessionReducer.reduce(pressed, F.dragged()).0, F.moved()).0, .windowGone)
+    #expect(moving.0 == .idle)
+    #expect(moving.1.isEmpty)
+  }
 }

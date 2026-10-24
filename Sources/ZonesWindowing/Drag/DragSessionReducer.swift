@@ -156,6 +156,8 @@ public enum DragSessionReducer {
         }
       }
       return (.idle, fx)
+    case .windowGone:
+      return (.idle, [.hideOverlay])
     default:
       return (s, [])
     }
