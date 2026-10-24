@@ -5,3 +5,4 @@
 - decl: new public `AppearancePaneModel.followers(of:in:)` (not in CONTRACTS.md).
 - decl: Preferences.defaults fill/opacity changed to brief values (0.2,0.5,1.0,1.0 / 0.3); T01 test preferencesDefaultsMatchContract updated.
 - slice 1: DocumentTests.codecFieldNames green — encoded(for:) with sorted keys, per-kind top-level keys, v1 golden fixtures written
+- slice 2: DocumentTests.rejectsNonUUIDKey green — PersistentDisplayKey decoder throws nonUUIDKey; document decode validates assignment keys

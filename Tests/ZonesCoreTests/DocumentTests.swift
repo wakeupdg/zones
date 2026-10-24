@@ -129,4 +129,25 @@ private let layoutsJSON = """
     let againAssignments = try JSONDecoder().decode(ZonesDocument.self, from: assignmentsOut)
     #expect(try againAssignments.encoded(for: .assignments) == assignmentsOut)
   }
+
+  @Test func rejectsNonUUIDKey() throws {
+    for bad in ["unstable:3", "abc", ""] {
+      let json = Data("[\"\(bad)\"]".utf8)
+      #expect(throws: DocumentError.nonUUIDKey(bad)) {
+        _ = try JSONDecoder().decode([PersistentDisplayKey].self, from: json)
+      }
+    }
+    let upper = "37D8832A-2D66-02CA-B9F7-8F30A301B230"
+    let ok = try JSONDecoder().decode([PersistentDisplayKey].self, from: Data("[\"\(upper)\"]".utf8))
+    #expect(ok == [PersistentDisplayKey(uuid: upper)])
+    let back = try JSONDecoder().decode(
+      [PersistentDisplayKey].self, from: JSONEncoder().encode(ok))
+    #expect(back == ok)
+
+    // The same rule guards the keys of a decoded assignments document.
+    let doc = #"{"version":1,"assignments":{"unstable:3":{"layout":"builtin:focus:1","displayName":"X","lastVisibleFrame":{"x":0,"y":0,"width":1,"height":1},"lastScale":1}}}"#
+    #expect(throws: DocumentError.nonUUIDKey("unstable:3")) {
+      _ = try JSONDecoder().decode(ZonesDocument.self, from: Data(doc.utf8))
+    }
+  }
 }

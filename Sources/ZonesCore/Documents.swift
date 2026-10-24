@@ -23,7 +23,9 @@ public struct ZonesDocument: Hashable, Codable, Sendable {
     let c = try decoder.container(keyedBy: CodingKeys.self)
     version = try c.decode(Int.self, forKey: .version)
     layouts = try c.decodeIfPresent([Layout].self, forKey: .layouts) ?? []
-    assignments = try c.decodeIfPresent([String: Assignment].self, forKey: .assignments) ?? [:]
+    let decoded = try c.decodeIfPresent([String: Assignment].self, forKey: .assignments) ?? [:]
+    for key in decoded.keys where UUID(uuidString: key) == nil { throw DocumentError.nonUUIDKey(key) }
+    assignments = decoded
   }
 
   public func encode(to encoder: any Encoder) throws {
