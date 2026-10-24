@@ -71,7 +71,11 @@ public enum EditorModel {
       var stack = UndoStack(undo: s.undo, redo: s.redo)
       guard let next = stack.redo(current: s.draft) else { return (s, []) }
       return (restored(s, draft: next, stack: stack), [])
-    case .switchDisplay, .assign, .save, .cancel:
+    case .switchDisplay(let key, let confirmed):
+      if s.draft.dirty && !confirmed { return (s, [.promptUnsaved(key)]) }
+      let geometry = resolveGeometry(key, topology: context.topology, assignments: context.document.assignments)
+      return (state(draft: s.draft, undo: s.undo, redo: s.redo, display: key, geometry: geometry), [])
+    case .assign, .save, .cancel:
       return (s, [])
     }
   }

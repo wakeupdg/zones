@@ -141,4 +141,45 @@ struct EditorModelTests {
       }
     }
   }
+
+  @Test func switchDisplayPromptsWhenDirty() {
+    let layout = columns(2, insets: Insets(margin: 8, gap: 4))
+    let clean = EditorModel.open(layout, display: primaryKey, topology: topology, assignments: [:])
+    let other = topology.display(leftKey)!
+
+    // Clean draft: switch and re-resolve.
+    let (switched, effects) = step(clean, .switchDisplay(leftKey, confirmed: false))
+    #expect(effects.isEmpty)
+    #expect(switched.display == leftKey)
+    #expect(switched.visibleFrame == other.visibleFrame)
+    #expect(switched.scale == other.scale)
+    #expect(switched.preview == LayoutMath.resolve(layout, key: leftKey, visibleFrame: other.visibleFrame, scale: other.scale))
+    #expect(switched.warnings == EditorEngine.warnings(switched.preview))
+    #expect(switched.draft == clean.draft)
+
+    // Dirty draft, not confirmed: unchanged state plus a prompt.
+    let (dirty, _) = step(clean, .command(.setGap(10)))
+    #expect(dirty.draft.dirty)
+    let (kept, prompt) = step(dirty, .switchDisplay(leftKey, confirmed: false))
+    #expect(kept == dirty)
+    #expect(prompt == [.promptUnsaved(leftKey)])
+
+    // Dirty draft, confirmed: switches, keeps draft and stacks.
+    let (forced, forcedEffects) = step(dirty, .switchDisplay(leftKey, confirmed: true))
+    #expect(forcedEffects.isEmpty)
+    #expect(forced.display == leftKey)
+    #expect(forced.draft == dirty.draft)
+    #expect(forced.undo == dirty.undo)
+    #expect(forced.preview == LayoutMath.resolve(dirty.draft.layout, key: leftKey, visibleFrame: other.visibleFrame, scale: other.scale))
+
+    // A disconnected Display with an Assignment uses its stored geometry.
+    let stored = CGRect(x: 0, y: 0, width: 2560, height: 1415)
+    let document = ZonesDocument(assignments: [goneUUID: assignment(frame: stored, scale: 2)])
+    let (offline, offlineEffects) = step(clean, .switchDisplay(.uuid(goneUUID), confirmed: false), document)
+    #expect(offlineEffects.isEmpty)
+    #expect(offline.display == .uuid(goneUUID))
+    #expect(offline.visibleFrame == stored)
+    #expect(offline.scale == 2)
+    #expect(offline.preview == LayoutMath.resolve(layout, key: .uuid(goneUUID), visibleFrame: stored, scale: 2))
+  }
 }
