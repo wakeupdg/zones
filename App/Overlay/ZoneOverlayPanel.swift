@@ -35,6 +35,22 @@ final class ZoneOverlayPanel: NSPanel {
     super.orderFrontRegardless()
   }
 
+  /// How many warm-up commits ran (`warmUp()`). Tests read it.
+  private(set) var warmUpCount = 0
+
+  /// Commits the layer tree once while fully transparent and then orders out again, so the window server holds a
+  /// backing store and the glyphs are rasterized before the first real `orderFrontRegardless()` (AC-040). Does not
+  /// count as an order front; the panel is hidden again before this returns.
+  func warmUp() {
+    warmUpCount += 1
+    let alpha = alphaValue
+    alphaValue = 0
+    super.orderFrontRegardless()
+    CATransaction.flush()
+    orderOut(nil)
+    alphaValue = alpha
+  }
+
   /// Resizes to the Display's `screen.frame` without redrawing; the layer view re-applies its model afterwards.
   func fit(to screenFrame: CGRect) {
     guard frame != screenFrame else { return }

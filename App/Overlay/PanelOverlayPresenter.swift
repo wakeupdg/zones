@@ -11,11 +11,15 @@ final class PanelOverlayPresenter: OverlayPresenter {
   /// Where the current Display geometry comes from. Production passes `{ displays.snapshot() }`.
   typealias TopologyProvider = @MainActor () -> TopologySnapshot
 
+  /// Zones whose layers each panel builds ahead of the first `show` (a 3x3 grid; bigger layouts build the rest on show).
+  static let prebuiltZoneCount = 9
+
   private let topologyProvider: TopologyProvider
   /// The last snapshot given to `resize(to:)`; wins over the provider until the next `resize`.
   private var topology: TopologySnapshot?
   private var panels: [DisplayKey: ZoneOverlayPanel] = [:]
   private var views: [DisplayKey: ZoneLayerView] = [:]
+  private var warmedSizes: [DisplayKey: CGSize] = [:]
   private var scene: OverlayScene?
   private var baseModels: [PanelModel] = []
   private var lastHighlight: Highlight?
@@ -76,6 +80,7 @@ final class PanelOverlayPresenter: OverlayPresenter {
     for key in panels.keys where !live.contains(key) {
       panels.removeValue(forKey: key)?.orderOut(nil)
       views.removeValue(forKey: key)
+      warmedSizes.removeValue(forKey: key)
     }
     for display in snapshot.displays {
       if let panel = panels[display.key] {
@@ -84,6 +89,7 @@ final class PanelOverlayPresenter: OverlayPresenter {
         _ = makePanel(for: display.key, frame: display.frame, scale: display.scale)
       }
     }
+    if !sessionActive { warmUpPanels() }
     guard sessionActive, let scene else { return }
     baseModels = OverlayModel.panels(scene, topology: snapshot)
     render(snapshot)
@@ -99,6 +105,18 @@ final class PanelOverlayPresenter: OverlayPresenter {
   var isSessionActive: Bool { sessionActive }
 
   // MARK: private
+
+  /// Builds every panel's layers and commits them once while the panel is ordered out (AC-040): the first `show`
+  /// then only sets values and orders front. A panel is warmed again only when its size changed.
+  private func warmUpPanels() {
+    for (key, panel) in panels {
+      guard let view = views[key] else { continue }
+      view.prebuild(zoneCount: Self.prebuiltZoneCount)
+      guard warmedSizes[key] != panel.frame.size else { continue }
+      panel.warmUp()
+      warmedSizes[key] = panel.frame.size
+    }
+  }
 
   private func currentTopology() -> TopologySnapshot { topology ?? topologyProvider() }
 
