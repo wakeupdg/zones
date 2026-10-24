@@ -1,1 +1,2 @@
 - slice 1: HitTestTests.topEdgeBelongsToDisplay green — display(at:) falls back to nearest Display within 8 pt edgeSlack (unbounded fallback broke dropOutsideSnapshotIsNoOp/dimAllNeedsAnOriginalFrame, which need nil for a Display absent from the snapshot)
+- slice 2: DragSessionReducerTests.topEdgeMouseUpSnaps green — top-edge mouse-up snaps to highlighted Zone (on a menu-bar-free Display; the primary menu-bar strip stays outside visibleFrame, hit .none, by design); green from slice 1's fix

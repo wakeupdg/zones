@@ -783,6 +783,27 @@ import ZonesWindowing
     #expect(whole.effects.filter(F.isShowOverlay).count == 1)
   }
 
+  /// QA-1.11 / LI-009: the cursor pinned at the top edge of a Display (the flip lands it on `frame.maxY`) is on
+  /// that Display, the highlight shows the top-row Zone, and the mouse-up snaps exactly there.
+  @Test func topEdgeMouseUpSnaps() throws {
+    let (armed, _) = Self.armedOverZone2()
+    let retina = F.topology.displays[1]
+    let zone1 = try #require(F.context.layouts[retina.key]?.zones.first { $0.number == 1 }).frame
+    let top = CGPoint(x: zone1.midX, y: retina.frame.maxY)
+
+    let (over, overFx) = DragSessionReducer.reduce(armed, .dragged(point: top, flags: .shift))
+    #expect(overFx == [.updateHighlight(Highlight(display: retina.key, primary: [1], secondary: [], dimAll: false))])
+
+    let (idle, fx) = DragSessionReducer.reduce(over, .mouseUp(point: top, flags: .shift))
+    #expect(idle == .idle)
+    guard case .snap(let plan)? = fx.last else {
+      Issue.record("no snap in \(fx)")
+      return
+    }
+    #expect(plan.display == retina.key)
+    #expect(plan.zones == [1])
+  }
+
   @Test func snapOnlyWithModifierAtMouseUp() throws {
     let (armed, _) = Self.armedOverZone2()
     let w = Self.windowCentered(in: 2)
