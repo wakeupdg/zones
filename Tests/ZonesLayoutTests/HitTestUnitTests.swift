@@ -106,3 +106,28 @@ struct HitTestTests {
     }
   }
 }
+
+struct LabelModelTests {
+  private let appearance = Appearance(
+    fill: RGBA(r: 0.2, g: 0.4, b: 0.8, a: 1), opacity: 0.5, defaultInsets: Insets(margin: 0, gap: 0))
+
+  @Test func textScaleAndNoChord() {
+    // 12 columns need ratios 1/12 each: right-nested splits of 1/(n-k).
+    func strip(_ n: Int) -> SplitNode {
+      n == 1 ? .leaf : .split(axis: .horizontal, ratio: 1.0 / Double(n), first: .leaf, second: strip(n - 1))
+    }
+    let r = LayoutMath.resolve(
+      makeLayout(root: strip(12)), key: .uuid("D1"), visibleFrame: CGRect(x: 0, y: 0, width: 1200, height: 800),
+      scale: 2)
+    let labels = LabelModel.labels(r, appearance: appearance)
+    #expect(labels.count == 12)
+    #expect(labels.map(\.number) == Array(1...12))
+    for (label, zone) in zip(labels, r.zones) {
+      #expect(label.text == String(label.number))
+      #expect(label.contentsScale == 2)
+      #expect(label.noChord == (label.number > 9))
+      #expect(label.frame == zone.frame)
+    }
+    #expect(labels.filter(\.noChord).map(\.number) == [10, 11, 12])
+  }
+}

@@ -5,3 +5,4 @@
 - slice 3: HitTestTests.zoneCentersAreZones green — 200 seeded layouts, zone centers hit their zone, no .none inside the frame (passes on first run; HitTest already complete from slice 2)
 - slice 4: SpanTests.unionIncludesGaps green — Span.rect bounding union, unknown numbers ignored, empty is .zero
 - slice 5: TemplateTests.focusIsOneCenteredZone green — Focus is one leaf, surround 0.2, centered 720x480 zone (passes on first run; generate and HitTest already done)
+- slice 6: LabelModelTests.textScaleAndNoChord green — LabelModel.labels with text, scale, noChord and WCAG black/white outline
