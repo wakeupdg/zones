@@ -14,11 +14,14 @@ struct Options {
   var runs = 1
   var json = false
   var trust = false
+  var pauseMs = 0       // sleep after the window is picked and before the first run (lets a script SIGSTOP the app)
+  var describe = false  // read-only: list the app's windows with role, subrole, fullscreen, settable flags
+  var seedEUI = false   // VO-off stand-in: set AXEnhancedUserInterface=true for the run set, then put the prior value back
 }
 
 func usage() -> Never {
   FileHandle.standardError.write(Data("""
-    usage: WriteProbe --bundle <id> | --pid <n>  --target x,y,w,h  [--policy toggle|leave]  [--runs N]  [--json]
+    usage: WriteProbe --bundle <id> | --pid <n>  --target x,y,w,h  [--policy toggle|leave]  [--runs N]  [--json]  [--seed-eui]
            WriteProbe --trust
     """.utf8 + [10]))
   exit(64)
@@ -44,6 +47,9 @@ func parse(_ args: [String]) -> Options {
     case "--runs": guard let n = Int(next()), n > 0 else { usage() }; o.runs = n
     case "--json": o.json = true
     case "--trust": o.trust = true
+    case "--pause-ms": guard let n = Int(next()), n >= 0 else { usage() }; o.pauseMs = n
+    case "--describe": o.describe = true
+    case "--seed-eui": o.seedEUI = true
     default: usage()
     }
     i += 1
@@ -59,7 +65,8 @@ if options.trust {
 }
 
 // Safety: refuse to run without --target (and an app to aim at).
-guard let target = options.target, options.bundle != nil || options.pid != nil else { usage() }
+guard options.bundle != nil || options.pid != nil, options.target != nil || options.describe else { usage() }
+let target = options.target ?? .zero
 
 // MARK: AX helpers
 
@@ -95,10 +102,11 @@ func writeSize(_ w: AXUIElement, _ s: CGSize) -> AXError {
 func monotonicMs() -> Double { Double(DispatchTime.now().uptimeNanoseconds) / 1_000_000 }
 
 func pickWindow(_ app: AXUIElement) -> AXUIElement? {
+  func isStandard(_ w: AXUIElement) -> Bool { axCopy(w, kAXSubroleAttribute).1 as? String == "AXStandardWindow" }
   let (e, v) = axCopy(app, kAXFocusedWindowAttribute)
-  if e == .success, let v { return (v as! AXUIElement) }
+  if e == .success, let v, isStandard(v as! AXUIElement) { return (v as! AXUIElement) }
   let (e2, ws) = axCopy(app, kAXWindowsAttribute)
-  if e2 == .success, let arr = ws as? [AXUIElement], let first = arr.first { return first }
+  if e2 == .success, let arr = ws as? [AXUIElement] { return arr.first(where: isStandard) ?? arr.first }
   return nil
 }
 
@@ -129,6 +137,8 @@ struct SnapOutcome {
   var enhAfter: Bool?
   var restored: Bool
   var topLeftAligned: Bool
+  var enhOffCode: Int32?   // AXError of the toggle-off write (nil when not attempted)
+  var enhOnCode: Int32?    // AXError of the restore write (nil when not attempted)
 }
 
 enum Seq { case ok([Int32]), timeout([Int32]), gone([Int32]), refused([Int32], Int32) }
@@ -159,9 +169,15 @@ func snap(app: AXUIElement, window: AXUIElement, target t: CGRect, policy: Polic
   let start = monotonicMs()
   let before = readEnhanced(app)
   var toggled = false
+  var offCode: Int32?
+  var onCode: Int32?
   var during: Bool? = before
   if policy == .toggle, before == true {
-    if setEnhanced(app, false) == .success { toggled = true; during = readEnhanced(app) }
+    let oe = setEnhanced(app, false)
+    offCode = oe.rawValue
+    // Some apps answer the set with AXError -25208 yet apply it: trust the read-back, not the return code.
+    during = readEnhanced(app)
+    toggled = (during == false)
   }
   var restored = true
   // Single-exit function: no early return between the toggle and the restore below, so the restore runs on every path.
@@ -195,10 +211,10 @@ func snap(app: AXUIElement, window: AXUIElement, target t: CGRect, policy: Polic
   let wall = monotonicMs() - start
   if toggled {
     let e = setEnhanced(app, true)
-    restored = (e == .success)
+    onCode = e.rawValue
   }
   let after = readEnhanced(app)
-  if toggled { restored = restored && after == true }
+  restored = (after == before)  // the prior value is back (or was never changed)
   var delta: [Double] = []
   var aligned = false
   if result == "applied", let rb {
@@ -208,7 +224,7 @@ func snap(app: AXUIElement, window: AXUIElement, target t: CGRect, policy: Polic
   }
   return SnapOutcome(result: result, codes: codes, readBack: rb, delta: delta, wallMs: wall, attempts: attempts,
                      attemptMs: attemptMs, enhBefore: before, enhDuring: during, enhAfter: after,
-                     restored: restored, topLeftAligned: aligned)
+                     restored: restored, topLeftAligned: aligned, enhOffCode: offCode, enhOnCode: onCode)
 }
 
 // MARK: Run
@@ -229,6 +245,22 @@ guard let pid = resolvePid() else {
 }
 let appEl = AXUIElementCreateApplication(pid)
 AXUIElementSetMessagingTimeout(appEl, 0.25)  // ADR-0015
+if options.describe {
+  let (we, ws) = axCopy(appEl, kAXWindowsAttribute)
+  let arr = (ws as? [AXUIElement]) ?? []
+  print("pid \(pid) AXWindows err=\(we.rawValue) count=\(arr.count)")
+  func describeOne(_ label: String, _ w: AXUIElement) {
+    func str(_ a: String) -> String { let (e, v) = axCopy(w, a); return e == .success ? "\(v!)" : "err\(e.rawValue)" }
+    func settable(_ a: String) -> String { var b: DarwinBoolean = false; let e = AXUIElementIsAttributeSettable(w, a as CFString, &b); return e == .success ? "\(b.boolValue)" : "err\(e.rawValue)" }
+    let f = readFrame(w)
+    print("  \(label) title=\(str(kAXTitleAttribute)) role=\(str(kAXRoleAttribute)) sub=\(str(kAXSubroleAttribute)) fullscreen=\(str("AXFullScreen")) minimized=\(str(kAXMinimizedAttribute)) frame=\(fmt(f.1)) (err \(f.0.rawValue)) posSettable=\(settable(kAXPositionAttribute)) sizeSettable=\(settable(kAXSizeAttribute))")
+  }
+  for (i, w) in arr.enumerated() { describeOne("[\(i)]", w) }
+  let (fe, fv) = axCopy(appEl, kAXFocusedWindowAttribute)
+  print("  AXFocusedWindow err=\(fe.rawValue) \(fv == nil ? "nil" : "present")")
+  if let fv { describeOne("focused", fv as! AXUIElement) }
+  exit(0)
+}
 guard let win = pickWindow(appEl) else {
   FileHandle.standardError.write(Data("no window found (or AX read timed out)\n".utf8)); exit(5)
 }
@@ -238,6 +270,16 @@ guard let original = originalOpt else {
   FileHandle.standardError.write(Data("cannot read original frame (AX error \(origErr.rawValue))\n".utf8)); exit(6)
 }
 
+let runSetStart = monotonicMs()
+var seedNote = ""
+let seedPrior = readEnhanced(appEl)
+if options.seedEUI {
+  if seedPrior == true { seedNote = "seed: already true" } else {
+    let e = setEnhanced(appEl, true)
+    seedNote = "seed: set true -> AXError \(e.rawValue) (prior \(seedPrior.map { String($0) } ?? "absent"))"
+  }
+}
+if options.pauseMs > 0 { Thread.sleep(forTimeInterval: Double(options.pauseMs) / 1000) }
 var outcomes: [SnapOutcome] = []
 for n in 1...options.runs {
   // Alternate between the target and the original so each run actually moves the window.
@@ -253,6 +295,7 @@ for n in 1...options.runs {
       "enhBefore": o.enhBefore.map { $0 as Any } ?? NSNull(), "enhDuring": o.enhDuring.map { $0 as Any } ?? NSNull(),
       "enhAfter": o.enhAfter.map { $0 as Any } ?? NSNull(), "restored": o.restored,
       "topLeftAligned": o.topLeftAligned,
+      "enhOffCode": o.enhOffCode.map { Int($0) as Any } ?? NSNull(), "enhOnCode": o.enhOnCode.map { Int($0) as Any } ?? NSNull(),
     ]
     if let data = try? JSONSerialization.data(withJSONObject: d, options: [.sortedKeys]) {
       print(String(decoding: data, as: UTF8.self))
@@ -262,7 +305,14 @@ for n in 1...options.runs {
 
 // Always restore the original frame at the end of the run set.
 let restoreOutcome = snap(app: appEl, window: win, target: original, policy: options.policy)
-let (_, finalFrame) = readFrame(win)
+let readStart = monotonicMs()
+let (finalErr, finalFrame) = readFrame(win)
+let finalReadMs = monotonicMs() - readStart
+let totalMs = monotonicMs() - runSetStart
+if options.seedEUI, seedPrior != true {
+  let e = setEnhanced(appEl, seedPrior ?? false)
+  seedNote += "; seed restore -> AXError \(e.rawValue), now \(readEnhanced(appEl).map { String($0) } ?? "absent")"
+}
 
 // Markdown row: app | policy | runs | applied/clamped/refused/timedOut | median ms | max ms | max |delta| | enh before->after | restored
 func count(_ all: [SnapOutcome], _ p: (String) -> Bool) -> Int { all.filter { p($0.result) }.count }
@@ -275,4 +325,4 @@ let allRestored = outcomes.allSatisfy(\.restored) && restoreOutcome.restored
 let frameBack = finalFrame.map { abs($0.minX - original.minX) <= 1 && abs($0.minY - original.minY) <= 1
   && abs($0.width - original.width) <= 1 && abs($0.height - original.height) <= 1 } ?? false
 let label = options.bundle ?? "pid\(pid)"
-print("| \(label) | \(options.policy.rawValue) | \(outcomes.count) | \(count(outcomes) { $0 == "applied" })/\(count(outcomes) { $0 == "clamped" })/\(count(outcomes) { $0.hasPrefix("refused") })/\(count(outcomes) { $0 == "timedOut" }) | \(String(format: "%.1f", median)) | \(String(format: "%.1f", walls.last ?? 0)) | \(String(format: "%.1f", maxDelta)) | \(enhB)->\(enhA) | \(allRestored ? "yes" : "no") | frame restored: \(frameBack ? "yes" : "no") |")
+print("| \(label) | \(options.policy.rawValue) | \(outcomes.count) | \(count(outcomes) { $0 == "applied" })/\(count(outcomes) { $0 == "clamped" })/\(count(outcomes) { $0.hasPrefix("refused") })/\(count(outcomes) { $0 == "timedOut" }) | \(String(format: "%.1f", median)) | \(String(format: "%.1f", walls.last ?? 0)) | \(String(format: "%.1f", maxDelta)) | \(enhB)->\(enhA) | \(allRestored ? "yes" : "no") | frame restored: \(frameBack ? "yes" : "no") | \(seedNote) | final read: AXError \(finalErr.rawValue) in \(String(format: "%.1f", finalReadMs)) ms; run set wall \(String(format: "%.0f", totalMs)) ms |")
