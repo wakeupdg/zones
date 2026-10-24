@@ -39,9 +39,25 @@ enum SpanLogic {
     }
   }
 
+  /// The Span after the cursor moves to `cursor`: with the Span Modifier down, a Zone entered joins the set.
+  /// Only a `.zone` hit adds; a Gap, Margin or surround (`.nearest`) is not a Zone entered.
+  static func accumulate(_ span: SpanState, at cursor: Cursor, flags: ModifierSet, config: ModifierConfig)
+    -> SpanState
+  {
+    var next = span
+    guard flags.contains(ModifierSet(config.span)), !span.frozen, case .zone(let n) = cursor.hit else { return next }
+    if next.zones.isEmpty { next.display = cursor.display }
+    next.zones.insert(n)
+    return next
+  }
+
+  /// What a drop at `cursor` does, given the Span as it stands after `accumulate`.
   static func drop(at cursor: Cursor, span: SpanState, in ctx: ArmContext) -> Drop {
     if case .none = cursor.hit {
       return Drop(display: cursor.display, zones: [], secondary: [], restore: ctx.hasOriginalFrame)
+    }
+    if !span.zones.isEmpty {
+      return Drop(display: span.display, zones: span.zones, secondary: [], restore: false)
     }
     return Drop(display: cursor.display, zones: zones(of: cursor.hit), secondary: [], restore: false)
   }
