@@ -253,4 +253,47 @@ import ZonesWindowing
     }
     #expect(restores > 0, "restore exercised: \(restores)")
   }
+
+  /// Both modifiers down, a drag through several Zones, then the generated stream: the Span is non-empty early.
+  static func directedPrefix(seed: UInt64, then random: [DragEvent]) -> [DragEvent] {
+    var g = Generator(seed: seed &+ 7_000)
+    let both = ModifierSet(F.config.activation).union(ModifierSet(F.config.span))
+    var events: [DragEvent] = [F.mouseDown(flags: both), .dragged(point: F.center(1), flags: both)]
+    for _ in 0..<g.int(2...5) { events.append(.dragged(point: F.center(g.int(1...9)), flags: both)) }
+    return events + random
+  }
+
+  // Slice 6 (AC-166): releasing then pressing the Span Modifier again keeps the Span's Zone set.
+  @Test func spanReleaseThenRepressPreservesSet() {
+    let activation = ModifierSet(F.config.activation)
+    let spanKey = ModifierSet(F.config.span)
+    var seedsHit: Set<UInt64> = []
+    var forks = 0
+    for seed in Self.seeds {
+      var g = Generator(seed: seed)
+      let random = g.dragEvents(count: Self.eventCount, context: Self.context(for: seed), config: F.config)
+      for steps in [
+        Self.drive(seed: seed),
+        Self.drive(seed: seed, events: Self.directedPrefix(seed: seed, then: random)),
+      ] {
+        for step in steps {
+          guard case .armed(_, _, let flags, _, _, let display, let hit, let span) = step.after,
+            !span.zones.isEmpty, !span.suspended, flags.contains(activation), flags.contains(spanKey)
+          else { continue }
+          forks += 1
+          seedsHit.insert(seed)
+          let released = DragSessionReducer.reduce(step.after, .flagsChanged(flags.subtracting(spanKey)))
+          let repressed = DragSessionReducer.reduce(released.0, .flagsChanged(flags))
+          guard case .armed(_, _, _, _, _, _, _, let after) = repressed.0 else {
+            Issue.record(Self.message(seed, "release/re-press left armed: \(repressed.0)"))
+            continue
+          }
+          #expect(
+            after.zones == span.zones,
+            Self.message(seed, "span \(span.zones) became \(after.zones) via release/re-press at \(display as Any) \(hit)"))
+        }
+      }
+    }
+    #expect(seedsHit.count >= 50, "non-empty Span forks hit on \(seedsHit.count) seeds (\(forks) forks)")
+  }
 }
