@@ -376,6 +376,33 @@ func write(_ text: String, to url: URL) throws {
     #expect(text.contains("ticket/**"))
     #expect(text.contains("integration"))
   }
+  @Test func ciPipedStepsUsePipefail() throws {
+    let text = try String(
+      contentsOf: repoRoot().appendingPathComponent(".github/workflows/ci.yml"), encoding: .utf8)
+    let lines = text.components(separatedBy: "\n")
+    let jobShellBash = lines.contains { $0.trimmingCharacters(in: .whitespaces) == "shell: bash" }
+    var uncovered: [String] = []
+    for (index, line) in lines.enumerated() {
+      let trimmed = line.trimmingCharacters(in: .whitespaces)
+      guard trimmed.hasPrefix("run:") || trimmed.hasPrefix("- run:") else { continue }
+      // A run step is its own line plus any deeper-indented block lines after it.
+      let indent = line.prefix { $0 == " " }.count
+      var block = [trimmed]
+      for next in lines[(index + 1)...] {
+        let nextIndent = next.prefix { $0 == " " }.count
+        if next.trimmingCharacters(in: .whitespaces).isEmpty || nextIndent > indent {
+          block.append(next)
+        } else {
+          break
+        }
+      }
+      let joined = block.joined(separator: "\n")
+      let piped = joined.replacingOccurrences(of: "||", with: "").contains("|")
+      if piped && !jobShellBash && !joined.contains("set -o pipefail") { uncovered.append(trimmed) }
+    }
+    #expect(uncovered.isEmpty, "piped steps without pipefail: \(uncovered)")
+  }
+
   // MARK: slice 6, release files (AC-168 structure, Casks)
 
   func matchCount(_ text: String, _ pattern: String) throws -> Int {

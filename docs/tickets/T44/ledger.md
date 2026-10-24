@@ -1,0 +1,1 @@
+- slice 1: GateScriptTests.ciPipedStepsUsePipefail green — ci.yml job-level defaults.run.shell: bash
