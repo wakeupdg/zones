@@ -245,13 +245,15 @@ import ZonesWindowing
     #expect(span.zones == [1, 2, 3])
     #expect(span.display == F.primaryKey)
     #expect(
-      Self.lastHighlight(run.effects) == Highlight(display: b, primary: [2], secondary: [1, 2, 3], dimAll: false))
+      Self.lastHighlight(run.effects) == Highlight(
+          display: b, primary: [2], secondary: [1, 2, 3], secondaryDisplay: F.primaryKey, dimAll: false))
 
     // Sweeping on B with the Span Modifier down adds nothing; releasing and pressing it changes only the flag.
     run = Self.step(run.state, [Self.drag(to: Self.center(5, onDisplay: 1))])
     #expect(Self.span(run.state).zones == [1, 2, 3])
     #expect(
-      Self.lastHighlight(run.effects) == Highlight(display: b, primary: [5], secondary: [1, 2, 3], dimAll: false))
+      Self.lastHighlight(run.effects) == Highlight(
+          display: b, primary: [5], secondary: [1, 2, 3], secondaryDisplay: F.primaryKey, dimAll: false))
     run = Self.step(run.state, [.flagsChanged(.shift), .flagsChanged(Self.shiftControl)])
     span = Self.span(run.state)
     #expect(span.zones == [1, 2, 3])

@@ -8,11 +8,17 @@ public struct Highlight: Hashable, Sendable {
   public var display: DisplayKey?
   public var primary: Set<Int>
   public var secondary: Set<Int>
+  /// The Display whose panel paints `secondary`. `nil` means `display` (the cursor's Display); a suspended Span
+  /// sets it to the Span's Display, because its Zone numbers belong to that Display's layout (QA-1.12).
+  public var secondaryDisplay: DisplayKey?
   public var dimAll: Bool
-  public init(display: DisplayKey?, primary: Set<Int>, secondary: Set<Int>, dimAll: Bool) {
+  public init(
+    display: DisplayKey?, primary: Set<Int>, secondary: Set<Int>, secondaryDisplay: DisplayKey? = nil, dimAll: Bool
+  ) {
     self.display = display
     self.primary = primary
     self.secondary = secondary
+    self.secondaryDisplay = secondaryDisplay
     self.dimAll = dimAll
   }
 }

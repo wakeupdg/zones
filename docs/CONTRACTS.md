@@ -188,6 +188,7 @@ public enum Grid {   // dividers and gap rounded once to 1/scale; shared divider
 public enum Hit: Hashable, Sendable { case zone(Int), nearest(Int), none }   // none only outside the visible frame
 public enum HitTest { public static func hit(_ point: CGPoint, in layout: ResolvedLayout) -> Hit   // nearest = min edge distance, ties to lower number (AC-080)
   public static func display(at point: CGPoint, in snapshot: TopologySnapshot) -> DisplayKey? }
+// T45: half-open per frame; a point in no frame falls back to the nearest non-mirrored Display within 8 pt (top/right edge of the outermost Display), else nil.
 public enum Span { public static func rect(_ zones: Set<Int>, in layout: ResolvedLayout) -> CGRect }   // bounding union incl. gaps (AC-081)
 public enum Templates {   // ids "builtin:<camelCase>:<count>", deterministic order (AC-114); Focus: one leaf, surround 0.2
   public static func builtInID(_ t: Template, count: Int) -> LayoutID; public static func generate(_ t: Template, count: Int, insets: Insets) -> Layout
@@ -281,7 +282,8 @@ applied through the injected `FakeClock`, and `reset()`. `FakeClock` exposes `pe
 ```swift
 public struct ModifierConfig: Hashable, Sendable { public var activation: Modifier; public var span: Modifier }   // read at mouseDown only (AC-111)
 public struct SpanState: Hashable, Sendable { public var zones: Set<Int>; public var display: DisplayKey?; public var frozen: Bool; public var suspended: Bool }
-public struct Highlight: Hashable, Sendable { public var display: DisplayKey?; public var primary: Set<Int>; public var secondary: Set<Int>; public var dimAll: Bool }
+public struct Highlight: Hashable, Sendable { public var display: DisplayKey?; public var primary: Set<Int>; public var secondary: Set<Int>; public var secondaryDisplay: DisplayKey? /* nil = display; a suspended Span sets its own Display */; public var dimAll: Bool }
+// init(display:primary:secondary:secondaryDisplay: = nil, dimAll:). T45: `secondary` paints on the panel of `secondaryDisplay ?? display`, `primary` on `display`'s.
 public struct OverlayScene: Hashable, Sendable { public var layouts: [ResolvedLayout]; public var appearance: Appearance; public var options: AccessibilityOptions }
 public struct AccessibilityOptions: Hashable, Sendable { public var reduceTransparency: Bool; public var reduceMotion: Bool }
 public enum SampleResult: Hashable, Sendable { case frame(CGRect, WindowFacts?), timedOut, gone }

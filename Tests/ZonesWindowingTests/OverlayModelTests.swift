@@ -104,6 +104,30 @@ import ZonesWindowing
     #expect(OverlayModel.apply(Highlight(display: nil, primary: [], secondary: [], dimAll: false), to: out) == base)
   }
 
+  /// QA-1.12 / AC-085: a suspended Span stays drawn dimmer on its own Display while the cursor Zone is drawn on
+  /// the Display the cursor is on.
+  @Test func suspendedSecondaryOnSpanDisplay() {
+    let base = OverlayModel.panels(Self.scene(opacity: 0.5), topology: Self.topology)
+    let a = Self.topology.displays[0].key
+    let b = Self.topology.displays[1].key
+    let h = Highlight(display: b, primary: [1], secondary: [1, 2, 3], secondaryDisplay: a, dimAll: false)
+    let out = OverlayModel.apply(h, to: base)
+    let sa = base[0].style
+    for z in out[0].zones {
+      #expect(z.fill == ([1, 2, 3].contains(z.number) ? sa.secondary : sa.idle), "A zone \(z.number)")
+    }
+    let sb = base[1].style
+    for z in out[1].zones {
+      #expect(z.fill == (z.number == 1 ? sb.highlight : sb.idle), "B zone \(z.number)")
+    }
+    for z in out[2].zones { #expect(z.fill == out[2].style.idle) }
+
+    // dimAll still wins everywhere.
+    let dim = OverlayModel.apply(
+      Highlight(display: b, primary: [], secondary: [1], secondaryDisplay: a, dimAll: true), to: base)
+    for p in dim { for z in p.zones { #expect(z.fill == p.style.dim) } }
+  }
+
   /// WCAG 2 contrast ratio, written independently of LabelModel.
   static func contrast(_ a: RGBA, _ b: RGBA) -> Double {
     func lin(_ v: Double) -> Double { v <= 0.04045 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4) }

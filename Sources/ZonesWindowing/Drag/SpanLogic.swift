@@ -17,11 +17,14 @@ enum SpanLogic {
     var display: DisplayKey?
     var zones: Set<Int>
     var secondary: Set<Int>
+    /// The Display `secondary` belongs to: the suspended Span's Display, nil when there is no secondary set.
+    var secondaryDisplay: DisplayKey?
     /// A `none` hit with an Original Frame: every fill dims and the drop restores (ADR-0009).
     var restore: Bool
 
     var highlight: Highlight {
-      Highlight(display: display, primary: zones, secondary: secondary, dimAll: restore)
+      Highlight(
+        display: display, primary: zones, secondary: secondary, secondaryDisplay: secondaryDisplay, dimAll: restore)
     }
   }
 
@@ -70,16 +73,21 @@ enum SpanLogic {
   }
 
   /// What a drop at `cursor` does, given the Span as it stands after `accumulate`. While the Span is suspended
-  /// the cursor Zone alone is the drop and the suspended set rides along as the secondary highlight.
+  /// the cursor Zone alone is the drop and the suspended set rides along as the secondary highlight on the Span's own Display.
   static func drop(at cursor: Cursor, span: SpanState, in ctx: ArmContext) -> Drop {
     let secondary = span.suspended ? span.zones : []
+    let secondaryDisplay = span.suspended ? span.display : nil
     if case .none = cursor.hit {
-      return Drop(display: cursor.display, zones: [], secondary: secondary, restore: ctx.hasOriginalFrame)
+      return Drop(
+        display: cursor.display, zones: [], secondary: secondary, secondaryDisplay: secondaryDisplay,
+        restore: ctx.hasOriginalFrame)
     }
     if span.suspended || span.zones.isEmpty {
-      return Drop(display: cursor.display, zones: zones(of: cursor.hit), secondary: secondary, restore: false)
+      return Drop(
+        display: cursor.display, zones: zones(of: cursor.hit), secondary: secondary,
+        secondaryDisplay: secondaryDisplay, restore: false)
     }
-    return Drop(display: span.display, zones: span.zones, secondary: [], restore: false)
+    return Drop(display: span.display, zones: span.zones, secondary: [], secondaryDisplay: nil, restore: false)
   }
 
   /// The `updateHighlight` that moves the overlay from `old` to `new`; nothing when the highlight is unchanged.
