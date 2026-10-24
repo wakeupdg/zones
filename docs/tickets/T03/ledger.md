@@ -1,0 +1,1 @@
+- slice 1: selfTest.statsAndTables green — Package.swift + stats/table helpers + --self-test (6 checks)
