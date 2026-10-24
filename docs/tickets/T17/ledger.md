@@ -1,1 +1,2 @@
 - slice 1: AssignmentLookupTests.unknownDisplayGetsPriorityGrid green — AssignmentLookup.layoutID (session, persisted, Priority Grid default)
+- slice 2: AssignmentLookupTests.sessionOverridesPersisted green — already satisfied by slice 1 implementation (test added, no new code)
