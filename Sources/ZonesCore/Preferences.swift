@@ -54,18 +54,29 @@ public struct Preferences: Hashable, Codable, Sendable {
     return copy
   }
 
+  /// AC-097 / ADR-0010: Control+Option+1..9 sendToZone, Right/Left cycle, R restore, E openEditor, Comma
+  /// openSettings. Core cannot import ZonesWindowing, so the shortcut ticket's `ShortcutRules.defaults` returns this.
+  public static let defaultShortcuts: [Shortcut] = {
+    let modifiers: ModifierSet = [.control, .option]
+    let digits = (1...9).map { Shortcut(action: .sendToZone($0), chord: Chord(key: .digit($0), modifiers: modifiers)) }
+    return digits + [
+      Shortcut(action: .cycleRight, chord: Chord(key: .arrowRight, modifiers: modifiers)),
+      Shortcut(action: .cycleLeft, chord: Chord(key: .arrowLeft, modifiers: modifiers)),
+      Shortcut(action: .restore, chord: Chord(key: .letter("r"), modifiers: modifiers)),
+      Shortcut(action: .openEditor, chord: Chord(key: .letter("e"), modifiers: modifiers)),
+      Shortcut(action: .openSettings, chord: Chord(key: .comma, modifiers: modifiers)),
+    ]
+  }()
+
   public static let defaults = Preferences(
     schemaVersion: Constants.preferencesSchema,
     activationModifier: .shift,
     spanModifier: .control,
-    shortcuts: [],  // shortcut ticket sets ShortcutRules.defaults
+    shortcuts: defaultShortcuts,
     appearance: Appearance(
-      fill: RGBA(r: 0.0, g: 0.478, b: 1.0, a: 1.0), opacity: 0.35,
+      fill: RGBA(r: 0.2, g: 0.5, b: 1.0, a: 1.0), opacity: 0.3,
       defaultInsets: Insets(margin: 8, gap: 8)),
     exclusions: [],
     enhancedUI: .toggle,
     notices: [])
 }
-
-/// UserDefaults key "zones.preferences" holds the JSON blob. `decode` and `encode` belong to the preferences ticket.
-public enum PreferencesCodec {}

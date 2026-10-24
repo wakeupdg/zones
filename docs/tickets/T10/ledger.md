@@ -15,3 +15,5 @@
 - slice 8: MigrationTests.migrationWritesBackupFirst green — backup written before migrated file, .migrated(doc, from:, backup:)
 - slice 9: FixtureHashTests green — SHA-256 table over goldens, highest fixture equals Constants.documentVersion (mutation-checked red)
 - slice 10: PreferencesTests.modifiersMustDiffer green — Preferences.coerced() keeps Activation, Span becomes control (shift when Activation is control), flag only on change
+- slice 11: PreferencesTests.fieldByFieldCoercion green — PreferencesCodec decode/encode, Preferences.defaultShortcuts, defaults per brief (fill 0.2/0.5/1.0, opacity 0.3)
+- note: non-object blob returns exactly Preferences.defaults with ["*"] (no notice flag added); missing fields default silently, present-but-invalid are reported; action field names are case names, sendToZone as sendToZone<N>
