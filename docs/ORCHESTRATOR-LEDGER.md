@@ -18,3 +18,4 @@ One line per completed orchestration step. Read this plus docs/tickets/graph.jso
 - P4 QA round 2 done (wf_a7535752-7aa): 11 raw, 10 confirmed, 1 dropped; fix tickets T47-T51; hook ~9.37M so no round 3 (10M rule) — after T47-T51 go to Phase 5
 - T52 (CI triggers, ADR-0026, C11, AC-160 amended) built on ticket/T52 by the orchestrator per user decision; merges after the T47-T51 run ends. Repo goes public at release; fallback: public early with a pre-release/buggy README banner
 - P4 fix run 2 done (wf_ece33885-a2e): T47-T51 merged
+- 8:47 AM PT: user approved making wakeupdg/zones public at release with the personal commit email visible; user will run scripts/dev-cert.sh --harden. Switch happens after T53/T54 merge, before the draft PR.
