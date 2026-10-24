@@ -4,3 +4,4 @@ T02 started
 - slice 3: FakeContractTests.windowEnumerator green — FakeWindowEnumerator (FIFO lists per method, candidates logged with hint, latency, reset); tests qualify ZonesCore.WindowRef because ApplicationServices has a WindowRef too
 - slice 4: FakeContractTests.inputSource green — FakeInputSource (start/reenable/recreate queues, emit event and signal, streams finish on reset)
 - slice 5: FakeContractTests.displayProvider green — FakeDisplayProvider (snapshot queue repeats last, emit(change) on changes, latency, reset)
+- slice 6: FakeContractTests.overlayPresenter green — FakeOverlayPresenter (@MainActor recorder, isShown, latency, reset; no queue since methods return nothing)

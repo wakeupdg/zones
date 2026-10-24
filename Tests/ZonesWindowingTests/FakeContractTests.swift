@@ -201,4 +201,44 @@ import ZonesWindowing
     #expect(dp.calls.isEmpty)
     #expect(dp.snapshot().displays.isEmpty)
   }
+
+  @Test @MainActor func overlayPresenter() {
+    let clock = FakeClock()
+    let overlay = FakeOverlayPresenter(clock: clock)
+    let scene = OverlayScene(
+      layouts: [],
+      appearance: Appearance(
+        fill: RGBA(r: 0, g: 0.5, b: 1, a: 1), opacity: 0.4, defaultInsets: Insets(margin: 0, gap: 0)),
+      options: AccessibilityOptions(reduceTransparency: false, reduceMotion: false))
+    let light = Highlight(display: nil, primary: [1, 2], secondary: [3], dimAll: false)
+
+    #expect(!overlay.isShown)
+    overlay.show(scene)
+    #expect(overlay.isShown)
+    overlay.highlight(light)
+    #expect(overlay.isShown)
+    overlay.hide()
+    #expect(!overlay.isShown)
+    overlay.show(scene)
+    overlay.reassert()
+    overlay.orderOut()
+    #expect(!overlay.isShown)
+    overlay.resize(to: Fixtures.threeDisplays)
+    #expect(
+      overlay.calls == [
+        .show(scene), .highlight(light), .hide, .show(scene), .reassert, .orderOut,
+        .resize(Fixtures.threeDisplays),
+      ])
+
+    // Latency 2 completes at the second advance(by: 1).
+    overlay.reset()
+    #expect(overlay.calls.isEmpty)
+    #expect(!overlay.isShown)
+    overlay.latency = 2
+    overlay.hide()
+    clock.advance(by: 1)
+    #expect(overlay.completed.isEmpty)
+    clock.advance(by: 1)
+    #expect(overlay.completed == [.hide])
+  }
 }
