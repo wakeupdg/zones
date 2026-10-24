@@ -2,3 +2,4 @@
 - slice 2: DragSessionReducerTests.clickRequestsNoSample green — idle mouseDown and pressed mouseUp/windowGone, DragFixtures harness
 - CONTRACT-NOTE: armed entry has hit .none until the replayed dragged
 - slice 3: DragSessionReducerTests.overlayOnlyAfterMovedSample green — pressed dragged/frameSample/flagsChanged, moving armContext to armed
+- slice 4: DragSessionReducerTests.modifierFirstArmsAfterMove green — passed on first run, slice 3 logic already covers it

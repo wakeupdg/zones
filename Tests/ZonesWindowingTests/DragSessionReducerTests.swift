@@ -63,4 +63,16 @@ import ZonesWindowing
     #expect(F.isArmed(state))
     #expect(fx.filter(F.isShowOverlay).count == 1)
   }
+
+  @Test func modifierFirstArmsAfterMove() throws {
+    let r = F.run([.flagsChanged(.shift), F.mouseDown(flags: .shift), F.dragged(), F.moved()])
+    #expect(F.isArmed(r.state))
+    let overlays = r.effects.compactMap { fx -> OverlayScene? in
+      if case .showOverlay(let scene) = fx { scene } else { nil }
+    }
+    #expect(overlays.count == 1)
+    let scene = try #require(overlays.first)
+    #expect(scene.layouts.count == Fixtures.threeDisplays.displays.count)
+    #expect(Set(scene.layouts.map(\.display)) == Set(Fixtures.threeDisplays.displays.map(\.key)))
+  }
 }
