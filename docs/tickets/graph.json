@@ -1,1 +1,1223 @@
-[]
+[
+ {
+  "id": "T01",
+  "title": "Scaffold A: Package.swift, ZonesCore/ZonesLayout contract types, test support, smoke tests",
+  "kind": "prefactor",
+  "delivers": "Root Package.swift (ZonesCore, ZonesLayout, ZonesWindowing stub, ZonesTestSupport, three test targets, Swift 6 language mode, warnings as errors); verbatim ZonesCore and ZonesLayout contract types from CONTRACTS \u00a71 and \u00a74 (Generator, FakeClock, Fixtures); WindowActor global actor; one smoke test per test target; scripts/bootstrap.sh exits 0; swift test passes; CI workflow runs swift test.",
+  "acceptance_ids": [
+   "AC-160"
+  ],
+  "blocked_by": [],
+  "files_expected": [
+   "Package.swift",
+   "Sources/ZonesCore/Geometry.swift",
+   "Sources/ZonesCore/CoordinateSpace.swift",
+   "Sources/ZonesCore/Layout.swift",
+   "Sources/ZonesCore/Template.swift",
+   "Sources/ZonesCore/Display.swift",
+   "Sources/ZonesCore/Assignment.swift",
+   "Sources/ZonesCore/Window.swift",
+   "Sources/ZonesCore/Preferences.swift",
+   "Sources/ZonesCore/Shortcut.swift",
+   "Sources/ZonesCore/Results.swift",
+   "Sources/ZonesCore/Clock.swift",
+   "Sources/ZonesCore/Log.swift",
+   "Sources/ZonesCore/FileSystem.swift",
+   "Sources/ZonesCore/Documents.swift",
+   "Sources/ZonesCore/Constants.swift",
+   "Sources/ZonesLayout/ZonesLayout.swift",
+   "Sources/ZonesTestSupport/Generator.swift",
+   "Sources/ZonesTestSupport/FakeClock.swift",
+   "Sources/ZonesTestSupport/Fixtures.swift",
+   "Tests/ZonesCoreTests/SmokeTests.swift",
+   "Tests/ZonesLayoutTests/SmokeTests.swift",
+   "Tests/ZonesWindowingTests/SmokeTests.swift",
+   "scripts/bootstrap.sh"
+  ],
+  "est_tokens": 172555,
+  "brief_path": "docs/tickets/T01.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ },
+ {
+  "id": "T01b",
+  "title": "Scaffold B: ZonesWindowing seams and shared message types, XcodeGen menu-bar app shell",
+  "kind": "prefactor",
+  "delivers": "Verbatim seam protocols (WindowHandle as the single @unchecked Sendable, WindowSystem, WindowEnumerator, InputSource, DisplayProvider, OverlayPresenter, HotkeyRegistrar, LoginItemService, PermissionProbe) and shared message types (CONTRACTS \u00a73.0, \u00a73.1, \u00a73.2 shells, \u00a73.5, \u00a73.9); project.yml for the XcodeGen app target Zones under App/ (LSUIElement, hardened runtime, no sandbox, strict concurrency, warnings as errors, Zones Dev identity when present) with AppTests skeleton; a menu-bar shell with a status item and Quit that launches and quits; xcodebuild build green.",
+  "acceptance_ids": [
+   "AC-001",
+   "AC-161"
+  ],
+  "blocked_by": [
+   "T01"
+  ],
+  "files_expected": [
+   "project.yml",
+   "Sources/ZonesWindowing/Seams/WindowHandle.swift",
+   "Sources/ZonesWindowing/Seams/WindowActor.swift",
+   "Sources/ZonesWindowing/Seams/WindowSystem.swift",
+   "Sources/ZonesWindowing/Seams/WindowEnumerator.swift",
+   "Sources/ZonesWindowing/Seams/InputSource.swift",
+   "Sources/ZonesWindowing/Seams/DisplayProvider.swift",
+   "Sources/ZonesWindowing/Seams/OverlayPresenter.swift",
+   "Sources/ZonesWindowing/Seams/HotkeyRegistrar.swift",
+   "Sources/ZonesWindowing/Seams/LoginItemService.swift",
+   "Sources/ZonesWindowing/Seams/PermissionProbe.swift",
+   "Sources/ZonesWindowing/Drag/DragTypes.swift",
+   "Sources/ZonesWindowing/Snap/SnapTypes.swift",
+   "Sources/ZonesWindowing/Permission/PermissionTypes.swift",
+   "Sources/ZonesWindowing/Shell/LifecycleTypes.swift",
+   "App/Zones.swift",
+   "App/AppDelegate.swift",
+   "App/Zones.entitlements",
+   "AppTests/SmokeTests.swift"
+  ],
+  "est_tokens": 150555,
+  "brief_path": "docs/tickets/T01b.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ },
+ {
+  "id": "T02",
+  "title": "ZonesTestSupport fakes for every seam, FakeFileSystem, generator failure reporter",
+  "kind": "build",
+  "delivers": "Scriptable fakes for WindowSystem (@WindowActor), WindowEnumerator, InputSource, DisplayProvider, OverlayPresenter (@MainActor), HotkeyRegistrar (@MainActor), LoginItemService (@MainActor), PermissionProbe, FileSystem (failAfterBytes) and ArrayLogSink, each with a response queue (enqueue), a typed call log (calls), latency applied through the injected FakeClock, and reset(); FakeContractTests with one case per seam; Generator.failureMessage containing the seed as an integer and the Layout description, with GeneratorTests.failureMessageNamesSeed.",
+  "acceptance_ids": [
+   "AC-163",
+   "AC-165"
+  ],
+  "blocked_by": [
+   "T01",
+   "T01b"
+  ],
+  "files_expected": [
+   "Sources/ZonesTestSupport/Fakes/FakeWindowSystem.swift",
+   "Sources/ZonesTestSupport/Fakes/FakeWindowEnumerator.swift",
+   "Sources/ZonesTestSupport/Fakes/FakeInputSource.swift",
+   "Sources/ZonesTestSupport/Fakes/FakeDisplayProvider.swift",
+   "Sources/ZonesTestSupport/Fakes/FakeOverlayPresenter.swift",
+   "Sources/ZonesTestSupport/Fakes/FakeHotkeyRegistrar.swift",
+   "Sources/ZonesTestSupport/Fakes/FakeLoginItemService.swift",
+   "Sources/ZonesTestSupport/Fakes/FakePermissionProbe.swift",
+   "Sources/ZonesTestSupport/Fakes/FakeFileSystem.swift",
+   "Sources/ZonesTestSupport/Fakes/ArrayLogSink.swift",
+   "Sources/ZonesTestSupport/Generator.swift",
+   "Tests/ZonesWindowingTests/FakeContractTests.swift",
+   "Tests/ZonesLayoutTests/GeneratorTests.swift"
+  ],
+  "est_tokens": 112116,
+  "brief_path": "docs/tickets/T02.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ },
+ {
+  "id": "T03",
+  "title": "Spike: click-through panel, overlay frame time, per-Space witness windows (SPK-002, SPK-009, SPK-001)",
+  "kind": "spike",
+  "delivers": "A throwaway probe under Spikes/PanelProbe (own Package.swift executable) that orders a screenSaver-level click-through non-key NSPanel during a title-bar drag and logs frontmost pid, key window, visibility over a full-screen Space, a Split View Space and a Space created after launch, whether a managed window can be dropped on a Display whose active Space is full-screen, visibleFrame with the menu bar auto-hidden, and per-dragged-event CALayer update time at 120 Hz; a second mode creates one hidden managed witness window per (Display, Space) and checks isOnActiveSpace over 20 switches. Verdict notes docs/spikes/SPK-002.md, SPK-009.md, SPK-001.md with pass/fail and the recorded tables; SPK-001 pass or fail decides whether a document-v2 Space token ticket is added later.",
+  "acceptance_ids": [],
+  "blocked_by": [
+   "T01",
+   "T01b"
+  ],
+  "files_expected": [
+   "Spikes/PanelProbe/Package.swift",
+   "Spikes/PanelProbe/Sources/PanelProbe/main.swift",
+   "docs/spikes/SPK-001.md",
+   "docs/spikes/SPK-002.md",
+   "docs/spikes/SPK-009.md"
+  ],
+  "est_tokens": 78306,
+  "brief_path": "docs/tickets/T03.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ },
+ {
+  "id": "T04",
+  "title": "Spike: listen-only tap with Accessibility only; CGWindowList with Screen Recording denied (SPK-003, SPK-017)",
+  "kind": "spike",
+  "delivers": "Spikes/TapProbe creates a .listenOnly session tap at tailAppendEventTap for left mouse down/dragged/up and flagsChanged with only Accessibility granted, logs delivery and latency at 120 Hz on macOS 14, 15 and the current release, and reads CGWindowList with Screen Recording denied to confirm bounds, layer and pid are present with nil names and that pid plus frame resolves the dragged window. Verdicts in docs/spikes/SPK-003.md and SPK-017.md; a SPK-003 failure must be escalated as an ADR-0020 revisit.",
+  "acceptance_ids": [],
+  "blocked_by": [
+   "T01",
+   "T01b"
+  ],
+  "files_expected": [
+   "Spikes/TapProbe/Package.swift",
+   "Spikes/TapProbe/Sources/TapProbe/main.swift",
+   "docs/spikes/SPK-003.md",
+   "docs/spikes/SPK-017.md"
+  ],
+  "est_tokens": 44344,
+  "brief_path": "docs/tickets/T04.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ },
+ {
+  "id": "T05",
+  "title": "Spike: windowNumber equals CGWindowID, stacked identical windows, CG description polling (SPK-004, SPK-008, SPK-016)",
+  "kind": "spike",
+  "delivers": "Spikes/WindowIDProbe checks NSWindow.windowNumber == CGWindowID and the CGEvent window-under-pointer field == CGWindowList id for 50 windows per OS and optionIncludingWindow alone; stacks four same-size windows of one pid and records which candidate's origin changes on the first frame sample after the first dragged event over 20 trials; measures CGWindowListCreateDescriptionFromArray polling as a move-confirmation source including cost against a SIGSTOP'd app. Verdicts in docs/spikes/SPK-004.md, SPK-008.md, SPK-016.md; a SPK-016 pass is recorded as a proposed new ADR, not applied.",
+  "acceptance_ids": [],
+  "blocked_by": [
+   "T01",
+   "T01b"
+  ],
+  "files_expected": [
+   "Spikes/WindowIDProbe/Package.swift",
+   "Spikes/WindowIDProbe/Sources/WindowIDProbe/main.swift",
+   "docs/spikes/SPK-004.md",
+   "docs/spikes/SPK-008.md",
+   "docs/spikes/SPK-016.md"
+  ],
+  "est_tokens": 46155,
+  "brief_path": "docs/tickets/T05.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ },
+ {
+  "id": "T06",
+  "title": "Spike: AX revocation signal, moved-notification cadence, AXObserver thread (SPK-006, SPK-007, SPK-013)",
+  "kind": "spike",
+  "delivers": "Spikes/AXSignalsProbe records whether a trivial AX read of the system-wide element returns apiDisabled within 5 s of revoking a running process, what AXIsProcessTrusted reads afterwards and whether an existing tap keeps delivering; logs kAXWindowMoved/Resized cadence during a live drag in Finder, Safari and Chrome; adds an AXObserver run-loop source on a dedicated thread and confirms callbacks arrive on that thread after 60 s idle. Verdicts in docs/spikes/SPK-006.md, SPK-007.md, SPK-013.md; SPK-006 decides PermissionConfig.heartbeatEnabled.",
+  "acceptance_ids": [],
+  "blocked_by": [
+   "T01",
+   "T01b"
+  ],
+  "files_expected": [
+   "Spikes/AXSignalsProbe/Package.swift",
+   "Spikes/AXSignalsProbe/Sources/AXSignalsProbe/main.swift",
+   "docs/spikes/SPK-006.md",
+   "docs/spikes/SPK-007.md",
+   "docs/spikes/SPK-013.md"
+  ],
+  "est_tokens": 50672,
+  "brief_path": "docs/tickets/T06.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ },
+ {
+  "id": "T07",
+  "title": "Spike: stable dev identity across rebuilds; write-protocol app matrix (SPK-005, SPK-010)",
+  "kind": "spike",
+  "delivers": "Runs scripts/dev-cert.sh, signs the T01 shell with Zones Dev, confirms the Accessibility grant survives three rebuilds and `codesign -d -r-` shows no cdhash; Spikes/WriteProbe performs size-position-size writes with read-back against Finder, Safari, Terminal, System Settings, Calculator, Chrome, VS Code, Slack, IntelliJ and a SIGSTOP'd app, recording read-back deltas, wall time, timeout behavior and Enhanced UI side effects with VoiceOver on. Verdicts in docs/spikes/SPK-005.md and SPK-010.md.",
+  "acceptance_ids": [],
+  "blocked_by": [
+   "T01",
+   "T01b"
+  ],
+  "files_expected": [
+   "Spikes/WriteProbe/Package.swift",
+   "Spikes/WriteProbe/Sources/WriteProbe/main.swift",
+   "docs/spikes/SPK-005.md",
+   "docs/spikes/SPK-010.md"
+  ],
+  "est_tokens": 84322,
+  "brief_path": "docs/tickets/T07.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ },
+ {
+  "id": "T08",
+  "title": "Spike: login item on a clean account, identical Displays, hotkey key status, sleep/wake (SPK-011, SPK-012, SPK-014, SPK-018)",
+  "kind": "spike",
+  "delivers": "Spikes/HardwareProbe plus a manual protocol: SMAppService status after disabling in System Settings, register from a quarantined DMG copy and after moving the app; two Displays of one model report distinct UUIDs and the zero-serial fallback is recorded; a Carbon hotkey handler opening a window on macOS 14 and 15 with another app frontmost, with and without a prior activate, recorded as a per-OS key-status table; lid-closed docked sleep and wake with tap, panels and Display UUIDs checked. Verdicts in docs/spikes/SPK-011.md, SPK-012.md, SPK-014.md, SPK-018.md.",
+  "acceptance_ids": [],
+  "blocked_by": [
+   "T01",
+   "T01b"
+  ],
+  "files_expected": [
+   "Spikes/HardwareProbe/Package.swift",
+   "Spikes/HardwareProbe/Sources/HardwareProbe/main.swift",
+   "docs/spikes/SPK-011.md",
+   "docs/spikes/SPK-012.md",
+   "docs/spikes/SPK-014.md",
+   "docs/spikes/SPK-018.md"
+  ],
+  "est_tokens": 72206,
+  "brief_path": "docs/tickets/T08.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ },
+ {
+  "id": "T09",
+  "title": "Split tree math: unit rects, layout rect, grid rounding, resolve, zone numbering, coordinate space",
+  "kind": "build",
+  "delivers": "LayoutMath.unitRects/layoutRect/resolve, Grid.round (dividers and gap rounded once to 1/scale, shared dividers, mirror symmetry), ZoneNumbering.numbers (row-major with epsilon, derived never stored) and the bodies of CoordinateSpace (AppKit <-> AX round trip, display(for:) by maximum intersection, panelLocal). Property tests over Generator trees: LayoutTilingTests.randomTreesTile, ZoneNumberingTests.rowMajorBijection, GridRoundingTests.overlayEqualsSnapTarget and uniformPixelGapsAndSharedDividers, CoordinateSpaceTests.roundTripAndDisplayFor on Fixtures.threeDisplays.",
+  "acceptance_ids": [
+   "AC-068",
+   "AC-069",
+   "AC-099",
+   "AC-116",
+   "AC-164"
+  ],
+  "blocked_by": [
+   "T01",
+   "T01b"
+  ],
+  "files_expected": [
+   "Sources/ZonesLayout/LayoutMath.swift",
+   "Sources/ZonesLayout/Grid.swift",
+   "Sources/ZonesLayout/ZoneNumbering.swift",
+   "Sources/ZonesCore/CoordinateSpace.swift",
+   "Tests/ZonesLayoutTests/LayoutTilingTests.swift",
+   "Tests/ZonesLayoutTests/ZoneNumberingTests.swift",
+   "Tests/ZonesLayoutTests/GridRoundingTests.swift",
+   "Tests/ZonesCoreTests/CoordinateSpaceTests.swift"
+  ],
+  "est_tokens": 87476,
+  "brief_path": "docs/tickets/T09.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ },
+ {
+  "id": "T10",
+  "title": "Documents and preferences: codec, atomic DocumentStore, quarantine, migration with golden fixtures, Preferences coercion",
+  "kind": "build",
+  "delivers": "ZonesDocument Codable with the \u00a71.8 field names and PersistentDisplayKey rejecting non-UUID keys; DocumentStore over FileSystem with synchronous atomic writes, timestamped backups and quarantine of undecodable files; Migrator with golden fixtures per version and a fixture-hash test; export round trip through the same decoder; newer-version refusal and untouched newer disk files; PreferencesCodec field-by-field coercion with notice flags, Preferences.defaults, modifier coercion so Span differs from Activation, Appearance round trip and AppearancePaneModel.listsFollowers (Layouts following the default Insets).",
+  "acceptance_ids": [
+   "AC-087",
+   "AC-140",
+   "AC-145",
+   "AC-147",
+   "AC-149",
+   "AC-150",
+   "AC-152",
+   "AC-153"
+  ],
+  "blocked_by": [
+   "T01",
+   "T01b"
+  ],
+  "files_expected": [
+   "Sources/ZonesCore/Documents.swift",
+   "Sources/ZonesCore/DocumentStore.swift",
+   "Sources/ZonesCore/Migrator.swift",
+   "Sources/ZonesCore/Preferences.swift",
+   "Sources/ZonesCore/PreferencesCodec.swift",
+   "Sources/ZonesCore/AppearancePaneModel.swift",
+   "Tests/ZonesCoreTests/DocumentTests.swift",
+   "Tests/ZonesCoreTests/MigrationTests.swift",
+   "Tests/ZonesCoreTests/FixtureHashTests.swift",
+   "Tests/ZonesCoreTests/PreferencesTests.swift",
+   "Tests/ZonesCoreTests/AppearancePaneModelTests.swift",
+   "Tests/ZonesCoreTests/Fixtures/layouts.v1.json",
+   "Tests/ZonesCoreTests/Fixtures/assignments.v1.json"
+  ],
+  "est_tokens": 123942,
+  "brief_path": "docs/tickets/T10.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ },
+ {
+  "id": "T11",
+  "title": "Diagnostics and logger: Log facade, bounded EventRing, skip counting, DiagnosticsReport with preview-before-copy",
+  "kind": "build",
+  "delivers": "Log facade with one LogCategory per module, UnifiedLogSink (os.Logger) and ArrayLogSink, EventRing bounded at 200 with skipCounts grouped by bundle identifier, Log.skip emitting one event per skip, DiagnosticsReport (version, build, signingIdentity or ad-hoc, macOS, permission and tap state, Displays with keys and frames, Assignments, Preferences, last 200 events, skip counts; LogEvent has no title field), Diagnostics.report, render(), and DiagnosticsEffect ordering preview then copy; BundleInfo reads the signing identity from the running bundle.",
+  "acceptance_ids": [
+   "AC-015",
+   "AC-154",
+   "AC-155",
+   "AC-169"
+  ],
+  "blocked_by": [
+   "T01",
+   "T01b"
+  ],
+  "files_expected": [
+   "Sources/ZonesCore/Log.swift",
+   "Sources/ZonesCore/EventRing.swift",
+   "Sources/ZonesWindowing/Diagnostics/Diagnostics.swift",
+   "Sources/ZonesWindowing/Diagnostics/DiagnosticsReport.swift",
+   "Sources/ZonesWindowing/Diagnostics/BundleInfo.swift",
+   "Sources/ZonesWindowing/Diagnostics/UnifiedLogSink.swift",
+   "Tests/ZonesWindowingTests/DiagnosticsTests.swift"
+  ],
+  "est_tokens": 78990,
+  "brief_path": "docs/tickets/T11.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ },
+ {
+  "id": "T12",
+  "title": "Hit test, nearest zone, span union, label model, templates and built-in identifiers",
+  "kind": "build",
+  "delivers": "HitTest.hit (zone, nearest by minimum edge distance with ties to the lower number, none only outside the visible frame) and HitTest.display(at:); Span.rect bounding union including gaps; LabelModel.labels with 4.5 contrast outline, contentsScale and the noChord badge for numbers above 9; Templates.builtInID/generate/all/duplicate for Columns and Rows 2-5, Grid 4 and 9, Priority Grid 25/50/25, Focus as one leaf with surround 0.2; LayoutValidator. Tests: TemplateTests.countsShapesAndNames, TemplateTests.focusIsOneCenteredZone, BuiltInLayoutTests.deterministicIdsAndDuplicate, plus HitTestTests and SpanTests unit cases (their ACs live with the reducer tickets).",
+  "acceptance_ids": [
+   "AC-088",
+   "AC-112",
+   "AC-114"
+  ],
+  "blocked_by": [
+   "T09"
+  ],
+  "files_expected": [
+   "Sources/ZonesLayout/HitTest.swift",
+   "Sources/ZonesLayout/Span.swift",
+   "Sources/ZonesLayout/LabelModel.swift",
+   "Sources/ZonesLayout/Templates.swift",
+   "Sources/ZonesLayout/LayoutValidator.swift",
+   "Tests/ZonesLayoutTests/TemplateTests.swift",
+   "Tests/ZonesLayoutTests/BuiltInLayoutTests.swift",
+   "Tests/ZonesLayoutTests/HitTestUnitTests.swift",
+   "Tests/ZonesLayoutTests/SpanUnitTests.swift"
+  ],
+  "est_tokens": 89922,
+  "brief_path": "docs/tickets/T12.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ },
+ {
+  "id": "T13",
+  "title": "WindowActor timeouts and production AX adapters: AXWindowSystem, AXPermissionProbe, AXObserver notices",
+  "kind": "build",
+  "delivers": "AXWindowSystem implementing every WindowSystem method on the WindowActor with AXUIElementSetMessagingTimeout 0.25 s per app and 1 s process-wide set at launch, typed AXRead/AXStatus mapping (CannotComplete -> timedOut, InvalidUIElement -> elementGone, APIDisabled -> apiDisabled), batched frames(_:), facts(_:) from subrole, AXFullScreen and IsAttributeSettable, Enhanced UI read/write on the app element, element(at:) fallback, and an AsyncStream of AXNotice from an AXObserver on a dedicated thread (per SPK-013) for destroyed and appTerminated; AXPermissionProbe wrapping AXIsProcessTrusted, the System Settings URL and the launched-at-login flag. FrameWriteResult exhaustive-switch test and WindowActorTests.timeoutsSetAtLaunch against the fake.",
+  "acceptance_ids": [
+   "AC-159"
+  ],
+  "blocked_by": [
+   "T01",
+   "T06",
+   "T01b"
+  ],
+  "files_expected": [
+   "Sources/ZonesWindowing/Seams/WindowActor.swift",
+   "Sources/ZonesWindowing/Adapters/AXWindowSystem.swift",
+   "Sources/ZonesWindowing/Adapters/AXObserverBridge.swift",
+   "Sources/ZonesWindowing/Adapters/AXPermissionProbe.swift",
+   "Tests/ZonesWindowingTests/WindowActorTests.swift",
+   "Tests/ZonesWindowingTests/FrameWriteResultTests.swift"
+  ],
+  "est_tokens": 94105,
+  "brief_path": "docs/tickets/T13.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ },
+ {
+  "id": "T14",
+  "title": "Exclusion policy, exclusions pane model, production CGWindowEnumerator",
+  "kind": "build",
+  "delivers": "ExclusionPolicy.phaseOne over CG facts (ownProcess, systemAgent list, excludedBundle, unresponsive via AppHealth) and phaseTwo over AX facts (nonStandardSubrole, sheetOrPopover, systemDialog, fullScreen, positionNotSettable; sizeNotSettable -> allow(positionOnly)) with ExclusionPolicyTests.table producing one row per reason per phase; ExclusionsPaneModel keyed by bundle identifier with the identifier shown beside the name and add-from-running-app or file URL; CGWindowEnumerator reading only windowNumber, pid, bounds and layer (no names), onScreenWindows, windows(ids:) and candidates(under:hint:) using the CGEvent window field first then a z-ordered hit test.",
+  "acceptance_ids": [
+   "AC-142",
+   "AC-143",
+   "AC-144"
+  ],
+  "blocked_by": [
+   "T02",
+   "T04",
+   "T05"
+  ],
+  "files_expected": [
+   "Sources/ZonesWindowing/Exclusion/ExclusionPolicy.swift",
+   "Sources/ZonesWindowing/Exclusion/ExclusionsPaneModel.swift",
+   "Sources/ZonesWindowing/Adapters/CGWindowEnumerator.swift",
+   "Tests/ZonesWindowingTests/ExclusionPolicyTests.swift",
+   "Tests/ZonesWindowingTests/ExclusionsPaneModelTests.swift"
+  ],
+  "est_tokens": 71540,
+  "brief_path": "docs/tickets/T14.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ },
+ {
+  "id": "T15",
+  "title": "Snap service: write protocol, read-back truth, clamp follow-up, idempotence, timeout retry and AppHealth cooldown",
+  "kind": "build",
+  "delivers": "FrameWriter.write issuing setSize, setPosition, setSize, readPosition, readSize on the WindowActor with one immediate retry on timedOut then abort (only the Enhanced UI restore follows), marking the pid unresponsive for 10 s; AppHealth cooldown with exactly one attempt after it; SnapService.execute returning noOp(sameFrame) within 1 pt, one follow-up position write on clamped with the accepted size, read-back frame as the recorded truth, writes only to the plan's handle; position-only mode for sizeNotSettable windows. Tests: SnapServiceTests (writesOnlyTargetHandle, clampedGetsOneRepositionOnly, resultCarriesReadBackFrame, writeOrderSizePositionSize, timeoutRetryOnceThenAbort, sameZoneIsNoOp), AppHealthTests.cooldownThenOneRetry.",
+  "acceptance_ids": [
+   "AC-041",
+   "AC-071",
+   "AC-072",
+   "AC-073",
+   "AC-077",
+   "AC-078",
+   "AC-079"
+  ],
+  "blocked_by": [
+   "T02"
+  ],
+  "files_expected": [
+   "Sources/ZonesWindowing/Snap/FrameWriter.swift",
+   "Sources/ZonesWindowing/Snap/SnapService.swift",
+   "Sources/ZonesWindowing/Snap/AppHealth.swift",
+   "Tests/ZonesWindowingTests/SnapServiceTests.swift",
+   "Tests/ZonesWindowingTests/AppHealthTests.swift"
+  ],
+  "est_tokens": 73291,
+  "brief_path": "docs/tickets/T15.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ },
+ {
+  "id": "T16",
+  "title": "Drag Session reducer core: press, sample, arm, cancel, highlight, snap trigger",
+  "kind": "build",
+  "delivers": "DragSessionReducer.reduce for idle/pressed/moving/armed: no sample requested for a click; polling from the first dragged event until the first moved sample; resize (size delta over 1 pt, any edge or corner) ends the session; pause keeps the press; modifier before or after arms; showOverlay only on entry to armed after requestArmContext/armContext; highlight follows the cursor Zone not the window center; modifier release hides and cancels; snap keyed on mouse-up flags; hideOverlay precedes snap; windowGone hides; background windows arm identically; ModifierSet.masked ignores Caps Lock, Fn and keypad bits; ModifierConfig read at mouseDown only. Tests: DragSessionReducerTests cases named in AC-031..038, 048, 049, 053, 054, 055 and ModifierMaskTests.",
+  "acceptance_ids": [
+   "AC-031",
+   "AC-032",
+   "AC-033",
+   "AC-034",
+   "AC-035",
+   "AC-036",
+   "AC-037",
+   "AC-038",
+   "AC-048",
+   "AC-049",
+   "AC-051",
+   "AC-053",
+   "AC-054",
+   "AC-055"
+  ],
+  "blocked_by": [
+   "T12"
+  ],
+  "files_expected": [
+   "Sources/ZonesWindowing/Drag/DragSessionReducer.swift",
+   "Sources/ZonesWindowing/Drag/DragTypes.swift",
+   "Sources/ZonesCore/Shortcut.swift",
+   "Tests/ZonesWindowingTests/DragSessionReducerTests.swift",
+   "Tests/ZonesWindowingTests/ModifierMaskTests.swift",
+   "Tests/ZonesWindowingTests/Support/DragFixtures.swift"
+  ],
+  "est_tokens": 94626,
+  "brief_path": "docs/tickets/T16.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ },
+ {
+  "id": "T17",
+  "title": "LayoutStore, assignment lookup with dormant entries, delete-needs-replacement, import Merge/Replace and whole-file validation",
+  "kind": "build",
+  "delivers": "LayoutStore holding built-ins regenerated from the Appearance default Insets and custom Layouts with explicit Insets, upsert, delete refused for an assigned Layout without a replacement and rewriting every referencing Assignment in one transaction; AssignmentLookup defaulting to builtin:priorityGrid:3 and honoring session assignments; dormant imported Assignments applied on first appearance; ImportExport.export (all or one Layout) and importDocument with Merge (keep mine, numeric-suffix renames, fresh colliding ids) and Replace (timestamped backup of both documents named first, then one swap), validating every Layout and naming the first offender while changing nothing on failure.",
+  "acceptance_ids": [
+   "AC-113",
+   "AC-115",
+   "AC-117",
+   "AC-146",
+   "AC-148",
+   "AC-151"
+  ],
+  "blocked_by": [
+   "T10",
+   "T12"
+  ],
+  "files_expected": [
+   "Sources/ZonesLayout/LayoutStore.swift",
+   "Sources/ZonesLayout/AssignmentLookup.swift",
+   "Sources/ZonesLayout/ImportExport.swift",
+   "Tests/ZonesLayoutTests/LayoutStoreTests.swift",
+   "Tests/ZonesLayoutTests/AssignmentLookupTests.swift",
+   "Tests/ZonesLayoutTests/ImportExportTests.swift"
+  ],
+  "est_tokens": 77409,
+  "brief_path": "docs/tickets/T17.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ },
+ {
+  "id": "T18",
+  "title": "Editor commands: split, merge, divider snapping and nudging, validator limits, undo/redo, template picker; SPK-015 note",
+  "kind": "build",
+  "delivers": "EditorEngine.apply for select, split(H side by side, V stacked, ratio 0.5), merge (siblings only, notSiblings hint 'split the parent the other way first', root merge refused), setRatio with snapping to 1/2, 1/3, 1/4 and collinear dividers within 6 pt unless Option, nudge by 1 pt or 10 pt as ratio deltas for the current Display, setMargin/setGap, template replacement keeping the name, rename; tooSmall refusal under 1/12 and 120x80 warnings; noChord badge on the tenth Zone; undo/redo round trip of 100 random commands. Also writes docs/spikes/SPK-015.md with the same-axis chain-merge formula and golden table over Template trees (recorded, not applied).",
+  "acceptance_ids": [
+   "AC-127",
+   "AC-128",
+   "AC-129",
+   "AC-130",
+   "AC-135",
+   "AC-137",
+   "AC-138"
+  ],
+  "blocked_by": [
+   "T12"
+  ],
+  "files_expected": [
+   "Sources/ZonesLayout/Editor/EditorCommand.swift",
+   "Sources/ZonesLayout/Editor/EditorEngine.swift",
+   "Sources/ZonesLayout/Editor/UndoStack.swift",
+   "Tests/ZonesLayoutTests/EditorCommandTests.swift",
+   "docs/spikes/SPK-015.md"
+  ],
+  "est_tokens": 67502,
+  "brief_path": "docs/tickets/T18.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ },
+ {
+  "id": "T19",
+  "title": "Enhanced UI policy and crash recovery record",
+  "kind": "build",
+  "delivers": "Enhanced UI handling inside FrameWriter: read first, skip the off/on pair when the attribute is absent or already off, otherwise set off before the first size write and restore in a defer on every path including refused and timedOut, honoring EnhancedUIPolicy.leave; EnhancedUIRecovery writing one RecoveryRecord per (bundleID, pid, launchDate) after the first completed write sequence in a session, restoring at launch only entries matching all three fields with prior value on, deleting the file on clean quit, and drainAndDelete for Quit and revocation. Tests: SnapServiceTests.enhancedUIRestoredOnEveryPath, EnhancedUIRecoveryTests.writeOnceRestoreOnMatch.",
+  "acceptance_ids": [
+   "AC-074",
+   "AC-075",
+   "AC-076"
+  ],
+  "blocked_by": [
+   "T15"
+  ],
+  "files_expected": [
+   "Sources/ZonesWindowing/Snap/FrameWriter.swift",
+   "Sources/ZonesWindowing/Snap/EnhancedUIRecovery.swift",
+   "Tests/ZonesWindowingTests/SnapServiceTests.swift",
+   "Tests/ZonesWindowingTests/EnhancedUIRecoveryTests.swift"
+  ],
+  "est_tokens": 73096,
+  "brief_path": "docs/tickets/T19.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ },
+ {
+  "id": "T20",
+  "title": "Permission machine: trust poll, runtime-signal revocation, suspect window, relaunch gate, heartbeat isolation, wake and re-onboard",
+  "kind": "build",
+  "delivers": "PermissionMachine.reduce over notGranted/granted/suspect/revoked/needsRelaunch with the 1 s trust poll only outside granted, the 5 s health tick in granted, dismissOnboarding then startTap on the first true probe, apiDisabled or nil tap -> suspect, recovery by tap recreation plus one trivial read, 3 s -> revoked with badge, showOnboarding, unregisterWindowHotkeys and drainEnhancedUI, three failed recreations over 10 s with probe true -> needsRelaunch (the only state offering Quit and Reopen), probe false keeps revoked forever, re-onboard leaves stores untouched, wake emits revalidateTap, one probe, forceTopologySnapshot and orderPanelsOut, heartbeat (SPK-006-gated) feeding only this machine with at most one in flight and none while the reducer is not idle, launched-at-login path emitting no window effects.",
+  "acceptance_ids": [
+   "AC-006",
+   "AC-007",
+   "AC-008",
+   "AC-009",
+   "AC-010",
+   "AC-021",
+   "AC-024",
+   "AC-025",
+   "AC-158"
+  ],
+  "blocked_by": [
+   "T02",
+   "T06",
+   "T16"
+  ],
+  "files_expected": [
+   "Sources/ZonesWindowing/Permission/PermissionMachine.swift",
+   "Sources/ZonesWindowing/Permission/PermissionTypes.swift",
+   "Tests/ZonesWindowingTests/PermissionMachineTests.swift",
+   "Tests/ZonesWindowingTests/DragSessionReducerTests.swift"
+  ],
+  "est_tokens": 71982,
+  "brief_path": "docs/tickets/T20.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ },
+ {
+  "id": "T21",
+  "title": "Drag reducer: candidate resolution, phase-one and phase-two skips, cross-Display drops, topology and Space changes",
+  "kind": "build",
+  "delivers": "Extends DragSessionReducer with the candidate table (up to four z-ordered candidates read in one batched sample per tick, the one whose first sample moved wins, five candidates -> ambiguousMatch before sampling, two movers after three settle samples -> idle, a timed-out sample retried once then idle with skip(unresponsive)); phase-one skip at mouseDown with no sample requested; phase-two facts on the first moved sample ending the press for fullScreen, sheetOrPopover, nonStandardSubrole, positionNotSettable with polling stopped; straddling windows hit-test and snap on the cursor's Display; drops on a Display absent from the arm snapshot are a logged no-op; topologyChanged re-arms from the new snapshot; spaceChanged emits reassertPanels and a re-hit.",
+  "acceptance_ids": [
+   "AC-045",
+   "AC-047",
+   "AC-052",
+   "AC-056",
+   "AC-057",
+   "AC-060",
+   "AC-062",
+   "AC-067"
+  ],
+  "blocked_by": [
+   "T16",
+   "T14"
+  ],
+  "files_expected": [
+   "Sources/ZonesWindowing/Drag/DragSessionReducer.swift",
+   "Sources/ZonesWindowing/Drag/CandidateResolution.swift",
+   "Tests/ZonesWindowingTests/DragSessionReducerTests.swift"
+  ],
+  "est_tokens": 64010,
+  "brief_path": "docs/tickets/T21.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ },
+ {
+  "id": "T22",
+  "title": "Drag reducer: Span accumulation, freeze/resume/clear, cross-Display suspend, nearest-zone drops and mouse Restore cue",
+  "kind": "build",
+  "delivers": "Span branch of the reducer: Zones swept with the Span Modifier accumulate into a set drawn as Span.rect; releasing the Span Modifier freezes, re-pressing resumes, releasing the Activation Modifier clears; both modifiers before the move begin the Span at the arming sample (empty over a Gap); leaving the Span's Display suspends it (secondary style, highlight follows the cursor Zone, a drop elsewhere uses that Zone), returning resumes; a nearest hit on Gap, Margin or surround snaps and never restores; a none hit outside the visible frame emits updateHighlight(dimAll) only when an Original Frame exists and mouseUp emits restore, otherwise clears and emits nothing.",
+  "acceptance_ids": [
+   "AC-080",
+   "AC-081",
+   "AC-083",
+   "AC-084",
+   "AC-085",
+   "AC-086",
+   "AC-091"
+  ],
+  "blocked_by": [
+   "T16"
+  ],
+  "files_expected": [
+   "Sources/ZonesWindowing/Drag/DragSessionReducer.swift",
+   "Sources/ZonesWindowing/Drag/SpanLogic.swift",
+   "Tests/ZonesWindowingTests/SpanTests.swift",
+   "Tests/ZonesWindowingTests/HitTestTests.swift",
+   "Tests/ZonesWindowingTests/DragSessionReducerTests.swift"
+  ],
+  "est_tokens": 60491,
+  "brief_path": "docs/tickets/T22.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ },
+ {
+  "id": "T23",
+  "title": "Production event tap InputSource, tap recovery rate limit, button filtering",
+  "kind": "build",
+  "delivers": "EventTapInputSource creating a listenOnly session tap at tailAppendEventTap on a dedicated thread for left down, dragged, up and flagsChanged only, emitting InputEvent values with the CGEvent window-under-pointer field and masked flags, no events for right or middle buttons, TapSignal on kCGEventTapDisabledByTimeout/UserInput, reenable and recreate, and TapStart.unavailable on a nil tap without crashing; TapRecovery with five re-enables per 60 s then tapLost and a 30 s dead-tap retry timer. Tests: InputSourceTests (reenableRateLimitThenTapLost, nilTapReportsUnavailable, otherButtonsFiltered, productionTapIsListenOnly) and DragSessionReducerTests.secondMouseDownIgnored.",
+  "acceptance_ids": [
+   "AC-011",
+   "AC-050",
+   "AC-065",
+   "AC-066"
+  ],
+  "blocked_by": [
+   "T02",
+   "T04",
+   "T16"
+  ],
+  "files_expected": [
+   "Sources/ZonesWindowing/Adapters/EventTapInputSource.swift",
+   "Sources/ZonesWindowing/Permission/TapRecovery.swift",
+   "Tests/ZonesWindowingTests/InputSourceTests.swift",
+   "Tests/ZonesWindowingTests/DragSessionReducerTests.swift"
+  ],
+  "est_tokens": 61419,
+  "brief_path": "docs/tickets/T23.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ },
+ {
+  "id": "T24",
+  "title": "Original Frame registry and Restore service",
+  "kind": "build",
+  "delivers": "OriginalFrameRegistry capturing once per window (mouse path: mouse-down frame of the resolved window; keyboard path: pre-write read-back), never overwriting, recording last-Snap read-back frames, forgetting on successful Restore (applied or clamped), evicting on destroyed and appTerminated notices, elementGone at next touch, no periodic sweep; RestorePlanner clamping an Original Frame that intersects no Display into the visible frame of the Display the window overlaps most; RestoreService writing through FrameWriting and removing the entry; noOp(reason) with one log line for full-screen or no entry; Span and single-Zone Snaps share one entry kind.",
+  "acceptance_ids": [
+   "AC-089",
+   "AC-090",
+   "AC-092",
+   "AC-093",
+   "AC-094",
+   "AC-095",
+   "AC-096"
+  ],
+  "blocked_by": [
+   "T15"
+  ],
+  "files_expected": [
+   "Sources/ZonesWindowing/Restore/OriginalFrameRegistry.swift",
+   "Sources/ZonesWindowing/Restore/RestorePlanner.swift",
+   "Sources/ZonesWindowing/Restore/RestoreService.swift",
+   "Tests/ZonesWindowingTests/OriginalFrameRegistryTests.swift",
+   "Tests/ZonesWindowingTests/RestoreTests.swift"
+  ],
+  "est_tokens": 73086,
+  "brief_path": "docs/tickets/T24.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ },
+ {
+  "id": "T25",
+  "title": "Topology monitor and production ScreenDisplayProvider: debounce, mirror sets, unstable keys, assignment survival, Layouts pane model",
+  "kind": "build",
+  "delivers": "TopologyMonitor.reduce coalescing reconfiguration storms into one topologyChanged after 200 ms, recomputing Zone rectangles from fractions and resizing panels, retrying a nil UUID three times one second apart then issuing an unstable key that takes session-only Assignments and is never encoded, collapsing mirror groups to the master's key and persisting picks under it, restoring a returning UUID's Assignment, keeping a removed Display's Assignment with no move effect, the one-time separate-Spaces notice, and persisting displayName, lastVisibleFrame and lastScale; LayoutsPaneModel rows for attached, disconnected (Copy Assignment to, Forget) and 'not saved' unstable keys; ScreenDisplayProvider over NSScreen, CGDisplayCreateUUIDFromDisplayID, CGDisplayMirrorsDisplay and both change notifications; DocumentTests.rejectsNonUUIDKey.",
+  "acceptance_ids": [
+   "AC-118",
+   "AC-119",
+   "AC-120",
+   "AC-121",
+   "AC-122",
+   "AC-123",
+   "AC-124"
+  ],
+  "blocked_by": [
+   "T02",
+   "T17"
+  ],
+  "files_expected": [
+   "Sources/ZonesWindowing/Topology/TopologyMonitor.swift",
+   "Sources/ZonesWindowing/Topology/LayoutsPaneModel.swift",
+   "Sources/ZonesWindowing/Adapters/ScreenDisplayProvider.swift",
+   "Tests/ZonesWindowingTests/TopologyTests.swift",
+   "Tests/ZonesWindowingTests/LayoutsPaneModelTests.swift",
+   "Tests/ZonesCoreTests/DocumentTests.swift"
+  ],
+  "est_tokens": 74354,
+  "brief_path": "docs/tickets/T25.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ },
+ {
+  "id": "T26",
+  "title": "Overlay model: panel geometry, fills, highlight styles, labels, accessibility options",
+  "kind": "build",
+  "delivers": "OverlayModel.panels producing one PanelModel per Display with the panel frame equal to the full Display frame and every Zone rectangle inside the visible frame, fill alpha equal to the Appearance opacity with a highlight style that differs by at least 0.25 alpha or a distinct color at opacity 0.10, secondary style for a suspended Span (outline under reduceTransparency), dim style, solid fills under reduceTransparency, no animation duration under reduceMotion, labels from LabelModel with contentsScale per Display; OverlayModel.apply(Highlight).",
+  "acceptance_ids": [
+   "AC-042",
+   "AC-059",
+   "AC-063"
+  ],
+  "blocked_by": [
+   "T12"
+  ],
+  "files_expected": [
+   "Sources/ZonesWindowing/Overlay/OverlayModel.swift",
+   "Tests/ZonesWindowingTests/OverlayModelTests.swift"
+  ],
+  "est_tokens": 49385,
+  "brief_path": "docs/tickets/T26.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ },
+ {
+  "id": "T27",
+  "title": "Shortcut store, chord rules, recorder states, registration diff, dispatcher, production Carbon registrar",
+  "kind": "build",
+  "delivers": "ShortcutRules.defaults matching ADR-0010, validate requiring Command or Control, recorderState (duplicate conflict; warnings for Command-only, Command+Shift-only, Control-only with arrow or digit); ShortcutStore.reduce registering openEditor/openSettings in every permission state and window actions only while granted, re-registering only the changed action, keeping the previous chord on inUse, leaving a cleared action unbound with one unregister, queuing registration diffs while the reducer is not idle; ShortcutDispatcher dropping window commands with one log line while not idle; DragSessionReducerTests.modifierConfigReadAtMouseDown; CarbonHotkeyRegistrar over RegisterEventHotKey with a Key-to-keycode table.",
+  "acceptance_ids": [
+   "AC-097",
+   "AC-102",
+   "AC-103",
+   "AC-104",
+   "AC-105",
+   "AC-106",
+   "AC-107",
+   "AC-109",
+   "AC-110",
+   "AC-111"
+  ],
+  "blocked_by": [
+   "T02",
+   "T10",
+   "T16"
+  ],
+  "files_expected": [
+   "Sources/ZonesWindowing/Shortcuts/ShortcutRules.swift",
+   "Sources/ZonesWindowing/Shortcuts/ShortcutStore.swift",
+   "Sources/ZonesWindowing/Shortcuts/ShortcutDispatcher.swift",
+   "Sources/ZonesWindowing/Adapters/CarbonHotkeyRegistrar.swift",
+   "Tests/ZonesWindowingTests/ShortcutStoreTests.swift",
+   "Tests/ZonesWindowingTests/ShortcutDispatchTests.swift",
+   "Tests/ZonesWindowingTests/DragSessionReducerTests.swift"
+  ],
+  "est_tokens": 86700,
+  "brief_path": "docs/tickets/T27.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ },
+ {
+  "id": "T28",
+  "title": "Shortcut resolver and cycle: send to Zone N, cycle table, command gates",
+  "kind": "build",
+  "delivers": "ShortcutResolver.plan producing a SnapPlan for the focused window on the Display it overlaps most from that Display's Assignment (keyboard CapturePath, pre-write read-back as the Original Frame), noOp(zoneAbsent) beyond the count, noOp with one log line for excluded, full-screen, position-not-settable or absent windows; CycleResolver.base using the last-Snap record when the read-back matches within 2 pt (continuing after a Span's highest or before its lowest member, clamped windows included) else maximum intersection with ties to the lower number, Zone 1 or the last Zone with no intersection, wrapping both ways.",
+  "acceptance_ids": [
+   "AC-098",
+   "AC-100",
+   "AC-101",
+   "AC-108"
+  ],
+  "blocked_by": [
+   "T17",
+   "T24"
+  ],
+  "files_expected": [
+   "Sources/ZonesWindowing/Shortcuts/ShortcutResolver.swift",
+   "Sources/ZonesWindowing/Shortcuts/CycleResolver.swift",
+   "Tests/ZonesWindowingTests/ShortcutResolverTests.swift",
+   "Tests/ZonesWindowingTests/CycleResolverTests.swift"
+  ],
+  "est_tokens": 61893,
+  "brief_path": "docs/tickets/T28.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ },
+ {
+  "id": "T29",
+  "title": "Shell models: menu, status item, General status rows, login-launch path, quit sequence",
+  "kind": "build",
+  "delivers": "MenuModel.build in the AC-016 order (disabled header '<Display> \u2014 <Layout>', radio group of Templates with counts then custom Layouts, checkable Exclude <App>, Edit Layouts, Settings, Grant Accessibility only when not granted, About, Quit) with zero WindowActor calls; StatusItemModel badge table and template image flag; GeneralPaneModel exactly two status rows; AppLifecycle.quitEffects in order disableTap, invalidateTap, orderPanelsOut, drainEnhancedUI, removeRecoveryRecord and wakeEffects; AppLaunchTests.loginLaunchShowsNoWindow over the permission machine with launchedAtLogin.",
+  "acceptance_ids": [
+   "AC-012",
+   "AC-016",
+   "AC-017",
+   "AC-018",
+   "AC-019",
+   "AC-026"
+  ],
+  "blocked_by": [
+   "T20",
+   "T17",
+   "T11"
+  ],
+  "files_expected": [
+   "Sources/ZonesWindowing/Shell/MenuModel.swift",
+   "Sources/ZonesWindowing/Shell/StatusItemModel.swift",
+   "Sources/ZonesWindowing/Shell/GeneralPaneModel.swift",
+   "Sources/ZonesWindowing/Shell/AppLifecycle.swift",
+   "Tests/ZonesWindowingTests/MenuModelTests.swift",
+   "Tests/ZonesWindowingTests/StatusItemModelTests.swift",
+   "Tests/ZonesWindowingTests/GeneralPaneModelTests.swift",
+   "Tests/ZonesWindowingTests/AppLifecycleTests.swift",
+   "Tests/ZonesWindowingTests/AppLaunchTests.swift"
+  ],
+  "est_tokens": 95760,
+  "brief_path": "docs/tickets/T29.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ },
+ {
+  "id": "T30",
+  "title": "Editor model: open on a Display, live Margin and Gap, label parity, Display switch prompt, Assign, Save and Cancel",
+  "kind": "build",
+  "delivers": "EditorModel.open resolving the draft against a connected Display or a disconnected Display's stored lastVisibleFrame and lastScale; EditorModel.reduce applying EditorEngine commands with undo/redo and recomputing the preview ResolvedLayout, warnings and labels in the same step; label model equal to the Overlay label model after every command; switchDisplay emitting promptUnsaved when dirty and re-resolving when clean; assign writing exactly one Assignment for the edited Display; save validating, emitting one atomic writeLayouts then replaceLive; cancel writing nothing. Save path tested through DocumentStore with FakeFileSystem so the file decodes to the saved document.",
+  "acceptance_ids": [
+   "AC-125",
+   "AC-131",
+   "AC-132",
+   "AC-133",
+   "AC-134",
+   "AC-136"
+  ],
+  "blocked_by": [
+   "T18",
+   "T17",
+   "T26"
+  ],
+  "files_expected": [
+   "Sources/ZonesLayout/Editor/EditorModel.swift",
+   "Tests/ZonesLayoutTests/EditorModelTests.swift"
+  ],
+  "est_tokens": 53850,
+  "brief_path": "docs/tickets/T30.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ },
+ {
+  "id": "T31",
+  "title": "Overlay panels (AppKit): one click-through NSPanel per Display, CALayer rendering, PanelOverlayPresenter",
+  "kind": "build",
+  "delivers": "ZoneOverlayPanel per ADR-0023 (borderless nonactivating, level screenSaver, canJoinAllSpaces, fullScreenAuxiliary, stationary, ignoresCycle, ignoresMouseEvents, no shadow, clear background, canBecomeKey and canBecomeMain false, isAccessibilityElement false on panel, view and layers) sized to screen.frame, created once and reused, resized on topology change; one CALayer per Zone plus highlight, secondary and label layers updated inside CATransaction with actions disabled, contentsScale per Display; PanelOverlayPresenter implementing OverlayPresenter on the MainActor with orderFrontRegardless once per session and orderOut; xcodebuild AppTests OverlayPanelTests.configuration and notAccessibilityElement. SwiftUI hosting only if SPK-009 passed.",
+  "acceptance_ids": [
+   "AC-040",
+   "AC-043",
+   "AC-044",
+   "AC-046",
+   "AC-058",
+   "AC-061",
+   "AC-064"
+  ],
+  "blocked_by": [
+   "T26",
+   "T03"
+  ],
+  "files_expected": [
+   "App/Overlay/ZoneOverlayPanel.swift",
+   "App/Overlay/ZoneLayerView.swift",
+   "App/Overlay/PanelOverlayPresenter.swift",
+   "AppTests/OverlayPanelTests.swift",
+   "project.yml"
+  ],
+  "est_tokens": 88293,
+  "brief_path": "docs/tickets/T31.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ },
+ {
+  "id": "T32",
+  "title": "Settings window shell: placement on the cursor Display, General pane, About pane, Launch at Login toggle with SMLoginItemService",
+  "kind": "build",
+  "delivers": "A SwiftUI Settings window hosted in a resizable NSWindow placed by WindowPlacement.settingsFrame on the Display under the cursor, becoming key when opened from the menu and ordering front (key where SPK-014's table says) from the hotkey; tabs General, Layouts, Shortcuts, Appearance, Exclusions, About with the General and About panes filled here (status rows, modifier key caps, Re-run onboarding, version, build, signingIdentity, MIT, one 'inspired by FancyZones' line); LoginItemToggleModel derivation (on only for enabled, caption and Login Items button for requiresApproval and notFound, signed-release caption on invalidSignature, register only on user action, status re-read on appear and activation); SMLoginItemService over SMAppService.mainApp; WindowPlacementTests.opensOnCursorDisplay, LoginItemToggleTests.derivationTable, AboutModelTests.fieldsAndSingleAttributionLine.",
+  "acceptance_ids": [
+   "AC-022",
+   "AC-023",
+   "AC-027",
+   "AC-028",
+   "AC-029",
+   "AC-030"
+  ],
+  "blocked_by": [
+   "T29",
+   "T11",
+   "T08"
+  ],
+  "files_expected": [
+   "Sources/ZonesWindowing/Shell/WindowPlacement.swift",
+   "Sources/ZonesWindowing/Shell/LoginItemToggleModel.swift",
+   "Sources/ZonesWindowing/Shell/AboutModel.swift",
+   "Sources/ZonesWindowing/Adapters/SMLoginItemService.swift",
+   "App/Settings/SettingsWindowController.swift",
+   "App/Settings/SettingsView.swift",
+   "App/Settings/GeneralPane.swift",
+   "App/Settings/AboutPane.swift",
+   "App/Settings/KeyCapView.swift",
+   "Tests/ZonesWindowingTests/WindowPlacementTests.swift",
+   "Tests/ZonesWindowingTests/LoginItemToggleTests.swift",
+   "Tests/ZonesWindowingTests/AboutModelTests.swift"
+  ],
+  "est_tokens": 133609,
+  "brief_path": "docs/tickets/T32.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ },
+ {
+  "id": "T33",
+  "title": "Onboarding window: Accessibility explanation, System Settings button, cheat sheet, badge and Grant Accessibility wiring",
+  "kind": "build",
+  "delivers": "One SwiftUI onboarding window driven by PermissionEffect.showOnboarding/dismissOnboarding: a page explaining Accessibility with a button that opens Privacy & Security > Accessibility through PermissionProbe, a status line, an 'Open System Settings' button in revoked, 'Quit and Reopen' only in needsRelaunch with the explanatory sentence, and a last page listing the three gestures with key caps that redraw when the Activation Modifier changes in General; the status item badge and Grant Accessibility menu item bound to StatusItemModel and MenuModel; no window on the launched-at-login path.",
+  "acceptance_ids": [
+   "AC-004",
+   "AC-005",
+   "AC-020"
+  ],
+  "blocked_by": [
+   "T20",
+   "T32"
+  ],
+  "files_expected": [
+   "App/Onboarding/OnboardingWindowController.swift",
+   "App/Onboarding/OnboardingView.swift",
+   "App/Onboarding/CheatSheetView.swift",
+   "App/StatusItemController.swift"
+  ],
+  "est_tokens": 78550,
+  "brief_path": "docs/tickets/T33.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ },
+ {
+  "id": "T34",
+  "title": "Settings panes: Layouts with import/export, Shortcuts recorder, Appearance with live sample, Exclusions",
+  "kind": "build",
+  "delivers": "SwiftUI panes bound to the existing models: Layouts (attached and disconnected Displays, picker, Copy Assignment, Forget, Duplicate, Rename, Delete with replacement, Export all or one, Import with the Merge/Replace sheet and backup name, newer-version and validation errors shown inline); Shortcuts (chord recorder view over ShortcutRules.recorderState with conflict, warning and inUse display, clear leaves unbound); Appearance (color and opacity with a live sample naming Layouts that follow the default Margin and Gap, default Insets sliders, Enhanced UI policy); Exclusions (running-apps list and file picker adding bundle identifiers shown beside names). Changes flow through PreferencesCodec so the next Drag Session reads them.",
+  "acceptance_ids": [
+   "AC-141"
+  ],
+  "blocked_by": [
+   "T32",
+   "T27",
+   "T25",
+   "T14",
+   "T17"
+  ],
+  "files_expected": [
+   "App/Settings/LayoutsPane.swift",
+   "App/Settings/ImportExportController.swift",
+   "App/Settings/ShortcutsPane.swift",
+   "App/Settings/ChordRecorderView.swift",
+   "App/Settings/AppearancePane.swift",
+   "App/Settings/ExclusionsPane.swift",
+   "App/Settings/PreferencesController.swift"
+  ],
+  "est_tokens": 105071,
+  "brief_path": "docs/tickets/T34.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ },
+ {
+  "id": "T35",
+  "title": "Layout editor window: translucent backdrop at real scale, keyboard commands, Assign, Save and Close",
+  "kind": "build",
+  "delivers": "A resizable editor NSWindow defaulting to WindowPlacement.editorFrame (the cursor Display's visible frame) with a translucent backdrop through which desktop windows remain visible, drawing the draft's Zones from EditorState.preview at real scale with LabelModel labels, selection, divider drag with Option free-drag, key equivalents H, V, M, arrows and Shift-arrows, Command-Z/Shift-Command-Z, Command-S, Command-W, Command-Shift-A (window key equivalent), a Display switcher including disconnected Displays with the unsaved prompt, a Template picker, Margin and Gap sliders; effects routed to DocumentStore and the live LayoutStore.",
+  "acceptance_ids": [
+   "AC-126",
+   "AC-139"
+  ],
+  "blocked_by": [
+   "T30",
+   "T32"
+  ],
+  "files_expected": [
+   "App/Editor/EditorWindowController.swift",
+   "App/Editor/EditorCanvasView.swift",
+   "App/Editor/EditorToolbar.swift",
+   "App/Editor/EditorKeyHandling.swift"
+  ],
+  "est_tokens": 83172,
+  "brief_path": "docs/tickets/T35.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ },
+ {
+  "id": "T36",
+  "title": "Composition root: wire tap, reducers, WindowActor, overlay, snap, restore, shortcuts, topology and permission into the running app",
+  "kind": "build",
+  "delivers": "AppDelegate composition root constructing production adapters and the WindowActor, driving DragSessionReducer from EventTapInputSource events (phase-one verdicts from ExclusionPolicy and CGWindowEnumerator candidates, batched frame samples on the actor at 60 Hz only while pressed, arm context from TopologyMonitor and LayoutStore, effects to PanelOverlayPresenter, SnapService, RestoreService and OriginalFrameRegistry), the PermissionMachine effect interpreter with the Clock, TapRecovery, ShortcutStore and CarbonHotkeyRegistrar with ShortcutDispatcher and ShortcutResolver, TopologyMonitor over ScreenDisplayProvider, the menu built from MenuModel on every open, wake and quit effect sequences, Diagnostics with Copy Diagnostics preview, Enhanced UI recovery at launch. End-to-end: Shift-drag snaps on every Display.",
+  "acceptance_ids": [
+   "AC-070",
+   "AC-157"
+  ],
+  "blocked_by": [
+   "T13",
+   "T21",
+   "T22",
+   "T19",
+   "T23",
+   "T24",
+   "T25",
+   "T31",
+   "T20",
+   "T29",
+   "T28",
+   "T27"
+  ],
+  "files_expected": [
+   "App/AppDelegate.swift",
+   "App/Composition/CompositionRoot.swift",
+   "App/Composition/DragDriver.swift",
+   "App/Composition/PermissionDriver.swift",
+   "App/Composition/ShortcutDriver.swift",
+   "App/Composition/TopologyDriver.swift",
+   "App/Composition/MenuController.swift",
+   "App/Composition/DiagnosticsController.swift",
+   "App/Composition/ProductionClock.swift"
+  ],
+  "est_tokens": 108474,
+  "brief_path": "docs/tickets/T36.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ },
+ {
+  "id": "T37",
+  "title": "Cross-cutting invariants: reducer properties over random event streams, hot-path budgets, exact idle timer schedule",
+  "kind": "build",
+  "delivers": "ReducerInvariantTests over Generator.dragEvents (Overlay shown only on entry to armed, every path to idle hides a shown Overlay, snap only with the Activation Modifier at mouseUp, restore never from moving, Span release then re-press preserves the set, no AX-bound effect from pressed before the first returned sample, highlighted set equals the drop set, dimAll only with a none hit and an Original Frame); BudgetTests asserting zero allocation after warm-up for hitTest, spanRect, resolve, grid and Overlay arm on a 9-Zone Layout and 10,000 dragged events under 2 s; IdleScheduleTests over FakeClock.pending for the exact timers per permission state and the transient timers, plus DragSessionReducerTests.noSamplesAfterMoving.",
+  "acceptance_ids": [
+   "AC-039",
+   "AC-082",
+   "AC-156",
+   "AC-166"
+  ],
+  "blocked_by": [
+   "T21",
+   "T22",
+   "T26",
+   "T20",
+   "T23",
+   "T25"
+  ],
+  "files_expected": [
+   "Tests/ZonesWindowingTests/ReducerInvariantTests.swift",
+   "Tests/ZonesWindowingTests/BudgetTests.swift",
+   "Tests/ZonesWindowingTests/IdleScheduleTests.swift",
+   "Tests/ZonesWindowingTests/DragSessionReducerTests.swift",
+   "Sources/ZonesTestSupport/Generator.swift"
+  ],
+  "est_tokens": 68332,
+  "brief_path": "docs/tickets/T37.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ },
+ {
+  "id": "T38",
+  "title": "Release, signing and gates: release.sh dry-run, hygiene gate, ticket lint, release checklist, bundle checks",
+  "kind": "build",
+  "delivers": "scripts/release.sh building a universal DMG under dist/ with Developer ID signing when ZONES_SIGN_IDENTITY is set, else ad-hoc with exactly one stderr line containing 'ad-hoc', and a --dry-run that performs every step but signing, notarization and DMG creation; Casks/zones.rb; dev builds signed with the Zones Dev identity so `codesign -d -r-` shows the identifier and certificate and no cdhash; hardened runtime flag and no app-sandbox entitlement; `nm -u` check for forbidden TCC and private symbols; scripts/hygiene-gate.sh printing unsafe-ops, ax-imports, cgwindowlist-uses counts and exiting 1 on any; scripts/ticket-lint.sh checking protocol, fake and tests fields in docs/tickets/graph.json; a CI step running the hygiene gate after swift test; docs/release-checklist.md with one row per AC-168 check.",
+  "acceptance_ids": [
+   "AC-002",
+   "AC-003",
+   "AC-013",
+   "AC-014",
+   "AC-162",
+   "AC-167",
+   "AC-168"
+  ],
+  "blocked_by": [
+   "T01",
+   "T07",
+   "T01b"
+  ],
+  "files_expected": [
+   "scripts/release.sh",
+   "scripts/hygiene-gate.sh",
+   "scripts/ticket-lint.sh",
+   "scripts/check-symbols.sh",
+   "Casks/zones.rb",
+   "docs/release-checklist.md",
+   ".github/workflows/ci.yml",
+   "project.yml"
+  ],
+  "est_tokens": 113290,
+  "brief_path": "docs/tickets/T38.md",
+  "state": "todo",
+  "tokens_spent": 0,
+  "branch": "",
+  "last_report": ""
+ }
+]
