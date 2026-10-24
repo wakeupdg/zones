@@ -1,3 +1,4 @@
+import AppKit
 import ApplicationServices
 import Foundation
 import ZonesCore
@@ -221,12 +222,39 @@ public final class AXObserverBridge: Sendable {
   private let hub = NoticeHub()
   private let host: ObserverHost
 
+  private let terminationToken = OSAllocatedUnfairLock<NSObjectProtocol?>(uncheckedState: nil)
+
   public init() { host = ObserverHost(hub: hub) }
 
-  deinit { hub.finishAll() }
+  deinit {
+    if let token = terminationToken.withLockUnchecked({ $0 }) {
+      NSWorkspace.shared.notificationCenter.removeObserver(token)
+    }
+    hub.finishAll()
+  }
 
   /// A new stream per call; continuations live behind a lock, so this is callable from any context.
-  public nonisolated func notices() -> AsyncStream<AXNotice> { hub.stream() }
+  /// The first call also starts the `NSWorkspace` termination feed.
+  public nonisolated func notices() -> AsyncStream<AXNotice> {
+    startTerminationFeed()
+    return hub.stream()
+  }
+
+  /// `appTerminated(pid)` from `NSWorkspace.didTerminateApplicationNotification`; also drops that pid's observer.
+  private func startTerminationFeed() {
+    terminationToken.withLockUnchecked { token in
+      guard token == nil else { return }
+      token = NSWorkspace.shared.notificationCenter.addObserver(
+        forName: NSWorkspace.didTerminateApplicationNotification, object: nil, queue: nil
+      ) { [hub, host] note in
+        guard let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
+        let pid = app.processIdentifier
+        hub.unwatch(pid: pid)
+        hub.emit(.appTerminated(pid))
+        host.performIfStarted { $0.drop(pid: pid) }
+      }
+    }
+  }
 
   /// Subscribes to the window's destroyed notification. Idempotent per key.
   public func watch(_ handle: WindowHandle) {
