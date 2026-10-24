@@ -55,22 +55,22 @@ struct ShortcutsPane: View {
     .formStyle(.grouped)
   }
 
+  /// The label and controls sit directly in the Form (one centre line, as in the General pane); the message
+  /// the last attempt left is its own row below, so it never shifts the label.
+  @ViewBuilder
   private func row(_ action: ShortcutAction) -> some View {
     let name = ShortcutsFlow.name(of: action)
-    let message = model.flow.messages[action]
-    return VStack(alignment: .leading, spacing: 4) {
-      LabeledContent(name) {
-        HStack {
-          ChordRecorderView(chord: model.chord(of: action), accessibilityName: name) { model.record($0, for: action) }
-            .frame(width: 150, height: 24)
-          Button("Clear") { model.clear(action) }.disabled(model.chord(of: action) == nil)
-        }
-      }
-      if let message {
-        HStack {
-          Text(message.text).font(.callout).foregroundStyle(message.kind == .warning ? Color.orange : Color.red)
-          if message.needsAccept { Button("Accept") { model.accept(action) } }
-        }
+    HStack(alignment: .center) {
+      Text(name)
+      Spacer()
+      ChordRecorderView(chord: model.chord(of: action), accessibilityName: name) { model.record($0, for: action) }
+        .frame(width: 150, height: 24)
+      Button("Clear") { model.clear(action) }.disabled(model.chord(of: action) == nil)
+    }
+    if let message = model.flow.messages[action] {
+      HStack {
+        Text(message.text).font(.callout).foregroundStyle(message.kind == .warning ? Color.orange : Color.red)
+        if message.needsAccept { Button("Accept") { model.accept(action) } }
       }
     }
   }

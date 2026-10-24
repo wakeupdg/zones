@@ -60,4 +60,65 @@ import ZonesWindowing
       #expect(field.accessibilityValue() as? String == expected)
     }
   }
+
+  @Test func valueUpdatesWithoutDraw() throws {
+    let field = RecorderField(frame: NSRect(x: 0, y: 0, width: 150, height: 24))  // never displayed
+    #expect(field.accessibilityValue() as? String == "Not set")
+    let chord = Chord(key: .arrowRight, modifiers: [.control, .option])
+    field.chord = chord
+    #expect(field.accessibilityValue() as? String == ShortcutsFlow.text(for: chord))
+    #expect(field.accessibilityPerformPress())
+    #expect(field.accessibilityValue() as? String == "Type shortcut")
+    field.chord = nil
+    #expect(field.accessibilityValue() as? String == "Type shortcut")
+    #expect(field.resignFirstResponder())
+    #expect(field.accessibilityValue() as? String == "Not set")
+  }
+
+  /// SwiftUI exposes no in-process AX children for the row label, so the label's position is read from the
+  /// rendered pixels: the vertical centre of the dark text ink left of the recorder, in the run nearest it.
+  private func labelInkCentre(of hosting: NSView, beside field: RecorderField) throws -> (label: CGFloat, field: CGFloat) {
+    let rep = try #require(hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds))
+    hosting.cacheDisplay(in: hosting.bounds, to: rep)
+    let scale = CGFloat(rep.pixelsWide) / hosting.bounds.width
+    let rect = field.convert(field.bounds, to: hosting)
+    let fieldTop = hosting.isFlipped ? rect.minY : hosting.bounds.height - rect.maxY
+    let fieldCentre = fieldTop + rect.height / 2
+    // Columns between the pane's left padding and the recorder; rows within 60 pt of the recorder.
+    let x0 = Int(40 * scale)
+    let x1 = Int((rect.minX - 80) * scale)
+    let y0 = max(0, Int((fieldCentre - 60) * scale))
+    let y1 = min(rep.pixelsHigh - 1, Int((fieldCentre + 60) * scale))
+    func isInk(_ x: Int, _ y: Int) -> Bool {
+      guard let c = rep.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB) else { return false }
+      return c.redComponent < 0.5 && c.greenComponent < 0.5 && c.blueComponent < 0.5
+    }
+    var inkRows: [Int] = []
+    for y in y0...y1 {
+      let count = (x0..<x1).filter { isInk($0, y) }.count
+      // Text rows have some ink; a separator or border spans nearly the whole width, so skip those.
+      if count > 0 && count < (x1 - x0) / 2 { inkRows.append(y) }
+    }
+    var runs: [(Int, Int)] = []
+    for y in inkRows {
+      if let last = runs.last, y == last.1 + 1 { runs[runs.count - 1].1 = y } else { runs.append((y, y)) }
+    }
+    let centres = runs.map { (CGFloat($0.0 + $0.1) / 2 + 0.5) / scale }
+    let nearest = try #require(centres.min { abs($0 - fieldCentre) < abs($1 - fieldCentre) })
+    return (nearest, fieldCentre)
+  }
+
+  @Test func labelAndControlShareCentre() throws {
+    let isolated = IsolatedDefaults()
+    defer { isolated.tearDown() }
+    let model = ShortcutsModel(
+      preferences: PreferencesController(defaults: isolated.defaults), registrar: nil, granted: true)
+    let (window, hosting) = host(model)
+    defer { window.close() }
+    window.appearance = NSAppearance(named: .aqua)
+    spin(0.2)
+    let field = try #require(recorders(in: hosting).first { $0.accessibilityLabel() == "Shortcut for Send to Zone 1" })
+    let centres = try labelInkCentre(of: hosting, beside: field)
+    #expect(abs(centres.label - centres.field) <= 2.5, "label centre \(centres.label) vs recorder centre \(centres.field)")
+  }
 }
