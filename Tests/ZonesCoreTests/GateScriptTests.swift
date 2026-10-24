@@ -307,4 +307,59 @@ func write(_ text: String, to url: URL) throws {
     #expect(result.status == 0)
     #expect(result.stdout.contains("symbols: ok"))
   }
+  // MARK: slice 4, release.sh dry run (AC-014, ADR-0025 amendment)
+
+  static let skipBuild = ["ZONES_RELEASE_SKIP_BUILD": "1"]
+
+  func adHocLines(_ text: String) -> Int {
+    text.split(separator: "\n").filter { $0.contains("ad-hoc") }.count
+  }
+
+  @Test func dryRunAdHocPrintsExactlyOneStderrLine() throws {
+    let result = try runScript(
+      "scripts/release.sh", ["--dry-run"], env: Self.skipBuild, unset: ["ZONES_SIGN_IDENTITY"])
+    #expect(adHocLines(result.stderr) == 1)
+    #expect(result.stdout.contains("[release] signing: ad-hoc"))
+    #expect(result.status == 0)
+  }
+
+  @Test func dryRunWithIdentityPrintsNoAdHocOnStderr() throws {
+    var env = Self.skipBuild
+    env["ZONES_SIGN_IDENTITY"] = "Developer ID Application: Example"
+    let result = try runScript("scripts/release.sh", ["--dry-run"], env: env)
+    #expect(adHocLines(result.stderr) == 0)
+    #expect(result.stdout.contains("[release] signing: Developer ID Application: Example (Developer ID)"))
+    #expect(result.status == 0)
+  }
+
+  @Test func dryRunSkipsSigningNotarizationAndDMG() throws {
+    let dir = try makeScratchDir()
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let log = dir.appendingPathComponent("calls.log")
+    let bin = dir.appendingPathComponent("bin")
+    for tool in ["codesign", "hdiutil", "xcrun", "notarytool", "stapler"] {
+      let shim = bin.appendingPathComponent(tool)
+      try write("#!/bin/sh\necho \(tool) >> '\(log.path)'\nexit 1\n", to: shim)
+      try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: shim.path)
+    }
+    let dist = repoRoot().appendingPathComponent("dist")
+    let before = (try? FileManager.default.contentsOfDirectory(atPath: dist.path))?.filter { $0.hasSuffix(".dmg") } ?? []
+    var env = Self.skipBuild
+    env["PATH"] = bin.path + ":" + (ProcessInfo.processInfo.environment["PATH"] ?? "/usr/bin:/bin")
+    env["ZONES_SIGN_IDENTITY"] = "Developer ID Application: Example"
+    env["ZONES_NOTARY_PROFILE"] = "profile"
+    let result = try runScript("scripts/release.sh", ["--dry-run"], env: env)
+    #expect(result.status == 0)
+    let calls = (try? String(contentsOf: log, encoding: .utf8)) ?? ""
+    #expect(calls.isEmpty)
+    let after = (try? FileManager.default.contentsOfDirectory(atPath: dist.path))?.filter { $0.hasSuffix(".dmg") } ?? []
+    #expect(after == before)
+    #expect(result.stdout.contains("dry-run: skipped signing, notarization, dmg"))
+  }
+
+  @Test func unknownFlagExits64() throws {
+    let result = try runScript("scripts/release.sh", ["--bogus"], env: Self.skipBuild)
+    #expect(result.status == 64)
+    #expect(!result.stderr.isEmpty)
+  }
 }
