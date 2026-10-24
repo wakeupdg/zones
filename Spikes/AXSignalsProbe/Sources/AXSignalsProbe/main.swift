@@ -14,5 +14,6 @@ switch mode {
 case "selftest": exit(runSelfTest())
 case "thread": exit(runThreadMode(args))
 case "cadence": exit(runCadenceMode(args))
+case "revoke": exit(runRevokeMode(args))
 default: fail("unknown mode: \(mode)\n\(usage)", code: 64)
 }

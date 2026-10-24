@@ -3,3 +3,4 @@
 - slice 3: thread --idle 2 Part A green — custom source callbacks at t=0 and t=2 on ax-observer, run loop alive without keepalive
 - slice 4: thread --idle 60 Part A+B green — Calculator AXObserver callbacks on ax-observer at t=0 and after 60 s; SPK-013.md written (PASS)
 - slice 5: cadence --app finder --seconds 5 green — zero-count summary, listen-only tap + observer on ax-observer; summarizeCadence covered by selftest; live drag data pending human
+- slice 6: revoke --seconds 3 green — 250 ms rows, tap + alt read logged; baseline: focused-app read returns cannotComplete while trusted; SPK-006/007 PENDING-HUMAN-RUN notes written

@@ -11,8 +11,9 @@ struct UncheckedBox<T>: @unchecked Sendable {
 /// Trivial read used as the heartbeat candidate (docs/CONTRACTS.md WindowSystem.trivialRead).
 func trivialRead() -> (raw: Int32, status: AXStatus) {
   var v: CFTypeRef?
-  let err = AXUIElementCopyAttributeValue(
-    AXUIElementCreateSystemWide(), kAXFocusedApplicationAttribute as CFString, &v)
+  let sys = AXUIElementCreateSystemWide()
+  AXUIElementSetMessagingTimeout(sys, 0.25)  // ADR-0015
+  let err = AXUIElementCopyAttributeValue(sys, kAXFocusedApplicationAttribute as CFString, &v)
   return (err.rawValue, AXStatus(raw: err.rawValue))
 }
 
@@ -92,4 +93,14 @@ func addNotification(
     "raw": Int(err.rawValue), "name": rawAXErrorName(err.rawValue),
   ])
   return err
+}
+
+/// Alternate trivial read (system-wide kAXRoleAttribute). Logged next to the brief's read because
+/// on macOS 27 the focused-application read returned cannotComplete even while trusted.
+func altTrivialRead() -> (raw: Int32, status: AXStatus) {
+  var v: CFTypeRef?
+  let sys = AXUIElementCreateSystemWide()
+  AXUIElementSetMessagingTimeout(sys, 0.25)
+  let err = AXUIElementCopyAttributeValue(sys, kAXRoleAttribute as CFString, &v)
+  return (err.rawValue, AXStatus(raw: err.rawValue))
 }

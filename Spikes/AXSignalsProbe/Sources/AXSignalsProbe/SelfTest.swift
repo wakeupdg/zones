@@ -35,6 +35,18 @@ func runSelfTest() -> Int32 {
   let none = summarizeCadence(events: [], downs: [], ups: [])
   check(none.isEmpty, "cadence no events -> empty summary")
   check(cadenceVerdict(count: 0, betweenDownUp: 0, gestures: 0) == "no-data", "verdict no-data")
+  // Revoke summary: marker at t=10; apiDisabled first seen at t=12.5; tap silent afterwards.
+  func row(_ t: Double, _ raw: Int32, _ trusted: Bool, _ tapOn: Bool, _ ev: Int) -> RevokeRow {
+    RevokeRow(t: t, raw: raw, status: AXStatus(raw: raw), trusted: trusted, tapEnabled: tapOn, tapEvents: ev)
+  }
+  let rs = summarizeRevoke(
+    rows: [row(9.5, 0, true, true, 5), row(10.5, 0, true, true, 4), row(12.5, -25211, true, true, 3), row(13, -25211, true, true, 0)],
+    markerT: 10)
+  check(rs.firstApiDisabledLatency == 2.5 && rs.heartbeatPass == true, "revoke latency 2.5 s passes 5 s rule")
+  check(rs.trustedValuesAfter10s == [true] && rs.tapEventsAfterMarker == 7 && rs.tapEnabledAtEnd == true, "revoke trusted/tap fields")
+  let late = summarizeRevoke(rows: [row(10.5, 0, true, true, 0), row(17, -25211, false, false, 0)], markerT: 10)
+  check(late.firstApiDisabledLatency == 7 && late.heartbeatPass == false && late.trustedValuesAfter10s == [true, false], "revoke 7 s fails the rule")
+  check(summarizeRevoke(rows: [row(1, 0, true, true, 0)], markerT: nil).firstApiDisabledLatency == nil, "revoke without marker")
   print(failures == 0 ? "selftest OK" : "selftest FAILED (\(failures))")
   return failures == 0 ? 0 : 1
 }
