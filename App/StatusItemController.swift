@@ -120,7 +120,9 @@ final class BadgeView: NSView {
     setAccessibilityElement(false)
   }
 
-  @available(*, unavailable) required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+  required init?(coder: NSCoder) {
+    super.init(coder: coder)
+  }
 
   override func hitTest(_ point: NSPoint) -> NSView? { nil }
 }
