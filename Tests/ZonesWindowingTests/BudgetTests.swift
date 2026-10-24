@@ -79,4 +79,28 @@ import ZonesWindowing
     let panels = Self.growth { OverlayModel.panels(scene).count }
     #expect(panels <= Self.allowedGrowth, "OverlayModel.panels grew the heap by \(panels) bytes")
   }
+
+  // Slice 11 (AC-039)
+  @Test func tenThousandDraggedEventsUnderTwoSeconds() {
+    var state = DragSessionReducer.reduce(.idle, F.mouseDown(flags: .shift)).0
+    for event in [F.dragged(), F.moved(), .armContext(F.context)] {
+      state = DragSessionReducer.reduce(state, event).0
+    }
+    #expect(F.isArmed(state))
+    var points: [CGPoint] = []
+    for k in 0..<10_000 {
+      points.append(CGPoint(x: Double((k * 37) % 1900) + 10, y: Double((k * 23) % 1050) + 10))
+    }
+    var effects = 0
+    let elapsed = ContinuousClock().measure {
+      for p in points {
+        let (next, fx) = DragSessionReducer.reduce(state, .dragged(point: p, flags: .shift))
+        state = next
+        effects &+= fx.count
+      }
+    }
+    #expect(F.isArmed(state))
+    #expect(effects > 1_000, "the reduction did real work: \(effects) effects")
+    #expect(elapsed < .seconds(2), "10,000 dragged events took \(elapsed)")
+  }
 }
