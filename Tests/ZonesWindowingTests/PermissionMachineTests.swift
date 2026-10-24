@@ -160,4 +160,142 @@ final class PermissionHarness: Sendable {
       ])
     #expect(b.clock.pending == [.trustPoll])
   }
+
+  private static let recovery: [PermissionEffect] = [
+    .cancel(.relaunchGate), .cancel(.trustPoll), .dismissOnboarding, .badge(false), .grantMenuItem(false),
+    .registerWindowHotkeys, .cancel(.healthTick), .schedule(.healthTick, 5),
+  ]
+
+  // AC-008
+  @Test func relaunchOnlyAfterGateWithProbeTrue() {
+    // Probe true: three failed recreations at t=0, 1, 2; the gate opens at t=10 and not before.
+    let h = PermissionHarness(state: .revoked(failures: 0, firstFailure: nil))
+    h.probe.enqueue(.trusted(true))
+    h.send(.probe(true))
+    #expect(h.log.contains(.recreateTap))
+    #expect(h.send(.tapRecreated(false)) == [.cancel(.relaunchGate), .schedule(.relaunchGate, 10)])
+    #expect(h.state == .revoked(failures: 1, firstFailure: 0))
+    h.clock.advance(by: 1)
+    #expect(h.send(.tapRecreated(false)).isEmpty)
+    h.clock.advance(by: 1)
+    #expect(h.send(.tapRecreated(false)).isEmpty)
+    #expect(h.state == .revoked(failures: 3, firstFailure: 0))
+    for _ in 3...9 {
+      h.clock.advance(by: 1)
+      #expect(!h.log.contains(.offerRelaunch(true)))
+      #expect(h.state == .revoked(failures: 3, firstFailure: 0))
+    }
+    h.clock.advance(by: 1)  // t = 10: the gate timer fires
+    #expect(h.state == .needsRelaunch)
+    #expect(h.log.filter { $0 == .offerRelaunch(true) }.count == 1)
+
+    // Fewer than three failures at the gate: nothing is offered and the count starts over.
+    let few = PermissionHarness(state: .revoked(failures: 0, firstFailure: nil))
+    few.send(.tapRecreated(false))
+    few.send(.tapRecreated(false))
+    few.clock.advance(by: 10)
+    #expect(few.state == .revoked(failures: 0, firstFailure: nil))
+    #expect(!few.log.contains(.offerRelaunch(true)))
+
+    // Probe false: 100 poll cycles over 100 s stay revoked, never recreate, never offer the button.
+    let off = PermissionHarness(state: .revoked(failures: 0, firstFailure: nil))
+    off.probe.enqueue(.trusted(false))
+    off.arm(.trustPoll, after: Constants.trustPoll)
+    for _ in 1...100 {
+      off.clock.advance(by: 1)
+      #expect(off.state == .revoked(failures: 0, firstFailure: nil))
+      #expect(off.clock.pending == [.trustPoll])
+    }
+    #expect(off.probeCalls == 100)
+    #expect(!off.log.contains(.offerRelaunch(true)) && !off.log.contains(.recreateTap))
+
+    // A probe false in the middle of a gate run drops it.
+    let mid = PermissionHarness(state: .revoked(failures: 0, firstFailure: nil))
+    mid.send(.tapRecreated(false))
+    mid.send(.tapRecreated(false))
+    #expect(mid.send(.probe(false)) == [.cancel(.relaunchGate), .schedule(.trustPoll, 1)])
+    #expect(mid.state == .revoked(failures: 0, firstFailure: nil))
+    #expect(mid.clock.pending == [.trustPoll])
+
+    // A successful recreation from revoked or from needsRelaunch returns to granted.
+    let fromRevoked = PermissionHarness(state: .revoked(failures: 2, firstFailure: 0))
+    fromRevoked.arm(.trustPoll, after: 1)
+    #expect(fromRevoked.send(.tapRecreated(true)) == Self.recovery)
+    #expect(fromRevoked.state == .granted)
+    #expect(fromRevoked.clock.pending == [.healthTick])
+    let fromRelaunch = PermissionHarness(state: .needsRelaunch)
+    fromRelaunch.arm(.trustPoll, after: 1)
+    #expect(fromRelaunch.send(.tapRecreated(true)) == [.offerRelaunch(false)] + Self.recovery)
+    #expect(fromRelaunch.state == .granted)
+    #expect(fromRelaunch.clock.pending == [.healthTick])
+
+    // needsRelaunch keeps polling; probe true retries the tap, probe false drops back to revoked.
+    let rl = PermissionHarness(state: .needsRelaunch)
+    rl.probe.enqueue(.trusted(true))
+    #expect(rl.send(.timer(.trustPoll)) == [.probe])
+    #expect(rl.state == .needsRelaunch)
+    #expect(rl.send(.probe(true)) == [.recreateTap, .schedule(.trustPoll, 1)])
+    #expect(rl.state == .needsRelaunch)
+    #expect(rl.send(.tapRecreated(false)).isEmpty)
+    #expect(rl.send(.probe(false)) == [.offerRelaunch(false), .schedule(.trustPoll, 1)])
+    #expect(rl.state == .revoked(failures: 0, firstFailure: nil))
+
+    Self.offerRelaunchOnlyOnEntryAndNeverAfterProbeFalse()
+  }
+
+  /// A causal driver model for the random walk: a `tapRecreated` answers an outstanding `recreateTap` (a probe false
+  /// drops the outstanding ones) and a `timer` event is one that the machine armed and has not seen fire or cancel.
+  private static func offerRelaunchOnlyOnEntryAndNeverAfterProbeFalse() {
+    let trials: [UInt64] = [1, 2, 3, 7, 42, 99, 2026, 12345]
+    var entries = 0
+    for seed in trials {
+      var g = Generator(seed: seed)
+      var state = PermissionState.notGranted
+      var now = 0.0
+      var timers: [TimerID] = [.trustPoll]
+      var outstanding = 0
+      var lastProbe: Bool?
+      let config = PermissionConfig(launchedAtLogin: false, heartbeatEnabled: true, reducerIdle: true)
+      for step in 0..<200 {
+        now += g.double(0...4)
+        let event = randomEvent(&g, timers: timers, outstanding: outstanding)
+        if case .probe(let p) = event { lastProbe = p }
+        let (next, fx) = PermissionMachine.reduce(state, event, config: config, now: now)
+        let note = Comment(rawValue: "seed \(seed) step \(step) \(state) --\(event)--> \(next) \(fx)")
+        if fx.contains(.offerRelaunch(true)) {
+          #expect(state != .needsRelaunch && next == .needsRelaunch, note)
+          #expect(lastProbe != false, note)
+        }
+        if state != .needsRelaunch, next == .needsRelaunch {
+          entries += 1
+          #expect(fx.contains(.offerRelaunch(true)), note)
+        }
+        if fx.contains(.offerRelaunch(false)) { #expect(state == .needsRelaunch, note) }
+        if case .timer(let id) = event, let at = timers.firstIndex(of: id) { timers.remove(at: at) }
+        for effect in fx {
+          switch effect {
+          case .cancel(let id): timers.removeAll { $0 == id }
+          case .schedule(let id, _): timers.append(id)
+          case .recreateTap: outstanding += 1
+          default: break
+          }
+        }
+        if case .tapRecreated = event { outstanding -= 1 }
+        if event == .probe(false) { outstanding = 0 }
+        state = next
+      }
+    }
+    #expect(entries > 0, "the walk never reached needsRelaunch, so the property proved nothing")
+  }
+
+  private static func randomEvent(_ g: inout Generator, timers: [TimerID], outstanding: Int) -> PermissionEvent {
+    let statuses: [AXStatus] = [.ok, .timedOut, .elementGone, .apiDisabled, .refused(-25200)]
+    var pool: [PermissionEvent] = [
+      .probe(true), .probe(true), .probe(false), .apiDisabled, .tapNil, .trivialRead(g.pick(statuses)),
+      .heartbeat(g.pick(statuses)), .wake, .reonboard, .quit,
+    ]
+    if outstanding > 0 { pool += [.tapRecreated(false), .tapRecreated(false), .tapRecreated(true)] }
+    pool += timers.map { .timer($0) } + timers.map { .timer($0) }
+    return g.pick(pool)
+  }
 }

@@ -14,6 +14,9 @@ public enum PermissionMachine {
     return (next, effects.filter { $0 != .showOnboarding && $0 != .dismissOnboarding })
   }
 
+  /// Timer due times are `scheduledAt + delay`; subtracting `scheduledAt` again can land a hair under `delay`.
+  private static let slack = 1e-9
+
   private static func rearm(_ id: TimerID, _ seconds: TimeInterval) -> [PermissionEffect] {
     [.cancel(id), .schedule(id, seconds)]
   }
@@ -25,7 +28,9 @@ public enum PermissionMachine {
     case .notGranted: return notGranted(e)
     case .granted: return granted(e, config: config, now: now)
     case .suspect(let since): return suspect(e, since: since, now: now)
-    case .revoked, .needsRelaunch: return (s, [])
+    case .revoked(let failures, let firstFailure):
+      return revoked(e, failures: failures, firstFailure: firstFailure, now: now)
+    case .needsRelaunch: return needsRelaunch(e)
     }
   }
 
@@ -65,7 +70,7 @@ public enum PermissionMachine {
     case .tapRecreated(true): return (stay, [.heartbeat])
     case .trivialRead(.ok), .heartbeat(.ok):
       return (.granted, [.cancel(.suspectResolve)] + rearm(.healthTick, Constants.healthTick))
-    case .timer(.suspectResolve) where now - since >= Constants.suspectWindow:
+    case .timer(.suspectResolve) where now - since >= Constants.suspectWindow - slack:
       return (
         .revoked(failures: 0, firstFailure: nil),
         [
@@ -74,6 +79,51 @@ public enum PermissionMachine {
         ] + rearm(.trustPoll, Constants.trustPoll)
       )
     default: return (stay, [])
+    }
+  }
+
+  /// Leaving revoked or needsRelaunch for granted: the tap works again.
+  private static var recovery: [PermissionEffect] {
+    [.cancel(.relaunchGate), .cancel(.trustPoll), .dismissOnboarding] + grantedEntry
+  }
+
+  private static func revoked(
+    _ e: PermissionEvent, failures: Int, firstFailure: TimeInterval?, now: TimeInterval
+  ) -> (PermissionState, [PermissionEffect]) {
+    let stay = PermissionState.revoked(failures: failures, firstFailure: firstFailure)
+    let reset = PermissionState.revoked(failures: 0, firstFailure: nil)
+    switch e {
+    case .timer(.trustPoll): return (stay, [.probe])
+    case .probe(false): return (reset, [.cancel(.relaunchGate), .schedule(.trustPoll, Constants.trustPoll)])
+    case .probe(true): return (stay, [.recreateTap, .schedule(.trustPoll, Constants.trustPoll)])
+    case .tapRecreated(false):
+      let first = firstFailure ?? now
+      let next = PermissionState.revoked(failures: failures + 1, firstFailure: first)
+      return (next, firstFailure == nil ? rearm(.relaunchGate, Constants.relaunchGateWindow) : [])
+    case .timer(.relaunchGate):
+      if failures >= Constants.relaunchGateFailures, let first = firstFailure,
+        now - first >= Constants.relaunchGateWindow - slack
+      {
+        return (.needsRelaunch, [.offerRelaunch(true)])
+      }
+      return (reset, [])
+    case .tapRecreated(true): return (.granted, recovery)
+    case .reonboard: return (stay, [.showOnboarding])
+    default: return (stay, [])
+    }
+  }
+
+  private static func needsRelaunch(_ e: PermissionEvent) -> (PermissionState, [PermissionEffect]) {
+    switch e {
+    case .timer(.trustPoll): return (.needsRelaunch, [.probe])
+    case .probe(true): return (.needsRelaunch, [.recreateTap, .schedule(.trustPoll, Constants.trustPoll)])
+    case .probe(false):
+      return (
+        .revoked(failures: 0, firstFailure: nil), [.offerRelaunch(false), .schedule(.trustPoll, Constants.trustPoll)]
+      )
+    case .tapRecreated(true): return (.granted, [.offerRelaunch(false)] + recovery)
+    case .reonboard: return (.needsRelaunch, [.showOnboarding])
+    default: return (.needsRelaunch, [])
     }
   }
 }
