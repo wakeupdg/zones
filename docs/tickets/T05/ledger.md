@@ -1,0 +1,1 @@
+- slice 1: spk004 stub red (exit 1 unimplemented), swift build green — Spikes/WindowIDProbe package skeleton
