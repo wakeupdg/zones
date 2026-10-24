@@ -53,3 +53,39 @@ private enum ArrowKey {
     }
   }
 }
+
+/// The editor's window. Key equivalents are handled here so they work wherever focus sits (AC-139): Command
+/// combos in `performKeyEquivalent` (a focused toolbar control cannot swallow them), bare letters and arrows in
+/// `keyDown` when the canvas, or nothing, has focus.
+@MainActor
+final class EditorWindow: NSWindow {
+  /// Receives each mapped event; set by the controller.
+  var onEvent: (EditorEvent) -> Void = { _ in }
+  /// The current selection, which arrow-key nudges act on.
+  var selection: () -> NodePath? = { nil }
+
+  override var canBecomeKey: Bool { true }
+
+  override func performKeyEquivalent(with event: NSEvent) -> Bool {
+    if event.modifierFlags.contains(.command), handle(event) { return true }
+    return super.performKeyEquivalent(with: event)
+  }
+
+  override func keyDown(with event: NSEvent) {
+    if !handle(event) { super.keyDown(with: event) }
+  }
+
+  /// Maps and forwards `event`; false when the key is not an editor command. Key repeat is honoured only for nudges.
+  func handle(_ event: NSEvent) -> Bool {
+    guard
+      let mapped = EditorKeyMap.event(
+        characters: event.charactersIgnoringModifiers ?? "", keyCode: event.keyCode,
+        modifiers: event.modifierFlags, selection: selection())
+    else { return false }
+    if event.isARepeat {
+      guard case .command(.nudge) = mapped else { return true }
+    }
+    onEvent(mapped)
+    return true
+  }
+}

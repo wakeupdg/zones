@@ -88,3 +88,162 @@ enum EditorCanvasGeometry {
     return .command(.setRatio(divider.path, ratio, snap: !optionHeld))
   }
 }
+
+
+/// Draws the draft at real scale and turns mouse input into editor events. It fills the window's content view; the
+/// window's screen position is read at draw time, so moving or resizing the window never moves the Zones.
+@MainActor
+final class EditorCanvasView: NSView {
+  var state: EditorState? { didSet { needsDisplay = true } }
+  var zoneStyle: Appearance {
+    didSet { needsDisplay = true }
+  }
+  var onEvent: (EditorEvent) -> Void = { _ in }
+
+  private var dragged: EditorCanvasGeometry.Divider?
+  private var observers: [any NSObjectProtocol] = []
+
+  init(zoneStyle: Appearance) {
+    self.zoneStyle = zoneStyle
+    super.init(frame: .zero)
+  }
+
+  @available(*, unavailable) required init?(coder: NSCoder) { nil }
+
+  override var acceptsFirstResponder: Bool { true }
+  override var isOpaque: Bool { false }
+  override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+  /// Screen position (AppKit coordinates) of this view's bottom-left corner.
+  var contentOrigin: CGPoint {
+    guard let window else { return .zero }
+    return window.convertToScreen(convert(bounds, to: nil)).origin
+  }
+
+  override func viewDidMoveToWindow() {
+    super.viewDidMoveToWindow()
+    for token in observers { NotificationCenter.default.removeObserver(token) }
+    observers = []
+    guard let window else { return }
+    for name in [NSWindow.didMoveNotification, NSWindow.didResizeNotification, NSWindow.didChangeScreenNotification] {
+      observers.append(
+        NotificationCenter.default.addObserver(forName: name, object: window, queue: .main) { [weak self] _ in
+          MainActor.assumeIsolated { self?.needsDisplay = true }
+        })
+    }
+  }
+
+  // MARK: drawing
+
+  override func draw(_ dirtyRect: NSRect) {
+    guard let state else { return }
+    let origin = contentOrigin
+    let zones = EditorCanvasGeometry.zoneRects(preview: state.preview, contentOrigin: origin)
+    let opacity = min(max(zoneStyle.opacity, 0), 1)
+    let fill = Self.color(zoneStyle.fill, alpha: opacity)
+    let selectedPath = state.draft.selection
+
+    for zone in zones {
+      let selected = selectedPath == zone.path
+      let path = NSBezierPath(rect: zone.rect)
+      (selected ? Self.color(zoneStyle.fill, alpha: min(opacity + 0.25, 1)) : fill).setFill()
+      path.fill()
+      if state.warnings.contains(zone.number) {
+        // Under the usable size (warnings come from the reducer, never recomputed here).
+        NSColor.systemRed.setStroke()
+        let warn = NSBezierPath(rect: zone.rect.insetBy(dx: 1, dy: 1))
+        warn.lineWidth = 2
+        warn.setLineDash([6, 4], count: 2, phase: 0)
+        warn.stroke()
+      }
+      if selected {
+        NSColor.controlAccentColor.setStroke()
+        let ring = NSBezierPath(rect: zone.rect.insetBy(dx: 1.5, dy: 1.5))
+        ring.lineWidth = 3
+        ring.stroke()
+      }
+    }
+
+    for label in LabelModel.labels(state.preview, appearance: zoneStyle) {
+      drawLabel(label, origin: origin)
+    }
+
+    let dividers = EditorCanvasGeometry.dividers(
+      layout: state.draft.layout, preview: state.preview, contentOrigin: origin)
+    for divider in dividers {
+      let selected = selectedPath == divider.path
+      (selected ? NSColor.controlAccentColor : NSColor.white.withAlphaComponent(0.55)).setFill()
+      let thickness: CGFloat = selected ? 4 : 2
+      let line: CGRect
+      switch divider.axis {
+      case .horizontal:
+        line = CGRect(x: divider.line.midX - thickness / 2, y: divider.line.minY, width: thickness, height: divider.line.height)
+      case .vertical:
+        line = CGRect(x: divider.line.minX, y: divider.line.midY - thickness / 2, width: divider.line.width, height: thickness)
+      }
+      NSBezierPath(roundedRect: line, xRadius: thickness / 2, yRadius: thickness / 2).fill()
+    }
+  }
+
+  private func drawLabel(_ label: ZoneLabel, origin: CGPoint) {
+    let frame = label.frame.offsetBy(dx: -origin.x, dy: -origin.y)
+    let size = min(max(min(frame.width, frame.height) * 0.3, 14), 160)
+    let attributes: [NSAttributedString.Key: Any] = [
+      .font: NSFont.systemFont(ofSize: size, weight: .semibold),
+      .foregroundColor: Self.color(label.outline, alpha: 1),
+    ]
+    let text = NSAttributedString(string: label.text, attributes: attributes)
+    let box = text.size()
+    text.draw(at: CGPoint(x: frame.midX - box.width / 2, y: frame.midY - box.height / 2))
+    if label.noChord {
+      // Zone 10 and up cannot be addressed by a single digit chord; LabelModel owns the flag.
+      let badge = NSAttributedString(
+        string: "no chord",
+        attributes: [
+          .font: NSFont.systemFont(ofSize: 11, weight: .medium),
+          .foregroundColor: Self.color(label.outline, alpha: 0.85),
+        ])
+      let badgeSize = badge.size()
+      badge.draw(at: CGPoint(x: frame.midX - badgeSize.width / 2, y: frame.midY - box.height / 2 - badgeSize.height - 2))
+    }
+  }
+
+  private static func color(_ c: RGBA, alpha: Double) -> NSColor {
+    NSColor(srgbRed: c.r, green: c.g, blue: c.b, alpha: alpha)
+  }
+
+  // MARK: mouse
+
+  private func dividers() -> [EditorCanvasGeometry.Divider] {
+    guard let state else { return [] }
+    return EditorCanvasGeometry.dividers(layout: state.draft.layout, preview: state.preview, contentOrigin: contentOrigin)
+  }
+
+  override func mouseDown(with event: NSEvent) {
+    window?.makeFirstResponder(self)
+    guard let state else { return }
+    let point = convert(event.locationInWindow, from: nil)
+    // Deepest divider first: nested dividers sit on top of their parents' regions.
+    if let hit = dividers().last(where: { $0.line.contains(point) }) {
+      dragged = hit
+      onEvent(.command(.select(hit.path)))
+      return
+    }
+    let zones = EditorCanvasGeometry.zoneRects(preview: state.preview, contentOrigin: contentOrigin)
+    if let zone = zones.first(where: { $0.rect.contains(point) }) {
+      onEvent(.command(.select(zone.path)))
+    } else {
+      onEvent(.command(.select(nil)))
+    }
+  }
+
+  override func mouseDragged(with event: NSEvent) {
+    guard let current = dragged else { return }
+    // The divider's region moves with the draft, so re-read it by path for every drag step.
+    guard let divider = dividers().first(where: { $0.path == current.path }) else { return }
+    let point = convert(event.locationInWindow, from: nil)
+    onEvent(EditorCanvasGeometry.event(forDragOf: divider, to: point, optionHeld: event.modifierFlags.contains(.option)))
+  }
+
+  override func mouseUp(with event: NSEvent) { dragged = nil }
+}
