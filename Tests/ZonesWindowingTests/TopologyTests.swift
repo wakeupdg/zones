@@ -133,4 +133,58 @@ private struct Harness {
     let (_, quiet) = TopologyMonitor.reduce(h.state, .snapshot(second, nilUUIDs: 0), assignments: [:], now: 0)
     #expect(quiet.isEmpty)
   }
+
+  static func uuid(_ d: DisplaySnapshot) -> String {
+    guard case .uuid(let text) = d.key else { fatalError("not a uuid key") }
+    return text
+  }
+
+  static func record(
+    _ d: DisplaySnapshot, layout: String, lastSeen: Date? = nil, name: String? = nil
+  ) -> Assignment {
+    Assignment(
+      layout: LayoutID(rawValue: layout), displayName: name ?? d.name, lastVisibleFrame: d.visibleFrame,
+      lastScale: d.scale, lastSeen: lastSeen)
+  }
+
+  static func commit(
+    _ state: TopologyState, _ t: TopologySnapshot, assignments: [String: Assignment] = [:]
+  ) -> (TopologyState, [TopologyEffect]) {
+    TopologyMonitor.reduce(state, .snapshot(t, nilUUIDs: TopologyMonitor.nilUUIDCount(in: t)), assignments: assignments, now: 0)
+  }
+
+  /// AC-118: a removed Display keeps its Assignment and emits no move; a returning UUID gets it back.
+  @Test func assignmentsSurviveReconnect() {
+    let records = [
+      Self.uuid(Self.a): Self.record(Self.a, layout: "builtin:focus:1"),
+      Self.uuid(Self.b): Self.record(Self.b, layout: "builtin:columns:2"),
+    ]
+    let both = Self.topology([Self.a, Self.b])
+    var (state, _) = Self.commit(TopologyState(), both, assignments: records)
+
+    let (afterRemove, removeEffects) = Self.commit(state, Self.topology([Self.a]), assignments: records)
+    #expect(removeEffects == [.topologyChanged(Self.topology([Self.a])), .resizePanels(Self.topology([Self.a]))])
+    for effect in removeEffects {
+      switch effect {
+      case .topologyChanged, .resizePanels: break
+      default: Issue.record("unexpected effect \(effect)")
+      }
+    }
+    #expect(
+      AssignmentLookup.layoutID(for: Self.b.key, in: records, session: afterRemove.session)
+        == LayoutID(rawValue: "builtin:columns:2"))
+    state = afterRemove
+
+    let (afterReturn, returnEffects) = Self.commit(state, both, assignments: records)
+    #expect(returnEffects == [.topologyChanged(both), .resizePanels(both)])
+    #expect(
+      AssignmentLookup.layoutID(for: Self.b.key, in: records, session: afterReturn.session)
+        == LayoutID(rawValue: "builtin:columns:2"))
+
+    // A new UUID gets the default and no write.
+    let withC = Self.topology([Self.a, Self.b, Self.c])
+    let (afterNew, newEffects) = Self.commit(afterReturn, withC, assignments: records)
+    #expect(AssignmentLookup.layoutID(for: Self.c.key, in: records, session: afterNew.session) == LayoutID(rawValue: "builtin:priorityGrid:3"))
+    #expect(!newEffects.contains { if case .persistAssignment = $0 { true } else { false } })
+  }
 }
