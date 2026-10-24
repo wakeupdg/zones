@@ -28,6 +28,28 @@ import ZonesWindowing
     #expect(fx == [.skip(.ownProcess, F.window)])
   }
 
+  @Test func phaseOneSkipBeforeSampling() {
+    let reasons: [SkipReason] = [.ownProcess, .systemAgent, .excludedBundle, .unresponsive]
+    let stacked = (1...5).map { F.ref(UInt32($0)) }
+    for reason in reasons {
+      for candidates in [[F.window], stacked] {
+        let (s, fx) = DragSessionReducer.reduce(.idle, F.mouseDown(candidates: candidates, phaseOne: .skip(reason)))
+        #expect(s == .idle, "\(reason)")
+        #expect(fx == [.skip(reason, candidates.first)], "\(reason)")
+
+        // The rest of the press: nothing is sampled and no overlay ever appears.
+        let rest = F.run([F.dragged(), F.moved(), F.unmoved(), F.dragged(F.center(3)), .mouseUp(point: F.center(3), flags: .shift)], from: s)
+        #expect(rest.state == .idle, "\(reason)")
+        #expect(!rest.effects.contains(where: F.isRequestSample), "\(reason)")
+        #expect(!rest.effects.contains(where: F.isShowOverlay), "\(reason)")
+      }
+    }
+    // Control row: an allowed press reaches pressed.
+    let (control, controlFx) = DragSessionReducer.reduce(.idle, F.mouseDown(phaseOne: .allow(.full)))
+    #expect(F.isPressed(control))
+    #expect(controlFx.isEmpty)
+  }
+
   @Test func emptyCandidatesStayIdle() {
     let (s, fx) = DragSessionReducer.reduce(.idle, F.mouseDown(candidates: []))
     #expect(s == .idle)

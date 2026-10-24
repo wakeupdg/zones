@@ -1,0 +1,1 @@
+- slice 1: phaseOneSkipBeforeSampling green — T16 already skips at mouseDown before the cap; test pins it (green on first run, no code change)
