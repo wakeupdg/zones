@@ -5,3 +5,4 @@
 - slice 4: EditorWindowTests.effectsRouteToStores green — EditorEffectRouter sends layouts/assignments to DocumentStore, replaceLive upsert, prompt/error/close to sink
 - slice 5: EditorWindowTests.zoneRectsEqualResolvedFrames green — EditorCanvasGeometry.zoneRects shifts preview frames by content origin only
 - slice 6: EditorWindowTests.dividerDragProducesSetRatio green — EditorCanvasGeometry.dividers and event(forDragOf:to:optionHeld:), snap off with Option
+- slice 7: EditorWindowTests.displaySwitcherListsDisconnectedAndPrompts green — EditorToolbarModel.displayChoices, pick and confirm switch events
