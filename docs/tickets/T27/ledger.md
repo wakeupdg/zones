@@ -6,3 +6,4 @@
 - slice 3: ShortcutStoreTests.recorderStateTable green — ShortcutRules.recorderState
 - slice 4: ShortcutStoreTests.windowHotkeysOnlyWhileGranted green — ShortcutStore launch/permission reduce, StoreHarness
 - slice 5: ShortcutStoreTests.failureKeepsPreviousChord green — set/registration with pending chord
+- slice 6: ShortcutStoreTests.clearedStaysUnbound green — set(nil) unregisters once, stays nil

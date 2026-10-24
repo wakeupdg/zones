@@ -151,6 +151,37 @@ import ZonesTestSupport
     #expect(h.state.chord(of: .openEditor) == x)
     #expect(h.registrar.bound(.openEditor) == x)
   }
+
+  @Test @MainActor func clearedStaysUnbound() {
+    let h = StoreHarness()
+    h.send(.launch)
+    h.send(.permission(granted: true))
+    #expect(h.registrar.bound(.restore) != nil)
+    let before = h.mutations.count
+
+    let effects = h.send(.set(.restore, nil))
+    #expect(effects == [.unregister(.restore), .persist(h.state.shortcuts)])
+    let delta = h.mutations.dropFirst(before)
+    #expect(Array(delta) == [.unregister(.restore)])
+    #expect(h.registrar.bound(.restore) == nil)
+    let stored = h.state.shortcuts.first { $0.action == .restore }
+    #expect(stored != nil)
+    #expect(stored?.chord == nil)  // cleared, not reverted to the default
+    #expect(!h.state.registered.contains(.restore))
+
+    // Clearing again emits nothing to unregister.
+    let again = h.send(.set(.restore, nil))
+    #expect(!again.contains(.unregister(.restore)))
+
+    // Launch and permission off/on never register restore.
+    let afterClear = h.mutations.count
+    h.send(.launch)
+    h.send(.permission(granted: false))
+    h.send(.permission(granted: true))
+    let later = h.mutations.dropFirst(afterClear)
+    #expect(!later.contains { if case .register(_, .restore) = $0 { true } else { false } })
+    #expect(h.registrar.bound(.restore) == nil)
+  }
 }
 
 /// Test-local driver: runs the reducer, executes effects on the fake registrar, and feeds each result back

@@ -67,6 +67,11 @@ public enum ShortcutStore {
           effects.append(.unregister(a))
         }
       }
+    case .set(let a, nil):
+      s.commit(nil, for: a)
+      s.pending[a] = nil
+      if s.registered.remove(a) != nil { effects.append(.unregister(a)) }
+      effects.append(.persist(s.shortcuts))
     case .set(let a, let chord?):
       if s.eligible(a) {
         s.pending[a] = chord
@@ -84,7 +89,7 @@ public enum ShortcutStore {
     case .registration(let a, let failure):
       s.pending[a] = nil
       effects = [.failed(a, failure)]
-    case .set, .reducerIdle:
+    case .reducerIdle:
       break
     }
     return (s, effects)
