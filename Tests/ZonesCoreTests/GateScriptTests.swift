@@ -203,4 +203,108 @@ func write(_ text: String, to url: URL) throws {
     try write("{\"id\":\"T01\"}", to: notArray)
     #expect(try runScript("scripts/ticket-lint.sh", [notArray.path]).status == 2)
   }
+  // MARK: slice 3, check-symbols (AC-003)
+
+  /// Compiles `source` with clang into `dir/name`. Returns nil when compile or link fails.
+  func compile(_ source: String, name: String, in dir: URL, frameworks: [String] = []) throws -> URL? {
+    let src = dir.appendingPathComponent("\(name).c")
+    try write(source, to: src)
+    let out = dir.appendingPathComponent(name)
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+    process.arguments =
+      ["clang", "-o", out.path, src.path] + frameworks.flatMap { ["-framework", $0] }
+    process.standardOutput = FileHandle.nullDevice
+    process.standardError = FileHandle.nullDevice
+    try process.run()
+    process.waitUntilExit()
+    return process.terminationStatus == 0 ? out : nil
+  }
+
+  @Test func symbolsCleanBinaryPasses() throws {
+    let dir = try makeScratchDir()
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let bin = try #require(try compile("int main(void){return 0;}\n", name: "clean", in: dir))
+    let result = try runScript("scripts/check-symbols.sh", [bin.path])
+    #expect(result.status == 0)
+    #expect(result.stdout.contains("symbols: ok"))
+  }
+
+  @Test func symbolsForbiddenBinaryFails() throws {
+    let dir = try makeScratchDir()
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let bin = try #require(
+      try compile(
+        "#include <stdbool.h>\nextern bool CGPreflightScreenCaptureAccess(void);\nint main(void){return CGPreflightScreenCaptureAccess();}\n",
+        name: "forbidden", in: dir, frameworks: ["CoreGraphics"]))
+    let result = try runScript("scripts/check-symbols.sh", [bin.path])
+    #expect(result.status == 1)
+    #expect(result.stdout.contains("CGPreflightScreenCaptureAccess"))
+    #expect(!result.stdout.contains("symbols: ok"))
+  }
+
+  @Test func symbolsPrivateCGSBinaryFails() throws {
+    let dir = try makeScratchDir()
+    defer { try? FileManager.default.removeItem(at: dir) }
+    // The private symbol may not link on every SDK; return early (recorded in the ledger).
+    guard
+      let bin = try compile(
+        "extern int CGSMainConnectionID(void);\nint main(void){return CGSMainConnectionID();}\n",
+        name: "cgs", in: dir, frameworks: ["CoreGraphics"])
+    else { return }
+    let result = try runScript("scripts/check-symbols.sh", [bin.path])
+    #expect(result.status == 1)
+    #expect(result.stdout.contains("CGSMainConnectionID"))
+  }
+
+  @Test func symbolsCGSizeIsNotForbidden() throws {
+    let dir = try makeScratchDir()
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let bin = try #require(
+      try compile(
+        "#include <CoreGraphics/CoreGraphics.h>\nint main(void){CGSize s={1,2}; CFDictionaryRef d=CGSizeCreateDictionaryRepresentation(s); return d==NULL;}\n",
+        name: "cgsize", in: dir, frameworks: ["CoreGraphics", "CoreFoundation"]))
+    let result = try runScript("scripts/check-symbols.sh", [bin.path])
+    #expect(result.status == 0)
+    #expect(result.stdout.contains("symbols: ok"))
+  }
+
+  @Test func plistKeyFails() throws {
+    let dir = try makeScratchDir()
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let bin = try #require(try compile("int main(void){return 0;}\n", name: "Skel", in: dir))
+    let app = dir.appendingPathComponent("Skel.app/Contents")
+    try FileManager.default.createDirectory(
+      at: app.appendingPathComponent("MacOS"), withIntermediateDirectories: true)
+    try FileManager.default.copyItem(at: bin, to: app.appendingPathComponent("MacOS/Skel"))
+    try write(
+      """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+      <plist version="1.0"><dict><key>CFBundleExecutable</key><string>Skel</string>
+      <key>NSScreenCaptureUsageDescription</key><string>x</string></dict></plist>
+      """, to: app.appendingPathComponent("Info.plist"))
+    let result = try runScript("scripts/check-symbols.sh", [dir.appendingPathComponent("Skel.app").path])
+    #expect(result.status == 1)
+    #expect(result.stdout.contains("NSScreenCaptureUsageDescription"))
+  }
+
+  @Test func plistCleanAppPasses() throws {
+    let dir = try makeScratchDir()
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let bin = try #require(try compile("int main(void){return 0;}\n", name: "Skel", in: dir))
+    let app = dir.appendingPathComponent("Skel.app/Contents")
+    try FileManager.default.createDirectory(
+      at: app.appendingPathComponent("MacOS"), withIntermediateDirectories: true)
+    try FileManager.default.copyItem(at: bin, to: app.appendingPathComponent("MacOS/Skel"))
+    try write(
+      """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+      <plist version="1.0"><dict><key>CFBundleExecutable</key><string>Skel</string></dict></plist>
+      """, to: app.appendingPathComponent("Info.plist"))
+    let result = try runScript("scripts/check-symbols.sh", [dir.appendingPathComponent("Skel.app").path])
+    #expect(result.status == 0)
+    #expect(result.stdout.contains("symbols: ok"))
+  }
 }

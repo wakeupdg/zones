@@ -1,2 +1,3 @@
 - slice 1: hygieneCleanTreePrintsThreeZeroLines and 6 sibling hygiene tests green — scripts/hygiene-gate.sh counts unsafe-ops, ax-imports, cgwindowlist-uses in App/ (AC-162)
 - slice 2: lintPassesOnCompleteFixture and 4 sibling lint tests green — scripts/ticket-lint.sh (AC-167); live graph.json result: tickets: 39, missing-fields: 39 (orchestrator has not added the fields yet; not edited)
+- slice 3: symbolsCleanBinaryPasses and 5 sibling symbol/plist tests green — scripts/check-symbols.sh (AC-003; --signature adds AC-002/AC-013, --runtime-only AC-002 only); CGSize* excluded from the CGS rule (public CoreGraphics API); CGSMainConnectionID links on this SDK so that case runs, with an early return if it ever fails to link
