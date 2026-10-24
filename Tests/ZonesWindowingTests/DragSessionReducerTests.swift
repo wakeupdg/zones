@@ -134,6 +134,39 @@ import ZonesWindowing
     #expect(f == other.frame)
   }
 
+  @Test func candidateTableTwoMoversSettle() {
+    let (state, refs) = Self.stackedPressed(2)
+    let both = Self.tick([1: Self.shifted, 2: Self.shifted])
+    let ids = refs.map(\.id)
+
+    // Returned samples 1 and 2: still pressed, re-requesting each time.
+    let (afterOne, fx1) = DragSessionReducer.reduce(state, both)
+    #expect(F.isPressed(afterOne))
+    #expect(fx1 == [.requestSample(ids)])
+    let (afterTwo, fx2) = DragSessionReducer.reduce(afterOne, both)
+    #expect(F.isPressed(afterTwo))
+    #expect(fx2 == [.requestSample(ids)])
+    if case .pressed(_, _, _, _, _, let n, _) = afterTwo { #expect(n == 3) }
+
+    // The 3rd returned sample with two movers gives up.
+    let (idle, fx3) = DragSessionReducer.reduce(afterTwo, both)
+    #expect(idle == .idle)
+    #expect(fx3 == [.stopSampling, .skip(.ambiguousMatch, nil)])
+
+    // A single mover on the 3rd tick still wins immediately, even with a timeout beside it.
+    let (win, winFx) = DragSessionReducer.reduce(afterTwo, Self.tick([1: Self.shifted, 2: .timedOut]))
+    #expect(F.isMoving(win))
+    #expect(winFx.first == .stopSampling)
+
+    // Pauses before the movers appear count toward the three.
+    let (late, _) = DragSessionReducer.reduce(
+      DragSessionReducer.reduce(state, Self.tick([1: Self.stayed, 2: Self.stayed])).0,
+      Self.tick([1: Self.stayed, 2: Self.stayed]))
+    let (third, thirdFx) = DragSessionReducer.reduce(late, both)
+    #expect(third == .idle)
+    #expect(thirdFx == [.stopSampling, .skip(.ambiguousMatch, nil)])
+  }
+
   @Test func ignoresSecondMouseDownCore() {
     let (pressed, _) = DragSessionReducer.reduce(.idle, F.mouseDown())
     let (s, fx) = DragSessionReducer.reduce(

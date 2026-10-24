@@ -69,32 +69,36 @@ public enum DragSessionReducer {
     case .mouseUp, .windowGone:
       return (.idle, samples > 0 ? [.stopSampling] : [])
     case .frameSample(let results):
-      // Walk the candidates in z-order; the first whose frame differs from its mouse-down frame decides.
-      // EXTENSION(T21): retry, cooldown, ambiguity and the phase-two skip from facts; candidates beyond the first
-      // decisive one. `.timedOut` and `.gone` count as unmoved for now.
-      for ref in candidates {
-        guard case .frame(let r, _)? = results[ref.id], let was = downFrames[ref.id] else { continue }
-        // A size delta over the tolerance is a resize, checked before the origin so a top-left resize that also
-        // shifts the origin still ends the session (AC-048).
-        if abs(r.width - was.width) > Constants.frameTolerance
-          || abs(r.height - was.height) > Constants.frameTolerance
-        {
-          return (.idle, [.stopSampling])
+      let tick = CandidateTick.classify(candidates: candidates, downFrames: downFrames, results: results)
+      // A size change over the tolerance is a resize, checked before any mover so a top-left resize that also
+      // shifts the origin still ends the session (AC-048).
+      if tick.resized { return (.idle, [.stopSampling]) }
+      // One mover wins at once, even when another candidate timed out in the same tick.
+      if tick.movers.count == 1, let winner = tick.movers.first {
+        var fx: [DragEffect] = [.stopSampling]
+        if flags.contains(ModifierSet(config.activation)) {
+          fx.append(.requestArmContext(window: winner.ref, point: down))
         }
-        if abs(r.origin.x - was.origin.x) > Constants.frameTolerance
-          || abs(r.origin.y - was.origin.y) > Constants.frameTolerance
-        {
-          var fx: [DragEffect] = [.stopSampling]
-          if flags.contains(ModifierSet(config.activation)) {
-            fx.append(.requestArmContext(window: ref, point: down))
-          }
-          return (.moving(window: ref, downFrame: was, flags: flags, config: config), fx)
-        }
+        return (.moving(window: winner.ref, downFrame: winner.downFrame, flags: flags, config: config), fx)
       }
+      // `samples` counts the requests issued, so it equals the number of this returned sample.
+      if tick.movers.count > 1, samples >= Constants.settleSamples {
+        return (.idle, [.stopSampling, .skip(.ambiguousMatch, nil)])
+      }
+      let survivors = tick.survivors
+      guard !survivors.isEmpty else { return (.idle, [.stopSampling]) }
+      // No mover and a timed-out read: one immediate retry per press, then give up on the app.
+      var nowRetried = retried
+      if tick.movers.isEmpty, let slow = tick.timedOut.first {
+        if retried { return (.idle, [.stopSampling, .skip(.unresponsive, slow)]) }
+        nowRetried = true
+      }
+      let alive = Set(survivors.map(\.id))
+      let kept = downFrames.filter { alive.contains($0.key) }
       return (
         .pressed(
-          candidates: candidates, down: down, downFrames: downFrames, flags: flags, config: config,
-          samples: samples + 1, retried: retried), [.requestSample(ids)]
+          candidates: survivors, down: down, downFrames: kept, flags: flags, config: config,
+          samples: samples + 1, retried: nowRetried), [.requestSample(survivors.map(\.id))]
       )
     default:
       return (s, [])
