@@ -12,6 +12,17 @@ public enum LayoutMath {
     return out
   }
 
+  /// The visible frame less the per-side Surround fractions. Top and bottom are fractions of the height, left and
+  /// right of the width. AppKit y grows up, so bottom raises `minY` and top lowers `maxY`.
+  public static func layoutRect(visibleFrame: CGRect, surround: Surround) -> CGRect {
+    let w = visibleFrame.width
+    let h = visibleFrame.height
+    // Subtracting from the extent (not from maxX) keeps an all-zero Surround bit-identical to the visible frame.
+    return CGRect(
+      x: visibleFrame.minX + surround.left * w, y: visibleFrame.minY + surround.bottom * h,
+      width: w - surround.left * w - surround.right * w, height: h - surround.bottom * h - surround.top * h)
+  }
+
   private static func collect(
     _ node: SplitNode, steps: [Bool], rect: UnitRect, into out: inout [(path: NodePath, rect: UnitRect)]
   ) {
