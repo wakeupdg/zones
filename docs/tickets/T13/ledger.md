@@ -5,3 +5,4 @@
 - slice 5: AXMappingTests.coordinateRoundTrip green — AXGeometry.ax/appKit wrap CoordinateSpace (only callers); 200 seeded rects x 2 primaries round-trip
 - slice 6: AXObserverBridgeTests.fanOut green — NoticeHub fan-out behind a lock, notices() new stream per call, internal emit(_:)
 - slice 7: AXPermissionProbeTests.probeValues green — AXPermissionProbe (isTrusted calls AXIsProcessTrusted each time, settingsURL, injected or Apple-event launchedAtLogin)
+- slice 9a: AXObserverBridgeTests.watchIsSafeAndIdempotent green — dedicated Zones.AXObserver thread with keep-alive source (loop re-entered until stopped), per-pid AXObserver, destroyed subscriptions with WindowKey refcon box; live callbacks and the 60 s idle check (SPK-013) cannot run in swift test

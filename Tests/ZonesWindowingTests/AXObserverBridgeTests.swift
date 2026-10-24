@@ -1,3 +1,4 @@
+import ApplicationServices
 import Testing
 import ZonesCore
 
@@ -23,5 +24,17 @@ import ZonesCore
     bridge.emit(.appTerminated(43))
     #expect(await next(&late) == .appTerminated(43))
     #expect(await next(&a) == .appTerminated(43))
+  }
+
+  /// Needs no Accessibility grant: untrusted or unsupported registrations are dropped quietly. The live callbacks
+  /// (SPK-013) cannot run under `swift test`.
+  @Test func watchIsSafeAndIdempotent() {
+    let pid = getpid()
+    let handle = WindowHandle(element: AXUIElementCreateApplication(pid), pid: pid)
+    let bridge = AXObserverBridge()
+    bridge.watch(handle)
+    bridge.watch(handle)
+    bridge.stop(pid: pid)
+    bridge.watch(handle)
   }
 }
