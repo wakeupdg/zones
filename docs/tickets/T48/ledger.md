@@ -1,1 +1,2 @@
 - slice 1: AppStateOwnershipTests.editorSaveReachesDragContext green — AppState owns Layouts/Assignments (upsertLayout/deleteLayout/replaceDocument/reload); EditorLauncher routes editor load/save/upsert through it via EditorStateHooks
+- slice 2: AppStateOwnershipTests.topologyPersistKeepsEditorAssignment green — red proven with documentChanged stubbed out; editor re-reads AppState's document before each event

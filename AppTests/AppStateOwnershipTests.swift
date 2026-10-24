@@ -71,4 +71,24 @@ import ZonesWindowing
     #expect(after[.uuid(Self.uuidA)]?.zones.count == 2)
     #expect(root.state.assignedLayoutID(for: .uuid(Self.uuidA), session: [:]) == id)
   }
+
+  @Test func topologyPersistKeepsEditorAssignment() throws {
+    let h = Harness()
+    let root = h.makeRoot()
+    h.displays.enqueue(.snapshot(EditorWindowTests.topology()))
+    root.topology.forceSnapshot()
+    let rig = EditorRig(root: root)
+    rig.saveTwoColumnsAndAssign()
+    let custom = rig.model.draft.layout.id
+
+    // A status-menu pick for Display B persists through the topology driver.
+    let columns = Templates.builtInID(.columns, count: 3)
+    root.topology.pick(columns, for: .uuid(Self.uuidB))
+
+    let onDisk = try JSONDecoder().decode(
+      ZonesDocument.self, from: h.files.read(URL(filePath: "/zones-support/assignments.json")))
+    #expect(onDisk.assignments[Self.uuidA]?.layout == custom)
+    #expect(onDisk.assignments[Self.uuidB]?.layout == columns)
+    #expect(root.state.assignments.mapValues(\.layout) == onDisk.assignments.mapValues(\.layout))
+  }
 }
