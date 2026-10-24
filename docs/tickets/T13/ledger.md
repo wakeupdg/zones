@@ -1,0 +1,1 @@
+- slice 1: FrameWriteResultTests.exhaustiveSwitch green — no-default switches over FrameWriteResult, AXStatus, AXRead (types already existed, so no red phase)
