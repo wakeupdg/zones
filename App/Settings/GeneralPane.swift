@@ -10,6 +10,8 @@ struct GeneralPane: View {
   let onRerunOnboarding: () -> Void
   let onChange: (Preferences) -> Void
   let coordinator: LoginItemToggleCoordinator
+  /// The controller's current value; other panes change it, so the local copy follows it.
+  let external: Preferences
 
   @State private var prefs: Preferences
   @State private var refreshTick = 0
@@ -20,6 +22,7 @@ struct GeneralPane: View {
     onChange: @escaping (Preferences) -> Void, coordinator: LoginItemToggleCoordinator
   ) {
     _prefs = State(initialValue: preferences)
+    external = preferences
     self.permission = permission
     self.tap = tap
     self.onRerunOnboarding = onRerunOnboarding
@@ -66,6 +69,7 @@ struct GeneralPane: View {
       refreshTick += 1
     }
     .onChange(of: prefs) { _, new in onChange(new) }
+    .onChange(of: external) { _, new in if new != prefs { prefs = new } }
   }
 
   private func modifierRow(_ title: String, selection: Binding<Modifier>) -> some View {

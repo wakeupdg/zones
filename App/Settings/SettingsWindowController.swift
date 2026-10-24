@@ -24,7 +24,7 @@ final class SettingsWindowController {
   init(
     topology: @escaping () -> TopologySnapshot?, cursor: @escaping () -> CGPoint,
     permission: @escaping () -> PermissionState, tap: @escaping () -> TapState,
-    preferences: @escaping () -> Preferences, onChange: @escaping (Preferences) -> Void,
+    environment: SettingsEnvironment? = nil, registrar: (any HotkeyRegistrar)? = nil,
     onRerunOnboarding: @escaping () -> Void, loginItems: any LoginItemService = SMLoginItemService(),
     bundle: @escaping () -> BundleInfo = { BundleInfo.current() },
     osMajor: Int = ProcessInfo.processInfo.operatingSystemVersion.majorVersion
@@ -33,12 +33,13 @@ final class SettingsWindowController {
     self.cursor = cursor
     self.osMajor = osMajor
     coordinator = LoginItemToggleCoordinator(service: loginItems)
+    let environment =
+      environment ?? SettingsEnvironment.live(topology: topology, permission: permission, registrar: registrar)
     makeContent = { selection, coordinator in
       NSHostingView(
         rootView: SettingsView(
-          selection: selection, preferences: preferences(), about: AboutModel(bundle: bundle()),
-          permission: permission, tap: tap, onRerunOnboarding: onRerunOnboarding,
-          onChange: onChange, coordinator: coordinator))
+          selection: selection, environment: environment, about: AboutModel(bundle: bundle()),
+          permission: permission, tap: tap, onRerunOnboarding: onRerunOnboarding, coordinator: coordinator))
     }
   }
 

@@ -18,3 +18,14 @@ extension DocumentStore {
     try? fs.remove(url(kind))
   }
 }
+
+/// Backup files that sit beside the documents (import Replace names one before it writes).
+extension DocumentStore {
+  /// Writes `data` as `name` in the documents directory. `name` must be a plain file name.
+  public func saveBackup(_ data: Data, named name: String) throws(DocumentError) {
+    guard !name.isEmpty, !name.contains("/"), name != ".", name != ".." else {
+      throw .io("invalid backup name \(name)")
+    }
+    do { try fs.writeAtomic(data, to: directory.appending(path: name)) } catch { throw .io(String(describing: error)) }
+  }
+}

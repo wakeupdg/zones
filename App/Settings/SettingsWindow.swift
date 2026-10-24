@@ -4,6 +4,8 @@ import AppKit
 /// the window handles Cmd+W and Escape itself so a keyboard-only user can dismiss it (AC-023, HIG).
 final class SettingsWindow: NSWindow {
   override func performKeyEquivalent(with event: NSEvent) -> Bool {
+    // A shortcut recorder owns every key while it records, Cmd+W included.
+    if firstResponder is KeyCapturing { return super.performKeyEquivalent(with: event) }
     let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.capsLock, .numericPad, .function])
     if event.type == .keyDown, flags == .command, event.charactersIgnoringModifiers?.lowercased() == "w" {
       performClose(nil)
