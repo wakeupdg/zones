@@ -356,4 +356,69 @@ final class PermissionHarness: Sendable {
     #expect(next == state)
     #expect(fx == [.cancel(.trustPoll), .cancel(.healthTick), .cancel(.suspectResolve), .cancel(.relaunchGate), .disableTap])
   }
+
+  // AC-158
+  @Test func heartbeatIsolation() {
+    var health = AppHealth()
+    health.markUnresponsive(123, now: 1)
+    let healthBefore = health
+
+    // Enabled and idle: the tick asks for exactly one heartbeat and does not re-arm; the result does.
+    for result in [AXStatus.ok, .timedOut, .elementGone, .refused(-25204)] {
+      let h = PermissionHarness(state: .granted, heartbeatEnabled: true, reducerIdle: true)
+      h.arm(.healthTick, after: Constants.healthTick)
+      h.clock.advance(by: 5)
+      #expect(h.log == [.heartbeat], "\(result)")
+      #expect(h.clock.pending.isEmpty)
+      h.clock.advance(by: 60)  // no answer yet: still one in flight, no second request
+      #expect(h.log.filter { $0 == .heartbeat }.count == 1)
+      #expect(h.send(.heartbeat(result)) == [.cancel(.healthTick), .schedule(.healthTick, 5)])
+      #expect(h.state == .granted)
+      #expect(h.clock.pending == [.healthTick])
+      #expect(h.log.filter { $0 == .heartbeat }.count == 1)
+    }
+
+    // A heartbeat that finds the API disabled is a runtime signal.
+    let down = PermissionHarness(state: .granted, heartbeatEnabled: true, reducerIdle: true)
+    down.arm(.healthTick, after: 5)
+    down.clock.advance(by: 5)
+    down.send(.heartbeat(.apiDisabled))
+    #expect(down.state == .suspect(since: 5))
+    #expect(down.clock.pending == [.suspectResolve])
+
+    // Not idle, or disabled: no heartbeat in ten ticks, the tick keeps re-arming.
+    for (enabled, idle) in [(true, false), (false, true), (false, false)] {
+      let h = PermissionHarness(state: .granted, heartbeatEnabled: enabled, reducerIdle: idle)
+      h.arm(.healthTick, after: Constants.healthTick)
+      for _ in 1...10 {
+        h.clock.advance(by: 5)
+        #expect(h.clock.pending == [.healthTick])
+      }
+      #expect(!h.log.contains(.heartbeat), "enabled \(enabled) idle \(idle)")
+      #expect(h.events.filter { $0 == .timer(.healthTick) }.count == 10)
+    }
+
+    // The reducer going busy between ticks holds the next heartbeat back.
+    let busy = PermissionHarness(state: .granted, heartbeatEnabled: true, reducerIdle: true)
+    busy.arm(.healthTick, after: 5)
+    busy.config.reducerIdle = false
+    busy.clock.advance(by: 5)
+    #expect(!busy.log.contains(.heartbeat))
+    #expect(busy.clock.pending == [.healthTick])
+
+    // Heartbeat results outside granted (and suspect's non-ok ones) are ignored.
+    for state in [PermissionState.notGranted, .revoked(failures: 0, firstFailure: nil), .needsRelaunch] {
+      for status in [AXStatus.ok, .timedOut, .apiDisabled, .elementGone] {
+        let h = PermissionHarness(state: state, heartbeatEnabled: true, reducerIdle: true)
+        #expect(h.send(.heartbeat(status)).isEmpty, "\(state) \(status)")
+        #expect(h.state == state)
+      }
+    }
+    let s = PermissionHarness(state: .suspect(since: 0), heartbeatEnabled: true, reducerIdle: true)
+    #expect(s.send(.heartbeat(.timedOut)).isEmpty)
+    #expect(s.state == .suspect(since: 0))
+
+    // Nothing here can reach AppHealth: it is not an input, an output or a state of the machine.
+    #expect(health == healthBefore)
+  }
 }

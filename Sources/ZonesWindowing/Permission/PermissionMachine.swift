@@ -60,12 +60,16 @@ public enum PermissionMachine {
     _ e: PermissionEvent, config: PermissionConfig, now: TimeInterval
   ) -> (PermissionState, [PermissionEffect]) {
     switch e {
-    case .timer(.healthTick): return (.granted, rearm(.healthTick, Constants.healthTick))
-    case .apiDisabled, .tapNil, .heartbeat(.apiDisabled), .probe(false):
+    case .timer(.healthTick):
+      // One heartbeat in flight at most: its result re-arms the tick, so there is no reschedule here.
+      if config.heartbeatEnabled && config.reducerIdle { return (.granted, [.heartbeat]) }
+      return (.granted, rearm(.healthTick, Constants.healthTick))
+    case .heartbeat(.apiDisabled), .apiDisabled, .tapNil, .probe(false):
       return (
         .suspect(since: now),
         [.cancel(.healthTick), .recreateTap] + rearm(.suspectResolve, Constants.suspectWindow)
       )
+    case .heartbeat: return (.granted, rearm(.healthTick, Constants.healthTick))
     case .reonboard:
       // Re-run onboarding: the tap and every store stay as they are. The next true probe's `startTap` is idempotent.
       return (.notGranted, [.cancel(.healthTick), .showOnboarding] + rearm(.trustPoll, Constants.trustPoll))
