@@ -1,1 +1,3 @@
 - slice 1: ModifierMaskTests.ignoresNonModifierBits green — ModifierSet.init(_:) and masked(_:) with named CGEventFlags bits
+- slice 2: DragSessionReducerTests.clickRequestsNoSample green — idle mouseDown and pressed mouseUp/windowGone, DragFixtures harness
+- CONTRACT-NOTE: armed entry has hit .none until the replayed dragged
