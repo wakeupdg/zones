@@ -231,6 +231,85 @@ struct EditorCommandTests {
     #expect(run(.setGap(.nan), start) == .failure(.invalidRatio))
     #expect(run(.setGap(.infinity), start) == .failure(.invalidRatio))
   }
+
+  @Test func undoRedoRoundTrip() throws {
+    func allPaths(_ node: SplitNode, _ steps: [Bool] = []) -> [NodePath] {
+      guard case .split(_, _, let first, let second) = node else { return [NodePath(steps: steps)] }
+      return [NodePath(steps: steps)] + allPaths(first, steps + [false]) + allPaths(second, steps + [true])
+    }
+    for seed: UInt64 in [1, 2, 3, 42, 2026, 0xDEAD_BEEF] {
+      var gen = Generator(seed: seed)
+      // start: a few splits on a one-leaf draft
+      var original = draft()
+      for _ in 0..<3 {
+        original.selection = gen.pick(allPaths(original.layout.root).filter { $0.steps.count < 3 })
+        if case .success(let next) = run(.split(gen.bool() ? .horizontal : .vertical), original) { original = next }
+      }
+      original.dirty = false
+      var current = original
+      var stack = UndoStack()
+      var accepted = 0
+      var attempts = 0
+      while accepted < 100 {
+        attempts += 1
+        #expect(attempts < 5000, Comment(rawValue: Generator.failureMessage(seed: seed, layout: current.layout, note: "stuck")))
+        if attempts >= 5000 { break }
+        let paths = allPaths(current.layout.root)
+        let command: EditorCommand
+        switch gen.int(0...9) {
+        case 0, 1: command = .select(gen.bool() ? gen.pick(paths) : nil)
+        case 2, 3: command = .split(gen.bool() ? .horizontal : .vertical)
+        case 4: command = .merge
+        case 5: command = .setRatio(gen.pick(paths), gen.double(0.05...0.95), snap: gen.bool())
+        case 6: command = .nudge(gen.pick(paths), points: gen.pick([1, 10, -1, -10]))
+        case 7: command = gen.bool() ? .setMargin(gen.double(0...20)) : .setGap(gen.double(0...20))
+        case 8:
+          let t = gen.pick(Template.allCases)
+          command = .template(t, count: gen.pick(t.counts))
+        default: command = .rename("Layout \(gen.int(0...99))")
+        }
+        guard case .success(let next) = run(command, current), next != current else { continue }
+        stack.record(before: current, after: next)
+        current = next
+        accepted += 1
+      }
+      let final = current
+      let note = { (what: String) in
+        Comment(rawValue: Generator.failureMessage(seed: seed, layout: current.layout, note: what))
+      }
+      for _ in 0..<100 {
+        let previous = stack.undo(current: current)
+        current = try #require(previous, note("undo ran out"))
+      }
+      #expect(current == original, note("undo x100"))
+      #expect(stack.undo(current: current) == nil)
+      for _ in 0..<100 {
+        let next = stack.redo(current: current)
+        current = try #require(next, note("redo ran out"))
+      }
+      #expect(current == final, note("redo x100"))
+      #expect(stack.redo(current: current) == nil)
+    }
+  }
+
+  @Test func undoStackBookkeeping() {
+    let a = draft()
+    var b = a
+    b.layout.name = "B"
+    var stack = UndoStack()
+    stack.record(before: a, after: a)
+    #expect(stack.undo.isEmpty)
+    stack.record(before: a, after: b)
+    #expect(stack.undo == [a])
+    #expect(stack.undo(current: b) == a)
+    #expect(stack.redo == [b])
+    // a new change after an undo clears redo
+    var c = a
+    c.layout.name = "C"
+    stack.record(before: a, after: c)
+    #expect(stack.redo.isEmpty)
+    #expect(stack.undo == [a])
+  }
 }
 
 extension EditorDraft {
