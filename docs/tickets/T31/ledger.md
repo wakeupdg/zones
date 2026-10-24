@@ -3,3 +3,4 @@
 - Tooling: AppTests could not load under the hardened-runtime host (Team ID mismatch with the self-signed "Zones Dev" identity), so project.yml sets ENABLE_HARDENED_RUNTIME NO for the Zones target in Debug only (Release unchanged). AppTests also gets the three package products.
 - Quirk: `isFloatingPanel = true` resets `level` to .floating, so `level = .screenSaver` must be set after it. `hasKeyAppearance`/`hasActiveAppearance` are not overridable on NSWindow in this SDK, so not overridden.
 - slice 1: OverlayPanelTests.configuration green — ZoneOverlayPanel with the ADR-0023 recipe (orderFrontCount, fit(to:)).
+- slice 2: OverlayPanelTests.notAccessibilityElement green — ZoneLayerView skeleton (layer-backed, AX hidden); CALayer has no isAccessibilityElement on macOS, so layers are asserted not to be NSAccessibilityElementProtocol and the view reports no AX children.

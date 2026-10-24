@@ -10,6 +10,30 @@ import ZonesWindowing
 @Suite struct OverlayPanelTests {
   static let screen = CGRect(x: 0, y: 0, width: 1440, height: 900)
 
+  static let key = DisplayKey.uuid("00000000-0000-0000-0000-000000000001")
+
+  static let style = PanelStyle(
+    idle: RGBA(r: 0.2, g: 0.4, b: 0.8, a: 0.1), highlight: RGBA(r: 0.5, g: 0.7, b: 1, a: 0.4),
+    secondary: RGBA(r: 0.5, g: 0.7, b: 1, a: 0.25), dim: RGBA(r: 0.2, g: 0.4, b: 0.8, a: 0.04),
+    animationDuration: nil)
+
+  /// `count` equal columns across the panel frame, as AppKit global rects.
+  static func model(
+    frame: CGRect = screen, count: Int = 3, style: PanelStyle = style, spanOutline: Bool = false,
+    primary: Set<Int> = [], secondary: Set<Int> = [], scale: Double = 2
+  ) -> PanelModel {
+    let width = frame.width / Double(count)
+    let zones = (1...count).map { n -> ZoneDrawing in
+      let rect = CGRect(x: frame.minX + Double(n - 1) * width, y: frame.minY + 40, width: width, height: frame.height - 80)
+      let fill = primary.contains(n) ? style.highlight : secondary.contains(n) ? style.secondary : style.idle
+      let label = ZoneLabel(
+        number: n, text: String(n), frame: rect, outline: RGBA(r: 1, g: 1, b: 1, a: 1), contentsScale: scale,
+        noChord: n > 9)
+      return ZoneDrawing(number: n, rect: rect, fill: fill, label: label)
+    }
+    return PanelModel(display: key, frame: frame, zones: zones, style: style, spanOutline: spanOutline)
+  }
+
   @Test func configuration() {
     let panel = ZoneOverlayPanel(screenFrame: Self.screen)
     #expect(panel.ignoresMouseEvents)
@@ -25,5 +49,18 @@ import ZonesWindowing
     #expect(panel.styleMask.contains(.nonactivatingPanel))
     #expect(panel.styleMask.contains(.borderless))
     #expect(panel.frame == Self.screen)
+  }
+
+  @Test func notAccessibilityElement() {
+    let panel = ZoneOverlayPanel(screenFrame: Self.screen)
+    let view = ZoneLayerView(frame: CGRect(origin: .zero, size: Self.screen.size), scale: 2)
+    panel.contentView = view
+    view.apply(Self.model(primary: [2]))
+    #expect(!panel.isAccessibilityElement())
+    #expect(!view.isAccessibilityElement())
+    #expect(view.accessibilityChildren()?.isEmpty ?? true)
+    #expect(view.layer?.sublayers?.isEmpty == false)
+    // CALayer exposes no isAccessibilityElement on macOS: assert none is an AX element and none is a view child.
+    for layer in view.allLayers { #expect(!(layer is any NSAccessibilityElementProtocol)) }
   }
 }
