@@ -75,6 +75,20 @@ import ZonesWindowing
     if case .log? = noneFx.first {} else { Issue.record("no log in \(noneFx)") }
   }
 
+  @Test func candidateTableBatchedRead() {
+    let four = (1...4).map { F.ref(UInt32($0)) }
+    let ids = four.map(\.id)
+    var (state, fx) = DragSessionReducer.reduce(.idle, F.mouseDown(candidates: four))
+    #expect(fx.isEmpty)  // sampling starts at the first dragged event, never at mouseDown
+    (state, fx) = DragSessionReducer.reduce(state, F.dragged())
+    #expect(fx == [.requestSample(ids)])
+    #expect(fx.filter(F.isRequestSample).count == 1)
+    // Every later tick is one batched request in z-order, too.
+    let unmovedAll = DragEvent.frameSample(Dictionary(uniqueKeysWithValues: ids.map { ($0, SampleResult.frame(F.downFrame, F.standardFacts)) }))
+    (_, fx) = DragSessionReducer.reduce(state, unmovedAll)
+    #expect(fx == [.requestSample(ids)])
+  }
+
   @Test func ignoresSecondMouseDownCore() {
     let (pressed, _) = DragSessionReducer.reduce(.idle, F.mouseDown())
     let (s, fx) = DragSessionReducer.reduce(

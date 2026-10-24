@@ -1,2 +1,3 @@
 - slice 1: phaseOneSkipBeforeSampling green — T16 already skips at mouseDown before the cap; test pins it (green on first run, no code change)
 - slice 2: candidateTableFiveCandidates green — mouseDown: >4 candidates -> skip(ambiguousMatch,nil); zero -> log; replaced emptyCandidatesStayIdle (now expects a log)
+- slice 3: candidateTableBatchedRead green — T16 already issues one requestSample(ids) in z-order from the first dragged; test pins it; fixtures: sample() now carries standard WindowFacts by default

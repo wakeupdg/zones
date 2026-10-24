@@ -49,8 +49,11 @@ enum DragFixtures {
 
   static func dragged(_ p: CGPoint = CGPoint(x: 320, y: 260)) -> DragEvent { .dragged(point: p, flags: []) }
 
-  static func sample(_ frame: CGRect, id: UInt32 = 1) -> DragEvent {
-    .frameSample([WindowID(rawValue: id): .frame(frame, nil)])
+  /// Phase-two facts of an ordinary, movable, standard window.
+  static let standardFacts = WindowFacts(subrole: .standard, isFullScreen: false, positionSettable: true, sizeSettable: true)
+
+  static func sample(_ frame: CGRect, id: UInt32 = 1, facts: WindowFacts? = standardFacts) -> DragEvent {
+    .frameSample([WindowID(rawValue: id): .frame(frame, facts)])
   }
 
   static func unmoved(id: UInt32 = 1) -> DragEvent { sample(downFrame, id: id) }
