@@ -156,4 +156,39 @@ import ZonesTestSupport
     #expect(unknown.restoreFocused(facts: nil) == .applied(Self.original))
     #expect(unknown.sink.events.isEmpty)
   }
+
+  /// AC-094: a single-Zone Snap and a Span Snap leave the same kind of entry; Restore returns the same frame.
+  @Test @WindowActor func spanAndSnapShareMemory() {
+    var rig = Rig()
+    let single = WindowKey(pid: rig.handle.pid, elementHash: 11)
+    let span = WindowKey(pid: rig.handle.pid, elementHash: 12)
+    let spanFrame = CGRect(x: 0, y: 25, width: 1920, height: 1055)
+
+    // Both windows start at the same frame; each Snap captures it, then records the applied frame.
+    for (key, zones, frame) in [(single, Set([1]), Self.zoneFrame), (span, Set([1, 2]), spanFrame)] {
+      let captured = rig.registry.capture(
+        OriginalFrameEntry(key: key, frame: Self.original, via: .mouse))
+      #expect(captured)
+      rig.registry.recordSnap(
+        LastSnapRecord(key: key, display: Self.displayKey, zones: zones, frame: frame))
+    }
+    let singleEntry = rig.registry.entry(single)
+    let spanEntry = rig.registry.entry(span)
+    #expect(singleEntry?.frame == spanEntry?.frame)
+    #expect(singleEntry?.via == spanEntry?.via)
+    #expect(rig.registry.lastSnap(single)?.zones.count == 1)
+    #expect(rig.registry.lastSnap(span)?.zones.count == 2)
+
+    var results: [RestoreResult] = []
+    for key in [single, span] {
+      rig.ws.enqueue(.frame(.value(Self.original)))
+      results.append(
+        rig.service.restoreFocused(
+          registry: &rig.registry, key: key, window: rig.ref(), facts: Self.facts(),
+          handle: rig.handle, topology: Self.oneDisplay, mode: .full, health: &rig.health))
+    }
+    #expect(results == [.applied(Self.original), .applied(Self.original)])
+    #expect(rig.registry.entry(single) == nil)
+    #expect(rig.registry.entry(span) == nil)
+  }
 }
