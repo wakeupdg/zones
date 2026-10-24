@@ -209,6 +209,46 @@ import ZonesWindowing
     send(.cancel)
     #expect(sink.closes == 1)
   }
+
+  // MARK: canvas geometry
+
+  @Test func zoneRectsEqualResolvedFrames() {
+    let visible = CGRect(x: 100, y: 50, width: 1440, height: 875)
+    let insets = Insets(margin: 12, gap: 8)
+    let layouts: [Layout] = [
+      Templates.generate(.grid, count: 4, insets: insets),
+      Templates.generate(.priorityGrid, count: 3, insets: insets),
+      Templates.generate(.focus, count: 1, insets: insets),  // surround 0.2
+    ]
+    for layout in layouts {
+      let state = EditorModel.open(
+        layout, display: .uuid(Self.uuidA),
+        topology: TopologySnapshot(
+          displays: [Self.display(key: Self.uuidA, frame: visible, visible: visible)], separateSpaces: true,
+          primaryFrame: visible),
+        assignments: [:])
+      let truth = LayoutMath.resolve(layout, key: .uuid(Self.uuidA), visibleFrame: visible, scale: 2)
+      #expect(state.preview == truth)
+
+      // Origin zero: identical frames, in order, with number and path preserved.
+      let identity = EditorCanvasGeometry.zoneRects(preview: state.preview, contentOrigin: .zero)
+      #expect(identity.map(\.rect) == truth.zones.map(\.frame))
+      #expect(identity.map(\.number) == truth.zones.map(\.number))
+      #expect(identity.map(\.path) == truth.zones.map(\.path))
+
+      // Origin at the visible frame's corner: shifted by exactly that and nothing else (real scale).
+      let local = EditorCanvasGeometry.zoneRects(preview: state.preview, contentOrigin: visible.origin)
+      for (zone, rect) in zip(truth.zones, local) {
+        #expect(rect.rect == zone.frame.offsetBy(dx: -visible.minX, dy: -visible.minY))
+        #expect(rect.rect.size == zone.frame.size)
+      }
+      // Zone 1 edges equal the Overlay's (LayoutMath.resolve) once the origin is added back.
+      let first = local[0].rect
+      let zone1 = truth.zones[0].frame
+      #expect(first.minX + visible.minX == zone1.minX && first.maxX + visible.minX == zone1.maxX)
+      #expect(first.minY + visible.minY == zone1.minY && first.maxY + visible.minY == zone1.maxY)
+    }
+  }
 }
 
 /// Test-only factory so the test reads top-down.
