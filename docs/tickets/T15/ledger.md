@@ -6,3 +6,4 @@
 - slice 6: SnapServiceTests.writesOnlyTargetHandle green — every logged call (clamp follow-up included) names the plan's handle; passed on first run, behaviour already held
 - slice 7: SnapServiceTests.timeoutRetryOnceThenAbort green — retry once then abort, 10 s cooldown on the Clock with zero AX calls, one attempt after; plus recover-on-retry, read-back and first-read timeout cases
 - AC-078 manual, not run
+- slice 8: SnapServiceTests.positionOnlyModeNeverWritesSize green — position-only logs setPosition then frame, no setSize, origin-only classification

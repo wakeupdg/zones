@@ -221,4 +221,16 @@ import ZonesWindowing
     #expect(rig.ws.calls == [.frame(h), .frame(h)])
     #expect(rig.health.isUnresponsive(h.pid, now: rig.clock.now))
   }
+
+  /// ADR-0018 amendment C4: a window whose size cannot be set gets setPosition and a read-back only.
+  @Test @WindowActor func positionOnlyModeNeverWritesSize() {
+    var rig = Rig()
+    let h = rig.handle
+    let kept = CGRect(origin: Self.target.origin, size: Self.elsewhere.size)
+    rig.script(current: Self.elsewhere, readBack: kept)
+    let outcome = rig.run(rig.plan(mode: .positionOnly))
+    #expect(rig.ws.calls == [.frame(h), .setPosition(Self.target.origin, h), .frame(h)])
+    // The size was never asked for, so keeping the old one is not a clamp.
+    #expect(outcome == SnapOutcome(result: .applied(kept), readBack: kept))
+  }
 }
