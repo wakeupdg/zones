@@ -49,6 +49,8 @@ struct SettingsView: View {
         .tabItem { Text(SettingsTab.exclusions.title) }.tag(SettingsTab.exclusions)
       AboutPane(model: about).tabItem { Text(SettingsTab.about.title) }.tag(SettingsTab.about)
     }
-    .frame(minWidth: 520, minHeight: 360)
+    .frame(
+      minWidth: SettingsWindowController.minimumContentSize.width,
+      minHeight: SettingsWindowController.minimumContentSize.height)
   }
 }

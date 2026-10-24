@@ -63,14 +63,21 @@ struct ShortcutsPane: View {
     HStack(alignment: .center) {
       Text(name)
       Spacer()
-      ChordRecorderView(chord: model.chord(of: action), accessibilityName: name) { model.record($0, for: action) }
-        .frame(width: 150, height: 24)
-      Button("Clear") { model.clear(action) }.disabled(model.chord(of: action) == nil)
+      ChordRecorderView(
+        chord: model.chord(of: action), accessibilityName: name, onChord: { model.record($0, for: action) },
+        onClear: { model.clear(action) }
+      )
+      .frame(width: 150, height: 24)
+      Button("Clear") { model.clear(action) }
+        .accessibilityLabel("Clear \(name)")
+        .disabled(model.chord(of: action) == nil)
     }
     if let message = model.flow.messages[action] {
       HStack {
         Text(message.text).font(.callout).foregroundStyle(message.kind == .warning ? Color.orange : Color.red)
-        if message.needsAccept { Button("Accept") { model.accept(action) } }
+        if message.needsAccept {
+          Button("Accept") { model.accept(action) }.accessibilityLabel("Accept \(name)")
+        }
       }
     }
   }

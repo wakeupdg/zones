@@ -4,27 +4,32 @@ import ZonesCore
 import ZonesWindowing
 
 /// Adopted by a first responder that wants every key, Command chords included, before the window's own
-/// key equivalents (Cmd+W closes Settings otherwise).
+/// key equivalents (Cmd+W closes Settings otherwise) while `isRecording`; idle, the window keeps its keys.
 @MainActor
-protocol KeyCapturing: AnyObject {}
+protocol KeyCapturing: AnyObject {
+  var isRecording: Bool { get }
+}
 
 /// The recorder: click it (or focus it and press Space or Return), press a chord, and `onChord` receives it.
-/// Tab and Shift-Tab always move focus on; Escape or clicking away stops recording.
+/// Tab and Shift-Tab always move focus on; Escape or clicking away stops recording; Delete clears.
 /// Building a `Chord` needs a mapped key; keys Zones cannot bind are ignored. Validation (Command or Control,
 /// conflicts, warnings) is `ShortcutRules.recorderState`, applied by the model, not here.
 struct ChordRecorderView: NSViewRepresentable {
   let chord: Chord?
   let accessibilityName: String
   let onChord: (Chord) -> Void
+  let onClear: () -> Void
 
   func makeNSView(context: Context) -> RecorderField {
     let field = RecorderField()
     field.onChord = onChord
+    field.onClear = onClear
     return field
   }
 
   func updateNSView(_ field: RecorderField, context: Context) {
     field.onChord = onChord
+    field.onClear = onClear
     field.chord = chord
     field.setAccessibilityLabel("Shortcut for \(accessibilityName)")
   }
@@ -32,6 +37,7 @@ struct ChordRecorderView: NSViewRepresentable {
 
 final class RecorderField: NSView, KeyCapturing {
   var onChord: ((Chord) -> Void)?
+  var onClear: (() -> Void)?
   var chord: Chord? {
     didSet {
       guard chord != oldValue else { return }
@@ -45,6 +51,8 @@ final class RecorderField: NSView, KeyCapturing {
       refreshAccessibilityValue()
     }
   }
+
+  var isRecording: Bool { recording }
 
   /// What the field shows, and what VoiceOver reads as its value.
   private var displayText: String {
@@ -121,6 +129,9 @@ final class RecorderField: NSView, KeyCapturing {
     case .capture(let chord):
       recording = false
       onChord?(chord)
+    case .clear:
+      recording = false
+      onClear?()
     case .reject:
       NSSound.beep()
     case .passThrough:

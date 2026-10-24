@@ -1,4 +1,5 @@
 import AppKit
+import ApplicationServices
 import SwiftUI
 import Testing
 import ZonesCore
@@ -121,5 +122,70 @@ import ZonesWindowing
     let field = try #require(recorders(in: hosting).first { $0.accessibilityLabel() == "Shortcut for Send to Zone 1" })
     let centres = try labelInkCentre(of: hosting, beside: field)
     #expect(abs(centres.label - centres.field) <= 2.5, "label centre \(centres.label) vs recorder centre \(centres.field)")
+  }
+
+  private func keyDown(_ code: UInt16, flags: NSEvent.ModifierFlags = []) -> NSEvent {
+    NSEvent.keyEvent(
+      with: .keyDown, location: .zero, modifierFlags: flags, timestamp: 0, windowNumber: 0, context: nil,
+      characters: "", charactersIgnoringModifiers: "", isARepeat: false, keyCode: code)!
+  }
+
+  /// QA-2.5: Delete and Forward Delete reach the Clear path, idle or recording.
+  @Test func deleteKeysClearFromTheField() {
+    for code: UInt16 in [51, 117] {
+      let field = RecorderField(frame: NSRect(x: 0, y: 0, width: 150, height: 24))
+      var clears = 0
+      field.onClear = { clears += 1 }
+      field.keyDown(with: keyDown(code))
+      #expect(clears == 1)
+      #expect(field.accessibilityPerformPress())
+      field.keyDown(with: keyDown(code))
+      #expect(clears == 2)
+      #expect(!field.isRecording)
+    }
+  }
+
+  /// SwiftUI's accessibility tree is only reachable through the AX API on the test host's own pid (the
+  /// in-process walk stops at the hosting view), and SwiftUI builds it lazily once accessibility is switched on.
+  private func wakeAccessibility() {
+    typealias SetEnabled = @convention(c) (Bool) -> Void
+    let handle = dlopen("/usr/lib/libAccessibility.dylib", RTLD_NOW)
+    if let symbol = dlsym(handle ?? UnsafeMutableRawPointer(bitPattern: -2), "_AXSApplicationAccessibilitySetEnabled") {
+      unsafeBitCast(symbol, to: SetEnabled.self)(true)
+    }
+    _ = NSApp.accessibilityChildren()
+  }
+
+  private func axAttribute(_ element: AXUIElement, _ name: String) -> CFTypeRef? {
+    var value: CFTypeRef?
+    return AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success ? value : nil
+  }
+
+  private func axButtons(under element: AXUIElement, depth: Int = 0) -> [AXUIElement] {
+    guard depth < 40 else { return [] }
+    var found: [AXUIElement] = []
+    if (axAttribute(element, "AXRole") as? String) == "AXButton" { found.append(element) }
+    for child in (axAttribute(element, "AXChildren") as? [AXUIElement]) ?? [] {
+      found += axButtons(under: child, depth: depth + 1)
+    }
+    return found
+  }
+
+  /// QA-2.3: each Clear button names its action to VoiceOver instead of reading just "Clear".
+  @Test func clearButtonsNameTheirAction() throws {
+    try #require(AXIsProcessTrusted(), "the AX walk needs Accessibility for the test host")
+    wakeAccessibility()
+    let isolated = IsolatedDefaults()
+    defer { isolated.tearDown() }
+    let model = ShortcutsModel(
+      preferences: PreferencesController(defaults: isolated.defaults), registrar: nil, granted: true)
+    let (window, _) = host(model)
+    defer { window.close() }
+    spin(0.6)
+    let buttons = axButtons(under: AXUIElementCreateApplication(getpid()))
+    let labels = buttons.compactMap { axAttribute($0, "AXDescription") as? String }.filter { $0.contains("Clear") }
+    let expected = ShortcutAction.allCases.map { "Clear \(ShortcutsFlow.name(of: $0))" }
+    #expect(labels.count == ShortcutAction.allCases.count, "found \(labels)")
+    #expect(Set(labels) == Set(expected))
   }
 }
