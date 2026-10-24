@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 import ZonesCore
+import ZonesTestSupport
 
 @Test func preferencesDefaultsMatchContract() {
   let p = Preferences.defaults
@@ -137,5 +138,33 @@ import ZonesCore
     #expect(cFields == ["*"])
     let (garbage, garbageFields) = PreferencesCodec.decode(Data([0xFF, 0x00]))
     #expect(garbage == Preferences.defaults && garbageFields == ["*"])
+  }
+
+  @Test func appearanceRoundTrip() throws {
+    var generator = Generator(seed: 0xA11CE)
+    for _ in 0..<200 {
+      var p = Preferences.defaults
+      p.appearance = Appearance(
+        fill: RGBA(
+          r: generator.double(0...1), g: generator.double(0...1), b: generator.double(0...1),
+          a: generator.double(0...1)),
+        opacity: generator.double(0...1),
+        defaultInsets: Insets(margin: generator.double(0...64), gap: generator.double(0...64)))
+      let (back, fields) = PreferencesCodec.decode(PreferencesCodec.encode(p))
+      #expect(back == p)
+      #expect(fields.isEmpty)
+      #expect(PreferencesCodec.encode(back) == PreferencesCodec.encode(p))
+    }
+
+    for bad in [1.5, -0.1, Double.nan, Double.infinity, -Double.infinity] {
+      var p = Self.validPreferences()
+      p.appearance.opacity = bad
+      let (back, fields) = PreferencesCodec.decode(PreferencesCodec.encode(p))
+      var expected = p
+      expected.appearance.opacity = Preferences.defaults.appearance.opacity
+      expected.notices.insert(.preferencesCoerced)
+      #expect(back == expected, "opacity \(bad)")
+      #expect(fields == ["appearance.opacity"], "opacity \(bad)")
+    }
   }
 }

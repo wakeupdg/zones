@@ -6,51 +6,52 @@ public enum PreferencesCodec {
   /// Returns the preferences and the names of the fields that were coerced, in schema order.
   /// A blob that is not a JSON object gives `Preferences.defaults` and `["*"]`. A missing field takes its
   /// default silently; a present but invalid one is reported and sets `.preferencesCoerced`.
+  /// Decoding goes through `JSONDecoder` (not `JSONSerialization`), which keeps doubles bit-exact.
   public static func decode(_ data: Data) -> (Preferences, coercedFields: [String]) {
-    guard let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
+    guard let raw = try? JSONDecoder().decode(Raw.self, from: data) else {
       return (Preferences.defaults, ["*"])
     }
     var fields: [String] = []
     var result = Preferences.defaults
 
-    if let raw = object["schemaVersion"] {
-      if let value = integer(raw), value >= 1 { result.schemaVersion = value } else { fields.append("schemaVersion") }
+    if let field = raw.schemaVersion {
+      if let value = field.value, value >= 1 { result.schemaVersion = value } else { fields.append("schemaVersion") }
     }
-    if let raw = object["activationModifier"] {
-      if let value = (raw as? String).flatMap(Modifier.init(rawValue:)) {
+    if let field = raw.activationModifier {
+      if let value = field.value.flatMap(Modifier.init(rawValue:)) {
         result.activationModifier = value
       } else {
         fields.append("activationModifier")
       }
     }
-    if let raw = object["spanModifier"] {
-      if let value = (raw as? String).flatMap(Modifier.init(rawValue:)) {
+    if let field = raw.spanModifier {
+      if let value = field.value.flatMap(Modifier.init(rawValue:)) {
         result.spanModifier = value
       } else {
         fields.append("spanModifier")
       }
     }
-    if let raw = object["shortcuts"] { result.shortcuts = decodeShortcuts(raw, fields: &fields) }
-    if let raw = object["appearance"] { result.appearance = decodeAppearance(raw, fields: &fields) }
-    if let raw = object["exclusions"] {
-      if let list = raw as? [Any] {
-        let strings = list.compactMap { $0 as? String }
+    if let field = raw.shortcuts { result.shortcuts = resolveShortcuts(field.value, fields: &fields) }
+    if let field = raw.appearance { result.appearance = resolveAppearance(field.value, fields: &fields) }
+    if let field = raw.exclusions {
+      if let list = field.value {
+        let strings = list.compactMap(\.value)
         if strings.count != list.count { fields.append("exclusions") }
         result.exclusions = Set(strings)
       } else {
         fields.append("exclusions")
       }
     }
-    if let raw = object["enhancedUI"] {
-      if let value = (raw as? String).flatMap(EnhancedUIPolicy.init(rawValue:)) {
+    if let field = raw.enhancedUI {
+      if let value = field.value.flatMap(EnhancedUIPolicy.init(rawValue:)) {
         result.enhancedUI = value
       } else {
         fields.append("enhancedUI")
       }
     }
-    if let raw = object["notices"] {
-      if let list = raw as? [Any] {
-        let flags = list.compactMap { ($0 as? String).flatMap(NoticeFlag.init(rawValue:)) }
+    if let field = raw.notices {
+      if let list = field.value {
+        let flags = list.compactMap { $0.value.flatMap(NoticeFlag.init(rawValue:)) }
         if flags.count != list.count { fields.append("notices") }
         result.notices = Set(flags)
       } else {
@@ -92,63 +93,128 @@ public enum PreferencesCodec {
     var notices: [NoticeFlag]
   }
 
+  // MARK: Lenient wire types
+
+  /// A value that decodes or is marked invalid; it never throws, so one bad field cannot sink the blob.
+  private struct Lenient<T: Decodable>: Decodable {
+    var value: T?
+    init(from decoder: any Decoder) throws { value = try? T(from: decoder) }
+  }
+
+  private struct Raw: Decodable {
+    var schemaVersion: Lenient<Int>?
+    var activationModifier: Lenient<String>?
+    var spanModifier: Lenient<String>?
+    var shortcuts: Lenient<[Lenient<RawShortcut>]>?
+    var appearance: Lenient<RawAppearance>?
+    var exclusions: Lenient<[Lenient<String>]>?
+    var enhancedUI: Lenient<String>?
+    var notices: Lenient<[Lenient<String>]>?
+
+    private enum CodingKeys: String, CodingKey {
+      case schemaVersion, activationModifier, spanModifier, shortcuts, appearance, exclusions, enhancedUI, notices
+    }
+
+    init(from decoder: any Decoder) throws {
+      let c = try decoder.container(keyedBy: CodingKeys.self)
+      schemaVersion = try Self.field(c, .schemaVersion)
+      activationModifier = try Self.field(c, .activationModifier)
+      spanModifier = try Self.field(c, .spanModifier)
+      shortcuts = try Self.field(c, .shortcuts)
+      appearance = try Self.field(c, .appearance)
+      exclusions = try Self.field(c, .exclusions)
+      enhancedUI = try Self.field(c, .enhancedUI)
+      notices = try Self.field(c, .notices)
+    }
+
+    /// nil when the key is absent (take the default silently); `.value == nil` when present but invalid.
+    private static func field<T>(
+      _ c: KeyedDecodingContainer<CodingKeys>, _ key: CodingKeys
+    ) throws -> Lenient<T>? {
+      c.contains(key) ? try c.decode(Lenient<T>.self, forKey: key) : nil
+    }
+  }
+
+  private struct RawShortcut: Decodable {
+    var action: ShortcutAction
+    var chord: Lenient<Chord>?
+
+    private enum CodingKeys: String, CodingKey { case action, chord }
+
+    init(from decoder: any Decoder) throws {
+      let c = try decoder.container(keyedBy: CodingKeys.self)
+      action = try c.decode(ShortcutAction.self, forKey: .action)
+      chord = c.contains(.chord) ? try c.decode(Lenient<Chord>.self, forKey: .chord) : nil
+    }
+  }
+
+  private struct RawAppearance: Decodable {
+    var fill: Lenient<RGBA>?
+    var opacity: Lenient<Double>?
+    var defaultInsets: Lenient<Insets>?
+
+    private enum CodingKeys: String, CodingKey { case fill, opacity, defaultInsets }
+
+    init(from decoder: any Decoder) throws {
+      let c = try decoder.container(keyedBy: CodingKeys.self)
+      fill = c.contains(.fill) ? try c.decode(Lenient<RGBA>.self, forKey: .fill) : nil
+      opacity = c.contains(.opacity) ? try c.decode(Lenient<Double>.self, forKey: .opacity) : nil
+      defaultInsets = c.contains(.defaultInsets) ? try c.decode(Lenient<Insets>.self, forKey: .defaultInsets) : nil
+    }
+  }
+
   // MARK: Fields
 
-  private static func decodeShortcuts(_ raw: Any, fields: inout [String]) -> [Shortcut] {
-    guard let list = raw as? [Any] else {
+  private static func resolveShortcuts(_ list: [Lenient<RawShortcut>]?, fields: inout [String]) -> [Shortcut] {
+    guard let list else {
       fields.append("shortcuts")
       return Preferences.defaultShortcuts
     }
     var result: [Shortcut] = []
     var droppedUnreadable = false
     for element in list {
-      guard let entry = element as? [String: Any], let rawAction = entry["action"],
-        let action = decodeValue(ShortcutAction.self, rawAction)
-      else {
+      guard let entry = element.value else {
         droppedUnreadable = true
         continue
       }
-      let fallback = Preferences.defaultShortcuts.first { $0.action == action }?.chord
-      let chordValue = entry["chord"]
-      if chordValue == nil || chordValue is NSNull {
+      let action = entry.action
+      guard let chordField = entry.chord else {
         result.append(Shortcut(action: action, chord: nil))
-      } else if let chord = chordValue.flatMap({ decodeValue(Chord.self, $0) }), chord.hasCommandOrControl {
+        continue
+      }
+      if let chord = chordField.value, chord.hasCommandOrControl {
         result.append(Shortcut(action: action, chord: chord))
       } else {
         fields.append("shortcuts.\(fieldName(action))")
-        result.append(Shortcut(action: action, chord: fallback))
+        result.append(Shortcut(action: action, chord: Preferences.defaultShortcuts.first { $0.action == action }?.chord))
       }
     }
     if droppedUnreadable { fields.append("shortcuts") }
     return result
   }
 
-  private static func decodeAppearance(_ raw: Any, fields: inout [String]) -> Appearance {
+  private static func resolveAppearance(_ raw: RawAppearance?, fields: inout [String]) -> Appearance {
     var result = Preferences.defaults.appearance
-    guard let object = raw as? [String: Any] else {
+    guard let raw else {
       fields.append("appearance")
       return result
     }
-    if let value = object["fill"] {
-      if let fill = decodeValue(RGBA.self, value),
-        [fill.r, fill.g, fill.b, fill.a].allSatisfy({ $0.isFinite && (0...1).contains($0) })
-      {
+    if let field = raw.fill {
+      if let fill = field.value, [fill.r, fill.g, fill.b, fill.a].allSatisfy({ $0.isFinite && (0...1).contains($0) }) {
         result.fill = fill
       } else {
         fields.append("appearance.fill")
       }
     }
-    if let value = object["opacity"] {
-      if let opacity = number(value), opacity.isFinite, (0...1).contains(opacity) {
+    if let field = raw.opacity {
+      if let opacity = field.value, opacity.isFinite, (0...1).contains(opacity) {
         result.opacity = opacity
       } else {
         fields.append("appearance.opacity")
       }
     }
-    if let value = object["defaultInsets"] {
-      if let insets = decodeValue(Insets.self, value), insets.margin.isFinite, insets.gap.isFinite,
-        insets.margin >= 0, insets.gap >= 0
-      {
+    if let field = raw.defaultInsets {
+      if let insets = field.value, insets.margin.isFinite, insets.gap.isFinite, insets.margin >= 0, insets.gap >= 0 {
         result.defaultInsets = insets
       } else {
         fields.append("appearance.defaultInsets")
@@ -156,8 +222,6 @@ public enum PreferencesCodec {
     }
     return result
   }
-
-  // MARK: Helpers
 
   private static func fieldName(_ action: ShortcutAction) -> String {
     switch action {
@@ -168,22 +232,5 @@ public enum PreferencesCodec {
     case .openEditor: "openEditor"
     case .openSettings: "openSettings"
     }
-  }
-
-  private static func decodeValue<T: Decodable>(_ type: T.Type, _ value: Any) -> T? {
-    guard JSONSerialization.isValidJSONObject(value),
-      let data = try? JSONSerialization.data(withJSONObject: value)
-    else { return nil }
-    return try? JSONDecoder().decode(type, from: data)
-  }
-
-  private static func number(_ value: Any) -> Double? {
-    guard let n = value as? NSNumber, CFGetTypeID(n) != CFBooleanGetTypeID() else { return nil }
-    return n.doubleValue
-  }
-
-  private static func integer(_ value: Any) -> Int? {
-    guard let d = number(value), d == d.rounded(), abs(d) < 1_000_000 else { return nil }
-    return Int(d)
   }
 }

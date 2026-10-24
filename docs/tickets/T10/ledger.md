@@ -17,3 +17,5 @@
 - slice 10: PreferencesTests.modifiersMustDiffer green — Preferences.coerced() keeps Activation, Span becomes control (shift when Activation is control), flag only on change
 - slice 11: PreferencesTests.fieldByFieldCoercion green — PreferencesCodec decode/encode, Preferences.defaultShortcuts, defaults per brief (fill 0.2/0.5/1.0, opacity 0.3)
 - note: non-object blob returns exactly Preferences.defaults with ["*"] (no notice flag added); missing fields default silently, present-but-invalid are reported; action field names are case names, sendToZone as sendToZone<N>
+- slice 12: PreferencesTests.appearanceRoundTrip green — 200 seeded Appearance values round-trip bit-exact; opacity outside 0...1 or non-finite coerces to default ["appearance.opacity"]
+- note: JSONSerialization write path rounded doubles (…457 -> …46); PreferencesCodec decodes with JSONDecoder via lenient wrappers. Migrator only re-serializes through JSONSerialization when a step runs (version below current); future steps with fractional doubles should be checked.
