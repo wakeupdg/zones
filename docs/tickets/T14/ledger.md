@@ -6,3 +6,4 @@
 - slice 3: ExclusionPolicyTests.precedence green — ordering pinned (policy already implemented the order in slices 1-2, so no separate red)
 - slice 4: ExclusionsPaneModelTests.bundleIdentifierKeyed green — rows/add/Row (AC-142)
 - slice 5: ExclusionsPaneModelTests.addFromFileURL green — bundleID(forAppAt:) and add(appAt:to:)
+- slice 6: CGWindowEnumeratorTests.parseKeepsLayerZeroAndNoNames green — CGWindowEnumerator.refs(from:primaryFrame:bundleID:)
