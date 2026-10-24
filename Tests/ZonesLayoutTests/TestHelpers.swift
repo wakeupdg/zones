@@ -25,3 +25,20 @@ func ratios(_ node: SplitNode) -> [Double] {
   case .split(_, let ratio, let first, let second): [ratio] + ratios(first) + ratios(second)
   }
 }
+
+/// The node at `path`, or nil when the path leaves the tree.
+func node(at steps: ArraySlice<Bool>, in root: SplitNode) -> SplitNode? {
+  guard let step = steps.first else { return root }
+  guard case .split(_, _, let first, let second) = root else { return nil }
+  return node(at: steps.dropFirst(), in: step ? second : first)
+}
+
+/// `root` with the node at `steps` replaced by `new`.
+func replacing(_ steps: ArraySlice<Bool>, in root: SplitNode, with new: SplitNode) -> SplitNode {
+  guard let step = steps.first else { return new }
+  guard case .split(let axis, let ratio, let first, let second) = root else { return root }
+  let rest = steps.dropFirst()
+  return step
+    ? .split(axis: axis, ratio: ratio, first: first, second: replacing(rest, in: second, with: new))
+    : .split(axis: axis, ratio: ratio, first: replacing(rest, in: first, with: new), second: second)
+}
