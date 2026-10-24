@@ -8,6 +8,7 @@ setvbuf(stdout, nil, _IOLBF, 0)
 let args = CommandLine.arguments
 let seconds = args.firstIndex(of: "--seconds").flatMap { Double(args[safe: $0 + 1] ?? "") }
 let selftestShift = args.contains("--selftest-shift")
+let listNow = args.contains("--list-now")  // read the window list once at startup, no mouse event needed
 
 extension Array {
   subscript(safe index: Int) -> Element? { indices.contains(index) ? self[index] : nil }
@@ -50,12 +51,28 @@ let start = Date()
 var all = [Sample]()
 var tapLines = [String]()
 var lastTapList = Date()
+var listReads = 0
+var listTotals = (windows: 0, layer0: 0, named: 0, nonEmpty: 0, ownerNamed: 0, missing: 0)
+@MainActor func onMouseDown() {
+  let report = WindowList.read()
+  listReads += 1
+  listTotals.windows += report.total
+  listTotals.layer0 += report.layer0.count
+  listTotals.named += report.namedCount
+  listTotals.nonEmpty += report.nonEmptyNamedCount
+  listTotals.ownerNamed += report.ownerNamedCount
+  listTotals.missing += report.missingBounds + report.missingLayer + report.missingPid + report.missingNumber
+  print(WindowList.describe(report))
+  if listReads == 1 { for w in report.layer0.prefix(5) { print(WindowList.describe(w)) } }
+}
 @MainActor func pump() {
   for sample in recorder.drain() {
     all.append(sample)
     print(format(sample))
+    if sample.kind == .leftDown { onMouseDown() }
   }
 }
+if listNow { print("SYNTHETIC window list read at startup (no mouse-down)"); onMouseDown() }
 while !stopFlag.withLock({ $0 }) {
   if let seconds, Date().timeIntervalSince(start) >= seconds { break }
   RunLoop.current.run(until: Date().addingTimeInterval(0.05))
@@ -69,4 +86,5 @@ pump()
 if let line = Stats.ownTapLine() { tapLines.append(line); print(line) }
 runner.stop()
 for line in Stats.summary(all, tapLines: tapLines, seconds: Date().timeIntervalSince(start)) { print(line) }
+print("SUMMARY windowlist reads=\(listReads) totalEntries=\(listTotals.windows) layer0=\(listTotals.layer0) entriesMissingKeys=\(listTotals.missing) kCGWindowName-non-nil=\(listTotals.named) kCGWindowName-non-empty=\(listTotals.nonEmpty) kCGWindowOwnerName-non-nil=\(listTotals.ownerNamed)")
 print("DONE tapDisabledEvents=\(recorder.disabledEvents)")
