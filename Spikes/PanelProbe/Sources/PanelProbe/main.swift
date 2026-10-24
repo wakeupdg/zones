@@ -530,6 +530,7 @@ enum DragPhase { case idle, pressed, armed }
   static var probe: DragProbe?
   static var watcher: SpaceWatcher?
   static var frameTimer: FrameTimer?
+  static var witness: WitnessProbe?
 }
 
 // MARK: - Frame-time mode (SPK-009)
@@ -873,6 +874,247 @@ let frameTimeHeader = [
   variant == "swiftui" ? SwiftUIRenderer(panel: panel, zones: zones) : LayerRenderer(panel: panel, zones: zones)
 }
 
+// MARK: - Witness mode (SPK-001): hidden managed window per (Display, Space)
+
+/// Maps operator-supplied Space labels to witness ids and judges each observation.
+struct WitnessBook {
+  enum Verdict: Equatable {
+    case created, correct, fullScreenDetected
+    case wrongSpace(found: [Int]), ambiguous(found: [Int]), noWitness, fullScreenMissed
+    var isCorrect: Bool {
+      switch self {
+      case .created, .correct, .fullScreenDetected: return true
+      default: return false
+      }
+    }
+  }
+
+  private(set) var bound: [String: Int] = [:]
+  mutating func bind(_ label: String, id: Int) { bound[label] = id }
+  func label(for id: Int) -> String? { bound.first { $0.value == id }?.key }
+
+  func evaluate(expected: String, trueIDs: Set<Int>, fullScreen: Bool) -> Verdict {
+    if expected.hasPrefix("FS:") { return trueIDs.isEmpty && fullScreen ? .fullScreenDetected : .fullScreenMissed }
+    let found = trueIDs.sorted()
+    guard let id = bound[expected] else { return found.isEmpty ? .created : .wrongSpace(found: found) }
+    if found.count > 1 { return .ambiguous(found: found) }
+    if found.isEmpty { return .noWitness }
+    return found[0] == id ? .correct : .wrongSpace(found: found)
+  }
+}
+
+/// Plan file: one line per observation, `<display index> <expected label>`; `#` comments and blank lines ignored.
+/// Line 1 is the Space you start on (a visit, not a switch); lines 2... are the switches.
+func parsePlan(_ text: String) -> [(display: Int, label: String)] {
+  text.split(separator: "\n").compactMap { raw in
+    let line = raw.trimmingCharacters(in: .whitespaces)
+    guard !line.isEmpty, !line.hasPrefix("#") else { return nil }
+    let parts = line.split(separator: " ", maxSplits: 1).map(String.init)
+    guard parts.count == 2, let d = Int(parts[0]) else { return nil }
+    return (d, parts[1])
+  }
+}
+
+enum WitnessVariant: String, CaseIterable {
+  case orderedOut = "A ordered-out"
+  case alphaZero = "B alpha-0 ordered-front"
+}
+
+@MainActor final class Witness {
+  let id: Int
+  let variant: WitnessVariant
+  let displayUUID: String
+  let window: NSWindow
+
+  init(id: Int, variant: WitnessVariant, screen: NSScreen, displayUUID: String) {
+    self.id = id
+    self.variant = variant
+    self.displayUUID = displayUUID
+    window = NSWindow(
+      contentRect: NSRect(x: screen.frame.minX + 40, y: screen.frame.minY + 40, width: 40, height: 40),
+      styleMask: [.borderless], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    window.collectionBehavior = [.managed]  // explicitly NOT canJoinAllSpaces
+    window.level = .normal
+    window.hasShadow = false
+    window.animationBehavior = .none
+    switch variant {
+    case .orderedOut:
+      window.orderFrontRegardless()  // lands on the active Space, then hides
+      window.orderOut(nil)
+    case .alphaZero:
+      window.alphaValue = 0
+      window.ignoresMouseEvents = true
+      window.orderFrontRegardless()
+    }
+  }
+}
+
+func displayUUID(_ screen: NSScreen) -> String {
+  guard let num = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber,
+    let u = CGDisplayCreateUUIDFromDisplayID(num.uint32Value)?.takeRetainedValue(),
+    let str = CFUUIDCreateString(nil, u) as String?
+  else { return "unknown-\(screen.localizedName)" }
+  return str
+}
+
+@MainActor final class WitnessProbe {
+  let report: Report
+  var witnesses: [Witness] = []
+  var books: [String: WitnessBook] = [:]  // key: variant + display uuid
+  var nextID = 1
+  var plan: [(display: Int, label: String)] = []
+  var step = 0
+  var rows: [[String]] = []
+  var tally: [WitnessVariant: (ok: Int, total: Int)] = [:]
+  var token: NSObjectProtocol?
+  var screenToken: NSObjectProtocol?
+
+  init(report: Report) { self.report = report }
+
+  func key(_ v: WitnessVariant, _ uuid: String) -> String { "\(v.rawValue)|\(uuid)" }
+
+  @discardableResult
+  func createWitnesses(for screen: NSScreen) -> [Witness] {
+    let uuid = displayUUID(screen)
+    return WitnessVariant.allCases.map { v in
+      let w = Witness(id: nextID, variant: v, screen: screen, displayUUID: uuid)
+      nextID += 1
+      witnesses.append(w)
+      return w
+    }
+  }
+
+  func trueSet(_ v: WitnessVariant, uuid: String) -> Set<Int> {
+    Set(witnesses.filter { $0.variant == v && $0.displayUUID == uuid && $0.window.isOnActiveSpace }.map(\.id))
+  }
+
+  /// `--once`: create both variants on every display in the current Space and log what reports true.
+  func runOnce() async {
+    for s in NSScreen.screens { createWitnesses(for: s) }
+    try? await Task.sleep(for: .milliseconds(400))
+    report.table(
+      "Witnesses created in the current Space",
+      header: ["witness", "variant", "display", "isOnActiveSpace", "isVisible", "window.screen"],
+      rows: witnesses.map { w in
+        [
+          "W\(w.id)", w.variant.rawValue, w.displayUUID.prefix(8) + "...", w.window.isOnActiveSpace ? "true" : "false",
+          w.window.isVisible ? "true" : "false", w.window.screen?.localizedName ?? "nil",
+        ]
+      })
+    // A second probe from the point of view of "which witnesses are true per display" (the SPK-001 query).
+    var rowsPer: [[String]] = []
+    for (i, s) in NSScreen.screens.enumerated() {
+      let u = displayUUID(s)
+      for v in WitnessVariant.allCases {
+        rowsPer.append(["\(i)", s.localizedName, v.rawValue, trueSet(v, uuid: u).sorted().map { "W\($0)" }.joined(separator: ",")])
+      }
+    }
+    report.table("Witnesses reporting true per display and variant", header: ["display", "name", "variant", "true witnesses"], rows: rowsPer)
+  }
+
+  func startPlan(_ plan: [(display: Int, label: String)]) {
+    self.plan = plan
+    token = NSWorkspace.shared.notificationCenter.addObserver(
+      forName: NSWorkspace.activeSpaceDidChangeNotification, object: nil, queue: .main
+    ) { [weak self] _ in
+      MainActor.assumeIsolated { self?.observe(isSwitch: true) }
+    }
+    screenToken = NotificationCenter.default.addObserver(
+      forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
+    ) { [weak self] _ in
+      MainActor.assumeIsolated {
+        self?.report.emit("- screen parameters changed at \(ptTime()): \(NSScreen.screens.count) display(s); the next switch row shows whether witnesses survived")
+      }
+    }
+    report.emit("Plan has \(plan.count) line(s): 1 starting Space plus \(max(plan.count - 1, 0)) switches. Starting observation now; then switch Spaces following the plan.")
+    observe(isSwitch: false)
+  }
+
+  func observe(isSwitch: Bool) {
+    guard step < plan.count else { return }
+    let n = step
+    step += 1
+    let entry = plan[n]
+    Task { @MainActor in
+      try? await Task.sleep(for: .milliseconds(400))  // let the Space transition settle
+      let screens = NSScreen.screens
+      guard screens.indices.contains(entry.display) else {
+        report.emit("- plan line \(n + 1): display index \(entry.display) does not exist now; skipped")
+        finishIfDone()
+        return
+      }
+      let screen = screens[entry.display]
+      let uuid = displayUUID(screen)
+      let cg = screenCGFrame(screen)
+      let wins = windowList(all: false).filter { $0.pid != ProcessInfo.processInfo.processIdentifier }
+      let fs = fullScreenGuess(screenCG: cg, windows: wins) || !menuBarPresent(screenCG: cg, windows: wins)
+      var cells: [String] = []
+      for v in WitnessVariant.allCases {
+        let k = key(v, uuid)
+        var book = books[k] ?? WitnessBook()
+        let t = trueSet(v, uuid: uuid)
+        var verdict = book.evaluate(expected: entry.label, trueIDs: t, fullScreen: fs)
+        if verdict == .created, let w = createWitnesses(for: screen).first(where: { $0.variant == v }) {
+          book.bind(entry.label, id: w.id)
+          verdict = .created
+          cells.append("created W\(w.id)")
+        } else {
+          cells.append(t.sorted().map { "W\($0)" }.joined(separator: ",").isEmpty ? "none" : t.sorted().map { "W\($0)" }.joined(separator: ","))
+        }
+        books[k] = book
+        cells.append("\(verdict)")
+        if isSwitch {
+          var cur = tally[v] ?? (0, 0)
+          cur.total += 1
+          if verdict.isCorrect { cur.ok += 1 }
+          tally[v] = cur
+        }
+      }
+      rows.append(["\(n)", isSwitch ? "switch" : "start", "\(entry.display)", entry.label, fs ? "yes" : "no"] + cells)
+      report.emit("- observation \(n) (\(isSwitch ? "switch" : "start")) at \(ptTime()): \(entry.label) -> A: \(cells[1]), B: \(cells[3])")
+      finishIfDone()
+    }
+  }
+
+  func finishIfDone() {
+    guard step >= plan.count, rows.count >= plan.count else { return }
+    report.table(
+      "Witness switches (step 0 is the starting Space)",
+      header: ["step", "kind", "display", "expected label", "full-screen detected", "A true witnesses", "A verdict", "B true witnesses", "B verdict"],
+      rows: rows)
+    var summary: [[String]] = []
+    for v in WitnessVariant.allCases {
+      let t = tally[v] ?? (0, 0)
+      summary.append([v.rawValue, "\(t.ok) of \(t.total)", t.total >= 20 && t.ok == t.total ? "PASS" : (t.total < 20 ? "INCOMPLETE (<20 switches)" : "FAIL")])
+    }
+    report.table("SPK-001 summary", header: ["variant", "correct switches", "result"], rows: summary)
+    exit(0)
+  }
+}
+
+@MainActor func runWitnessMode(_ args: [String]) {
+  let app = NSApplication.shared
+  app.setActivationPolicy(.accessory)
+  let report = Report(mode: "witness")
+  report.machineHeader()
+  func value(_ flag: String) -> String? { args.firstIndex(of: flag).flatMap { args.indices.contains($0 + 1) ? args[$0 + 1] : nil } }
+  let probe = WitnessProbe(report: report)
+  KeepAlive.witness = probe
+  if args.contains("--once") {
+    Task { @MainActor in
+      await probe.runOnce()
+      exit(0)
+    }
+  } else if let planPath = value("--plan"), let text = try? String(contentsOfFile: planPath, encoding: .utf8) {
+    probe.startPlan(parsePlan(text))
+  } else {
+    print("witness needs --once or --plan FILE")
+    exit(64)
+  }
+  app.run()
+}
+
 @MainActor func selfTest() -> Bool {
   var failures = 0
   func check(_ ok: Bool, _ name: String) {
@@ -888,6 +1130,22 @@ let frameTimeHeader = [
   let t = markdownTable(header: ["a", "b"], rows: [["1", "2"], ["3", "4"]])
   check(t == "| a | b |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n", "table")
   do {
+    var book = WitnessBook()
+    check(book.evaluate(expected: "Desktop 1", trueIDs: [], fullScreen: false) == .created, "witness.firstVisitCreates")
+    book.bind("Desktop 1", id: 1)
+    check(book.evaluate(expected: "Desktop 1", trueIDs: [1], fullScreen: false) == .correct, "witness.revisitCorrect")
+    check(book.evaluate(expected: "Desktop 2", trueIDs: [1], fullScreen: false) == .wrongSpace(found: [1]), "witness.newSpaceFalsePositive")
+    book.bind("Desktop 2", id: 2)
+    check(book.evaluate(expected: "Desktop 1", trueIDs: [2], fullScreen: false) == .wrongSpace(found: [2]), "witness.wrongSpace")
+    check(book.evaluate(expected: "Desktop 1", trueIDs: [1, 2], fullScreen: false) == .ambiguous(found: [1, 2]), "witness.ambiguousAfterMigration")
+    check(book.evaluate(expected: "Desktop 1", trueIDs: [], fullScreen: false) == .noWitness, "witness.noneTrue")
+    check(book.evaluate(expected: "FS:Safari", trueIDs: [], fullScreen: true) == .fullScreenDetected, "witness.fullScreenDetected")
+    check(book.evaluate(expected: "FS:Safari", trueIDs: [], fullScreen: false) == .fullScreenMissed, "witness.fullScreenMissed")
+    check(book.evaluate(expected: "FS:Safari", trueIDs: [2], fullScreen: true) == .fullScreenMissed, "witness.fullScreenFalsePositive")
+    check([WitnessBook.Verdict.created, .correct, .fullScreenDetected].allSatisfy(\.isCorrect), "witness.isCorrect")
+    check(!WitnessBook.Verdict.noWitness.isCorrect, "witness.noneIsWrong")
+    let plan = parsePlan("# comment\n0 Desktop 1\n\n1 FS:Safari video\n")
+    check(plan.count == 2 && plan[0].display == 0 && plan[0].label == "Desktop 1" && plan[1].label == "FS:Safari video", "witness.parsePlan")
     let vis = CGRect(x: 100, y: 50, width: 1200, height: 800)
     let grid = zoneGrid(in: vis, count: 12)
     check(grid.count == 12, "zoneGrid.count")
@@ -942,7 +1200,8 @@ switch args.first {
 case "--self-test": exit(selfTest() ? 0 : 1)
 case "panel": runPanelMode(Array(args.dropFirst()))
 case "frametime": runFrameTimeMode(Array(args.dropFirst()))
+case "witness": runWitnessMode(Array(args.dropFirst()))
 default:
-  print("usage: PanelProbe --self-test | panel [--synthetic] [--join-all-apps] [--reassert] [--hold] [--label L] [--duration S] | frametime [--synthetic] [--variant layers|swiftui|all] [--endpoint commit|flush] [--events N] [--display I] | witness")
+  print("usage: PanelProbe --self-test | panel [--synthetic] [--join-all-apps] [--reassert] [--hold] [--label L] [--duration S] | frametime [--synthetic] [--variant layers|swiftui|all] [--endpoint commit|flush] [--events N] [--display I] | witness (--once | --plan FILE)")
   exit(64)
 }
