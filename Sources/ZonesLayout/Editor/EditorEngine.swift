@@ -8,9 +8,20 @@ public enum EditorEngine {
     _ c: EditorCommand, to d: EditorDraft, geometry: (visibleFrame: CGRect, scale: Double)
   ) -> Result<EditorDraft, EditorError> {
     switch c {
+    case .select(let path): select(path, d)
     case .split(let axis): split(axis, d)
+    case .merge: merge(d)
     default: .failure(.invalidRatio)
     }
+  }
+
+  // MARK: select
+
+  private static func select(_ path: NodePath?, _ d: EditorDraft) -> Result<EditorDraft, EditorError> {
+    if let path, node(at: path.steps[...], in: d.layout.root) == nil { return .failure(.nothingSelected) }
+    var next = d
+    next.selection = path
+    return .success(next)
   }
 
   // MARK: split
@@ -23,6 +34,25 @@ public enum EditorEngine {
     var next = d
     next.layout.root = replacing(path.steps[...], in: d.layout.root, with: replacement)
     next.selection = NodePath(steps: path.steps + [false])
+    return validated(next)
+  }
+
+  // MARK: merge
+
+  /// Sibling-only (AC-129): the selected leaf and its sibling must both be leaves; the parent becomes a leaf.
+  private static func merge(_ d: EditorDraft) -> Result<EditorDraft, EditorError> {
+    guard let path = d.selection, let target = node(at: path.steps[...], in: d.layout.root), target == .leaf else {
+      return .failure(.nothingSelected)
+    }
+    guard let last = path.steps.last else { return .failure(.rootMerge) }
+    let parentSteps = Array(path.steps.dropLast())
+    let siblingSteps = parentSteps + [!last]
+    guard node(at: siblingSteps[...], in: d.layout.root) == .leaf else {
+      return .failure(.notSiblings(hint: "split the parent the other way first"))
+    }
+    var next = d
+    next.layout.root = replacing(parentSteps[...], in: d.layout.root, with: .leaf)
+    next.selection = NodePath(steps: parentSteps)
     return validated(next)
   }
 

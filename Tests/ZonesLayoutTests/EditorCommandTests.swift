@@ -42,6 +42,37 @@ struct EditorCommandTests {
     // a selected divider (split node) is not a Zone
     #expect(run(.split(.vertical), h.withSelection(NodePath(steps: []))) == .failure(.nothingSelected))
   }
+
+  @Test func mergeSiblingsOnly() throws {
+    let hint = "split the parent the other way first"
+    // two leaf siblings collapse the parent
+    let pair = draft(.split(axis: .horizontal, ratio: 0.5, first: .leaf, second: .leaf))
+    let selB = try run(.select(NodePath(steps: [true])), pair).get()
+    #expect(selB.selection == NodePath(steps: [true]))
+    #expect(!selB.dirty)
+    let merged = try run(.merge, selB).get()
+    #expect(merged.layout.root == .leaf)
+    #expect(merged.selection == NodePath(steps: []))
+    #expect(merged.dirty)
+    // A | (B / C): merging A is refused and nothing changes
+    let tree = SplitNode.split(
+      axis: .horizontal, ratio: 0.5, first: .leaf,
+      second: .split(axis: .vertical, ratio: 0.5, first: .leaf, second: .leaf))
+    let a = try run(.select(NodePath(steps: [false])), draft(tree)).get()
+    #expect(run(.merge, a) == .failure(.notSiblings(hint: hint)))
+    // merging B (sibling C is a leaf) works inside the nested split
+    let b = try run(.select(NodePath(steps: [true, false])), draft(tree)).get()
+    let mergedBC = try run(.merge, b).get()
+    #expect(
+      mergedBC.layout.root == .split(axis: .horizontal, ratio: 0.5, first: .leaf, second: .leaf))
+    #expect(mergedBC.selection == NodePath(steps: [true]))
+    // a selected divider is not a Zone; a missing path is nothingSelected
+    #expect(run(.merge, selB.withSelection(NodePath(steps: []))) == .failure(.nothingSelected))
+    #expect(run(.select(NodePath(steps: [true, true])), pair) == .failure(.nothingSelected))
+    #expect(run(.merge, draft(selection: nil)) == .failure(.nothingSelected))
+    let cleared = try run(.select(nil), selB).get()
+    #expect(cleared.selection == nil)
+  }
 }
 
 extension EditorDraft {
