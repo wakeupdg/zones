@@ -1787,12 +1787,60 @@
     ],
     "est_tokens": 20000,
     "brief_path": "docs/tickets/T52.md",
-    "state": "review",
+    "state": "done",
     "tokens_spent": 0,
     "branch": "ticket/T52",
-    "last_report": "built by orchestrator; merge after fix run wf_ece33885-a2e ends",
+    "last_report": "merged efd08da",
     "protocol": "none (CI configuration)",
     "fake": "none needed (config)",
     "tests": "Tests/ZonesCoreTests/GateScriptTests.swift (ciRunsHygieneGateAfterSwiftTest, ciTriggersArePullRequestToMainAndManual)"
+  },
+  {
+    "id": "T53",
+    "title": "Release docs: README (status, install, permissions, shortcuts, layout JSON, GIF), CHANGELOG, ARCHITECTURE",
+    "kind": "release",
+    "delivers": "README.md, CHANGELOG.md, docs/ARCHITECTURE.md (deep-module map)",
+    "acceptance_ids": [],
+    "blocked_by": [
+      "T52"
+    ],
+    "files_expected": [
+      "README.md",
+      "CHANGELOG.md",
+      "docs/ARCHITECTURE.md"
+    ],
+    "est_tokens": 60000,
+    "brief_path": "docs/tickets/T53.md",
+    "state": "todo",
+    "tokens_spent": 0,
+    "branch": "",
+    "last_report": "",
+    "protocol": "none (docs)",
+    "fake": "none needed (docs)",
+    "tests": "scripts/doc-check: every command in README runs; links resolve"
+  },
+  {
+    "id": "T54",
+    "title": "Release media and artifacts: 30-second demo GIF, ad-hoc DMG under dist/, cask sha256",
+    "kind": "release",
+    "delivers": "docs/media/zones-demo.gif, dist/Zones-0.1.0.dmg (untracked), Casks/zones.rb sha256",
+    "acceptance_ids": [],
+    "blocked_by": [
+      "T52"
+    ],
+    "files_expected": [
+      "docs/media/zones-demo.gif",
+      "Casks/zones.rb",
+      ".gitignore"
+    ],
+    "est_tokens": 70000,
+    "brief_path": "docs/tickets/T54.md",
+    "state": "todo",
+    "tokens_spent": 0,
+    "branch": "",
+    "last_report": "",
+    "protocol": "none (release)",
+    "fake": "none needed (release)",
+    "tests": "GateScriptTests (cask), hdiutil verify, codesign --verify"
   }
 ]
