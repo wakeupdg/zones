@@ -175,4 +175,49 @@ import ZonesWindowing
       Self.lastHighlight(rearmed.effects)
         == Highlight(display: F.primaryKey, primary: [3], secondary: [], dimAll: false))
   }
+
+  @Test func bothModifiersBeforeMove() {
+    let w = Self.window
+    let moved = F.sample(w.frame.offsetBy(dx: 30, dy: 10))
+
+    // Both modifiers down at mouse-down: the arming sample starts the Span with the Zone under the cursor.
+    let over = F.run([
+      F.mouseDown(flags: Self.shiftControl, candidates: [w], point: F.center(2)), Self.drag(to: F.center(2)), moved,
+    ])
+    #expect(F.isArmed(over.state))
+    #expect(over.effects.contains(where: F.isShowOverlay))
+    #expect(Self.span(over.state).zones == [2])
+    #expect(Self.span(over.state).display == F.primaryKey)
+    #expect(
+      Self.lastHighlight(over.effects)
+        == Highlight(display: F.primaryKey, primary: [2], secondary: [], dimAll: false))
+
+    // Over a Gap the Span starts empty; the nearest Zone is lit as a single-Zone drop but is not a Zone entered.
+    let z1 = F.zoneFrame(1)
+    let gap = CGPoint(x: z1.maxX + 4, y: z1.midY)
+    let gapRun = F.run([
+      F.mouseDown(flags: Self.shiftControl, candidates: [w], point: gap), Self.drag(to: gap), moved,
+    ])
+    #expect(F.isArmed(gapRun.state))
+    #expect(Self.span(gapRun.state).zones.isEmpty)
+    #expect(Self.span(gapRun.state).display == nil)
+    #expect(
+      Self.lastHighlight(gapRun.effects)
+        == Highlight(display: F.primaryKey, primary: [1], secondary: [], dimAll: false))
+
+    // Entering the first Zone adds it and sets the Span's Display.
+    let entered = Self.step(gapRun.state, [Self.drag(to: F.center(5))])
+    #expect(Self.span(entered.state).zones == [5])
+    #expect(Self.span(entered.state).display == F.primaryKey)
+    #expect(
+      Self.lastHighlight(entered.effects)
+        == Highlight(display: F.primaryKey, primary: [5], secondary: [], dimAll: false))
+
+    // The Span Modifier pressed between mouse-down and the move counts too (still before the arming sample).
+    let late = F.run([
+      F.mouseDown(flags: .shift, candidates: [w], point: F.center(2)), Self.drag(to: F.center(2), flags: .shift),
+      .flagsChanged(Self.shiftControl), moved,
+    ])
+    #expect(Self.span(late.state).zones == [2])
+  }
 }
