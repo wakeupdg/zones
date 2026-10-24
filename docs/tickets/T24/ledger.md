@@ -1,0 +1,1 @@
+- slice 1: OriginalFrameRegistryTests.firstSnapCapturesPerPath green — OriginalFrameRegistry capture-once, recordSnap, forget, evict, apply (all registry API landed here)
