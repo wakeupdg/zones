@@ -49,7 +49,7 @@ public enum PermissionMachine {
   private static func notGranted(_ e: PermissionEvent) -> (PermissionState, [PermissionEffect]) {
     switch e {
     case .timer(.trustPoll): return (.notGranted, [.probe])
-    case .probe(false): return (.notGranted, [.schedule(.trustPoll, Constants.trustPoll)])
+    case .probe(false): return (.notGranted, rearm(.trustPoll, Constants.trustPoll))
     case .probe(true):
       return (.granted, [.cancel(.trustPoll), .dismissOnboarding, .startTap] + grantedEntry)
     default: return (.notGranted, [])
@@ -109,8 +109,8 @@ public enum PermissionMachine {
     let reset = PermissionState.revoked(failures: 0, firstFailure: nil)
     switch e {
     case .timer(.trustPoll): return (stay, [.probe])
-    case .probe(false): return (reset, [.cancel(.relaunchGate), .schedule(.trustPoll, Constants.trustPoll)])
-    case .probe(true): return (stay, [.recreateTap, .schedule(.trustPoll, Constants.trustPoll)])
+    case .probe(false): return (reset, [.cancel(.relaunchGate)] + rearm(.trustPoll, Constants.trustPoll))
+    case .probe(true): return (stay, [.recreateTap] + rearm(.trustPoll, Constants.trustPoll))
     case .tapRecreated(false):
       let first = firstFailure ?? now
       let next = PermissionState.revoked(failures: failures + 1, firstFailure: first)
@@ -131,10 +131,10 @@ public enum PermissionMachine {
   private static func needsRelaunch(_ e: PermissionEvent) -> (PermissionState, [PermissionEffect]) {
     switch e {
     case .timer(.trustPoll): return (.needsRelaunch, [.probe])
-    case .probe(true): return (.needsRelaunch, [.recreateTap, .schedule(.trustPoll, Constants.trustPoll)])
+    case .probe(true): return (.needsRelaunch, [.recreateTap] + rearm(.trustPoll, Constants.trustPoll))
     case .probe(false):
       return (
-        .revoked(failures: 0, firstFailure: nil), [.offerRelaunch(false), .schedule(.trustPoll, Constants.trustPoll)]
+        .revoked(failures: 0, firstFailure: nil), [.offerRelaunch(false)] + rearm(.trustPoll, Constants.trustPoll)
       )
     case .tapRecreated(true): return (.granted, [.offerRelaunch(false)] + recovery)
     case .reonboard: return (.needsRelaunch, [.showOnboarding])

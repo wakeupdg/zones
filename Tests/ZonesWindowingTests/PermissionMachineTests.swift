@@ -213,7 +213,7 @@ final class PermissionHarness: Sendable {
     let mid = PermissionHarness(state: .revoked(failures: 0, firstFailure: nil))
     mid.send(.tapRecreated(false))
     mid.send(.tapRecreated(false))
-    #expect(mid.send(.probe(false)) == [.cancel(.relaunchGate), .schedule(.trustPoll, 1)])
+    #expect(mid.send(.probe(false)) == [.cancel(.relaunchGate), .cancel(.trustPoll), .schedule(.trustPoll, 1)])
     #expect(mid.state == .revoked(failures: 0, firstFailure: nil))
     #expect(mid.clock.pending == [.trustPoll])
 
@@ -234,10 +234,10 @@ final class PermissionHarness: Sendable {
     rl.probe.enqueue(.trusted(true))
     #expect(rl.send(.timer(.trustPoll)) == [.probe])
     #expect(rl.state == .needsRelaunch)
-    #expect(rl.send(.probe(true)) == [.recreateTap, .schedule(.trustPoll, 1)])
+    #expect(rl.send(.probe(true)) == [.recreateTap, .cancel(.trustPoll), .schedule(.trustPoll, 1)])
     #expect(rl.state == .needsRelaunch)
     #expect(rl.send(.tapRecreated(false)).isEmpty)
-    #expect(rl.send(.probe(false)) == [.offerRelaunch(false), .schedule(.trustPoll, 1)])
+    #expect(rl.send(.probe(false)) == [.offerRelaunch(false), .cancel(.trustPoll), .schedule(.trustPoll, 1)])
     #expect(rl.state == .revoked(failures: 0, firstFailure: nil))
 
     Self.offerRelaunchOnlyOnEntryAndNeverAfterProbeFalse()
@@ -347,6 +347,22 @@ final class PermissionHarness: Sendable {
       now: 9)
     #expect(next == state)
     #expect(fx == [.revalidateTap, .probe, .forceTopologySnapshot, .orderPanelsOut])
+  }
+
+  // AC-006: a wake probe answered while the 1 s poll is pending must not arm a second poll.
+  @Test(arguments: [
+    PermissionState.notGranted, .revoked(failures: 0, firstFailure: nil), .needsRelaunch,
+  ], [false, true])
+  func wakeProbeKeepsOneTrustPoll(state: PermissionState, trusted: Bool) {
+    if state == .notGranted && trusted { return }  // trusted notGranted leaves the poll for granted
+    let h = PermissionHarness(state: state)
+    h.probe.enqueue(.trusted(trusted))
+    h.arm(.trustPoll, after: Constants.trustPoll)
+    h.send(.wake)
+    #expect(h.clock.pending == [.trustPoll], "\(state) trusted \(trusted)")
+    h.clock.advance(by: 3)
+    #expect(h.clock.pending == [.trustPoll], "\(state) trusted \(trusted)")
+    #expect(h.probeCalls == 4, "wake probe plus one per second for 3 s: \(h.probeCalls)")
   }
 
   @Test(arguments: everyState) func quitCancelsTimersAndDisablesTap(state: PermissionState) {
