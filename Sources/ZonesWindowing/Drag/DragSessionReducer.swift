@@ -172,6 +172,11 @@ public enum DragSessionReducer {
       var fx: [DragEffect] = [.hideOverlay]
       if upFlags.contains(ModifierSet(config.activation)) {
         let cursor = SpanLogic.cursor(at: point, in: ctx)
+        guard let cursorDisplay = cursor.display, ctx.layouts[cursorDisplay] != nil else {
+          // The cursor is over a Display the arm snapshot does not know: nothing to snap or restore (AC-045).
+          fx.append(.log("drop outside the arm snapshot: no Display or Layout under \(point)"))
+          return (.idle, fx)
+        }
         let dropSpan = SpanLogic.accumulate(span, at: cursor, flags: upFlags, config: config)
         let drop = SpanLogic.drop(at: cursor, span: dropSpan, in: ctx)
         if drop.restore {

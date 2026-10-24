@@ -18,6 +18,21 @@ enum DragFixtures {
     appearance: Preferences.defaults.appearance,
     options: AccessibilityOptions(reduceTransparency: false, reduceMotion: false), hasOriginalFrame: false)
 
+  /// The same nine-Zone context restricted to the Displays at `indices` of `threeDisplays` (the arm snapshot).
+  static func context(displays indices: [Int]) -> ArmContext {
+    let kept = indices.map { topology.displays[$0] }
+    let snapshot = TopologySnapshot(displays: kept, separateSpaces: topology.separateSpaces, primaryFrame: topology.primaryFrame)
+    var ctx = context
+    ctx.topology = snapshot
+    ctx.layouts = context.layouts.filter { pair in kept.contains { $0.key == pair.key } }
+    return ctx
+  }
+
+  static func center(of display: Int) -> CGPoint {
+    let f = topology.displays[display].frame
+    return CGPoint(x: f.midX, y: f.midY)
+  }
+
   static let downFrame = CGRect(x: 100, y: 100, width: 400, height: 300)
   static let downPoint = CGPoint(x: 300, y: 250)
 

@@ -266,6 +266,37 @@ import ZonesWindowing
     #expect(keptFx == [.requestSample([F.window.id])])
   }
 
+  @Test func dropOutsideSnapshotIsNoOp() {
+    // Display C (index 2) was not present when the session armed.
+    let snapshot = F.context(displays: [0, 1])
+    let w = Self.windowCentered(in: 2)
+    let armed = F.run(
+      [
+        F.mouseDown(flags: .shift, candidates: [w], point: F.center(2)), F.dragged(F.center(2)),
+        F.sample(w.frame.offsetBy(dx: 30, dy: 10)),
+      ], context: snapshot)
+    #expect(F.isArmed(armed.state))
+    let onC = F.center(of: 2)
+
+    let (idle, fx) = DragSessionReducer.reduce(armed.state, .mouseUp(point: onC, flags: .shift))
+    #expect(idle == .idle)
+    #expect(fx.count == 2)
+    #expect(fx.first == .hideOverlay)
+    #expect(fx.filter { if case .log = $0 { true } else { false } }.count == 1)
+    #expect(!fx.contains(where: F.isSnap))
+    #expect(!fx.contains(where: F.isRestore))
+
+    // Dragging over C: armed stays, no Display, no hit, everything dimmed.
+    let (over, overFx) = DragSessionReducer.reduce(armed.state, .dragged(point: onC, flags: .shift))
+    guard case .armed(_, _, _, _, _, let display, let hit, _) = over else {
+      Issue.record("not armed: \(over)")
+      return
+    }
+    #expect(display == nil)
+    #expect(hit == .none)
+    #expect(overFx == [.updateHighlight(Highlight(display: nil, primary: [], secondary: [], dimAll: true))])
+  }
+
   @Test func ignoresSecondMouseDownCore() {
     let (pressed, _) = DragSessionReducer.reduce(.idle, F.mouseDown())
     let (s, fx) = DragSessionReducer.reduce(
@@ -443,7 +474,7 @@ import ZonesWindowing
 
     // Off every Display: no Zone, empty highlight.
     let (off, offFx) = DragSessionReducer.reduce(next, .dragged(point: CGPoint(x: 9000, y: 9000), flags: []))
-    #expect(offFx == [.updateHighlight(Highlight(display: nil, primary: [], secondary: [], dimAll: false))])
+    #expect(offFx == [.updateHighlight(Highlight(display: nil, primary: [], secondary: [], dimAll: true))])
     #expect(F.isArmed(off))
   }
 
@@ -532,7 +563,8 @@ import ZonesWindowing
 
     // Off every Display: nothing to snap to.
     let (_, off) = DragSessionReducer.reduce(armed, .mouseUp(point: CGPoint(x: 9000, y: 9000), flags: .shift))
-    #expect(off == [.hideOverlay])
+    #expect(off.first == .hideOverlay)
+    #expect(!off.contains(where: F.isSnap))
   }
 
   @Test func snapOmitsOriginalFrameWhenOneIsRecorded() {
