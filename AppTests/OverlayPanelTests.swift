@@ -93,4 +93,74 @@ extension NSColor {
     #expect(view.secondaryLayer.opacity == 0)
     #expect(first.number == 1)
   }
+
+  @Test func layersReusedAcrossUpdates() throws {
+    let view = ZoneLayerView(frame: CGRect(origin: .zero, size: Self.screen.size), scale: 2)
+    view.apply(Self.model(primary: [1]))
+    let fills = view.zoneNumbers.compactMap { view.fillLayer($0) }
+    let labels = view.zoneNumbers.compactMap { view.labelLayer($0) }
+    let highlight = view.highlightLayer
+    let secondary = view.secondaryLayer
+    let count = view.layer?.sublayers?.count
+    let second = Self.model(primary: [3], secondary: [2])
+    view.apply(second)
+    let sameFills = view.zoneNumbers.compactMap { view.fillLayer($0) }.elementsEqual(fills, by: ===)
+    let sameLabels = view.zoneNumbers.compactMap { view.labelLayer($0) }.elementsEqual(labels, by: ===)
+    #expect(sameFills)
+    #expect(sameLabels)
+    #expect(view.highlightLayer === highlight)
+    #expect(view.secondaryLayer === secondary)
+    #expect(view.layer?.sublayers?.count == count)
+    #expect(highlight.frame == CoordinateSpace.panelLocal(second.zones[2].rect, panelFrame: second.frame))
+    #expect(fills[0].backgroundColor == NSColor(Self.style.idle).cgColor)
+    #expect(fills[2].backgroundColor == NSColor(Self.style.highlight).cgColor)
+    // A Zone that disappears loses its layers; the rest stay.
+    view.apply(Self.model(count: 2))
+    #expect(view.zoneNumbers == [1, 2])
+    #expect(view.layer?.sublayers?.count == 2 * 2 + 2)
+  }
+
+  @Test func updatesDoNotAnimate() {
+    for duration in [nil, 0.12] as [Double?] {
+      var style = Self.style
+      style.animationDuration = duration
+      let view = ZoneLayerView(frame: CGRect(origin: .zero, size: Self.screen.size), scale: 2)
+      view.apply(Self.model(style: style))
+      let moved = Self.model(style: style, primary: [2])
+      view.apply(moved)
+      let expected = CoordinateSpace.panelLocal(moved.zones[1].rect, panelFrame: moved.frame)
+      let shown = view.highlightLayer.presentation() ?? view.highlightLayer
+      #expect(shown.frame == expected)
+      #expect(shown.opacity == 1)
+      view.apply(Self.model(style: style, primary: [3]))
+      for layer in view.allLayers {
+        let keys = layer.animationKeys() ?? []
+        if duration == nil {
+          #expect(keys.isEmpty)
+        } else {
+          // Only the explicit opacity fade on the highlight layer is allowed; geometry and colors never animate.
+          #expect(keys.allSatisfy { $0 == "fade" && layer === view.highlightLayer })
+        }
+      }
+    }
+  }
+
+  @Test func spanOutlineRendersAsBorder() {
+    let outlined = ZoneLayerView(frame: CGRect(origin: .zero, size: Self.screen.size), scale: 2)
+    outlined.apply(Self.model(spanOutline: true, primary: [1], secondary: [2, 3]))
+    #expect(outlined.secondaryLayer.borderWidth > 0)
+    #expect(outlined.secondaryLayer.borderColor != nil)
+    #expect(outlined.secondaryLayer.backgroundColor == nil)
+    #expect(outlined.secondaryLayer.opacity == 1)
+
+    let filled = ZoneLayerView(frame: CGRect(origin: .zero, size: Self.screen.size), scale: 2)
+    filled.apply(Self.model(spanOutline: false, primary: [1], secondary: [2, 3]))
+    #expect(filled.secondaryLayer.borderWidth == 0)
+    #expect(filled.secondaryLayer.backgroundColor == NSColor(Self.style.secondary).cgColor)
+
+    // Flipping the option on the same view switches the same layer.
+    filled.apply(Self.model(spanOutline: true, primary: [1], secondary: [2, 3]))
+    #expect(filled.secondaryLayer.borderWidth > 0)
+    #expect(filled.secondaryLayer.backgroundColor == nil)
+  }
 }
