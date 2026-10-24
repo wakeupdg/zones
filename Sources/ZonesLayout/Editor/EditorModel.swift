@@ -78,8 +78,29 @@ public enum EditorModel {
     case .assign:
       guard case .uuid(let uuid) = s.display else { return (s, []) }
       return (s, [.writeAssignment(PersistentDisplayKey(uuid: uuid), s.draft.layout.id)])
-    case .save, .cancel:
-      return (s, [])
+    case .save:
+      var layout = s.draft.layout
+      switch LayoutValidator.validate(layout) {
+      case .leafTooSmall?: return (s, [.error(.tooSmall)])
+      case nil: break
+      // No EditorError case exists for an empty name or a bad surround; they report as invalidRatio (see T30 ledger).
+      case .some: return (s, [.error(.invalidRatio)])
+      }
+      layout.builtIn = nil
+      var document = context.document
+      if let index = document.layouts.firstIndex(where: { $0.id == layout.id }) {
+        document.layouts[index] = layout
+      } else {
+        document.layouts.append(layout)
+      }
+      var saved = s
+      saved.draft.layout = layout
+      saved.draft.dirty = false
+      saved.undo = []
+      saved.redo = []
+      return (saved, [.writeLayouts(document), .replaceLive(layout)])
+    case .cancel:
+      return (s, [.close])
     }
   }
 

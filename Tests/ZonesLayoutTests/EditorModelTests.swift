@@ -213,4 +213,69 @@ struct EditorModelTests {
     let unstable = EditorModel.open(layout, display: .unstable("session-7"), topology: topology, assignments: [:])
     #expect(step(unstable, .assign).1.isEmpty)
   }
+
+  @Test func saveWritesOnceCancelWritesNothing() throws {
+    let layout = columns()
+    var state = EditorModel.open(layout, display: primaryKey, topology: topology, assignments: [:])
+    for event in [EditorEvent.command(.select(NodePath(steps: [false]))), .command(.split(.vertical)), .command(.setGap(12))] {
+      state = step(state, event).0
+    }
+    #expect(state.draft.dirty)
+    let other = Layout(
+      id: LayoutID(rawValue: "other"), name: "Other", root: .leaf, surround: Surround(top: 0, left: 0, bottom: 0, right: 0),
+      insets: noInsets)
+    let before = ZonesDocument(layouts: [other, layout])
+
+    let (saved, effects) = step(state, .save, before)
+    #expect(effects.count == 2)
+    guard case .writeLayouts(let doc)? = effects.first else {
+      Issue.record("first effect is not writeLayouts: \(effects)")
+      return
+    }
+    #expect(effects.last == .replaceLive(state.draft.layout))
+    #expect(doc.layouts == [other, state.draft.layout])  // replaced in place, order kept
+    #expect(doc.layouts.allSatisfy { $0.builtIn == nil })
+    #expect(!saved.draft.dirty)
+    #expect(saved.undo.isEmpty && saved.redo.isEmpty)
+    #expect(saved.draft.layout == state.draft.layout)
+    #expect(saved.preview == state.preview)
+
+    // A new Layout is appended; a built-in draft is saved as a custom Layout.
+    var builtIn = state
+    builtIn.draft.layout.id = LayoutID(rawValue: "fresh")
+    builtIn.draft.layout.builtIn = BuiltInRef(template: .columns, count: 2)
+    guard case .writeLayouts(let appended)? = step(builtIn, .save, before).1.first else {
+      Issue.record("no writeLayouts for a new Layout")
+      return
+    }
+    #expect(appended.layouts.map(\.id.rawValue) == ["other", "custom-1", "fresh"])
+    #expect(appended.layouts.last?.builtIn == nil)
+
+    // The test is the effect interpreter: one atomic write, and the file decodes to the saved document.
+    let fs = FakeFileSystem()
+    let directory = URL(fileURLWithPath: "/zones-test")
+    let store = DocumentStore(fs: fs, directory: directory, clock: FakeClock())
+    try store.save(doc, as: .layouts)
+    #expect(fs.calls.filter { if case .writeAtomic = $0 { true } else { false } }.count == 1)
+    #expect(store.load(.layouts) == .loaded(doc))
+    let bytes = try #require(fs.files[directory.appendingPathComponent(DocumentKind.layouts.rawValue)])
+    #expect(try JSONDecoder().decode(ZonesDocument.self, from: bytes) == doc)
+
+    // An invalid draft is refused: error effect, no write, state unchanged.
+    var invalid = state
+    invalid.draft.layout.root = .split(axis: .horizontal, ratio: 1.5, first: .leaf, second: .leaf)
+    let (same, invalidEffects) = step(invalid, .save, before)
+    #expect(same == invalid)
+    #expect(invalidEffects == [.error(.invalidRatio)])
+    var tiny = state
+    tiny.draft.layout.root = .split(axis: .horizontal, ratio: 0.001, first: .leaf, second: .leaf)
+    #expect(step(tiny, .save, before).1 == [.error(.tooSmall)])
+
+    // Cancel writes nothing, and a file system fed nothing by the interpreter has zero writes.
+    let quiet = FakeFileSystem()
+    let (cancelled, cancelEffects) = step(state, .cancel, before)
+    #expect(cancelEffects == [.close])
+    #expect(cancelled == state)
+    #expect(quiet.calls.isEmpty)
+  }
 }
