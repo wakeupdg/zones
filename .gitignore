@@ -1,0 +1,11 @@
+.build/
+DerivedData/
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+.swiftpm/
+dist/
+.DS_Store
+docs/tickets/*/spend.log
+docs/tickets/graph.json.lock
+*.dmg
