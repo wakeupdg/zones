@@ -19,8 +19,15 @@ public struct OnboardingViewState: Hashable, Sendable {
   }
 
   public static func derive(_ p: PermissionState, relaunchOffered: Bool) -> OnboardingViewState {
-    OnboardingViewState(
-      statusLine: "Waiting for Accessibility access", showOpenSettings: true, showQuitAndReopen: false,
-      relaunchExplanation: nil, windowVisible: true)
+    switch p {
+    case .revoked:
+      OnboardingViewState(
+        statusLine: "Accessibility access was turned off", showOpenSettings: true, showQuitAndReopen: false,
+        relaunchExplanation: nil, windowVisible: true)
+    default:
+      OnboardingViewState(
+        statusLine: "Waiting for Accessibility access", showOpenSettings: true, showQuitAndReopen: false,
+        relaunchExplanation: nil, windowVisible: true)
+    }
   }
 }
