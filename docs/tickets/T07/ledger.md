@@ -1,0 +1,1 @@
+- slice 1: codesign -d -r- check green — Zones Dev signed shell has designated requirement identifier "com.dganesh.zones" and certificate leaf, 0 cdhash (SPK-005.md part 1)
