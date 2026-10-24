@@ -54,26 +54,31 @@ enum SpanLogic {
     return accumulate(next, at: cursor, flags: new, config: config)
   }
 
-  /// The Span after the cursor moves to `cursor`: with the Span Modifier down, a Zone entered joins the set.
-  /// Only a `.zone` hit adds; a Gap, Margin or surround (`.nearest`) is not a Zone entered.
+  /// The Span after the cursor moves to `cursor`. A Span whose Display is not the cursor's is suspended: its set
+  /// is kept untouched and nothing joins it until the cursor returns. Otherwise, with the Span Modifier down, a
+  /// Zone entered joins the set; only a `.zone` hit adds, a Gap, Margin or surround (`.nearest`) does not.
   static func accumulate(_ span: SpanState, at cursor: Cursor, flags: ModifierSet, config: ModifierConfig)
     -> SpanState
   {
     var next = span
-    guard flags.contains(ModifierSet(config.span)), !span.frozen, case .zone(let n) = cursor.hit else { return next }
+    next.suspended = !span.zones.isEmpty && span.display != cursor.display
+    guard !next.suspended, flags.contains(ModifierSet(config.span)), !span.frozen, case .zone(let n) = cursor.hit
+    else { return next }
     if next.zones.isEmpty { next.display = cursor.display }
     next.zones.insert(n)
     return next
   }
 
-  /// What a drop at `cursor` does, given the Span as it stands after `accumulate`.
+  /// What a drop at `cursor` does, given the Span as it stands after `accumulate`. While the Span is suspended
+  /// the cursor Zone alone is the drop and the suspended set rides along as the secondary highlight.
   static func drop(at cursor: Cursor, span: SpanState, in ctx: ArmContext) -> Drop {
+    let secondary = span.suspended ? span.zones : []
     if case .none = cursor.hit {
-      return Drop(display: cursor.display, zones: [], secondary: [], restore: ctx.hasOriginalFrame)
+      return Drop(display: cursor.display, zones: [], secondary: secondary, restore: ctx.hasOriginalFrame)
     }
-    if !span.zones.isEmpty {
-      return Drop(display: span.display, zones: span.zones, secondary: [], restore: false)
+    if span.suspended || span.zones.isEmpty {
+      return Drop(display: cursor.display, zones: zones(of: cursor.hit), secondary: secondary, restore: false)
     }
-    return Drop(display: cursor.display, zones: zones(of: cursor.hit), secondary: [], restore: false)
+    return Drop(display: span.display, zones: span.zones, secondary: [], restore: false)
   }
 }

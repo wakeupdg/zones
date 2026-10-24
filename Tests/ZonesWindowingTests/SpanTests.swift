@@ -220,4 +220,67 @@ import ZonesWindowing
     ])
     #expect(Self.span(late.state).zones == [2])
   }
+
+  /// The center of Zone `n` on the Display at `index` of the fixture topology.
+  static func center(_ n: Int, onDisplay index: Int) -> CGPoint {
+    let key = F.topology.displays[index].key
+    let f = F.context.layouts[key]!.zones.first { $0.number == n }!.frame
+    return CGPoint(x: f.midX, y: f.midY)
+  }
+
+  @Test func suspendAndResumeAcrossDisplays() {
+    let b = F.topology.displays[1].key
+    // Span {1, 2, 3} on Display A (the primary Display).
+    var run = Self.step(
+      Self.armed(over: 1),
+      [.flagsChanged(Self.shiftControl), Self.drag(to: F.center(2)), Self.drag(to: F.center(3))])
+    #expect(Self.span(run.state).zones == [1, 2, 3])
+    #expect(!Self.span(run.state).suspended)
+    let onA = Self.span(run.state)
+
+    // Crossing to Display B, over its Zone 2: the Span is suspended, kept as it was, and drawn secondary.
+    run = Self.step(run.state, [Self.drag(to: Self.center(2, onDisplay: 1))])
+    var span = Self.span(run.state)
+    #expect(span.suspended)
+    #expect(span.zones == [1, 2, 3])
+    #expect(span.display == F.primaryKey)
+    #expect(
+      Self.lastHighlight(run.effects) == Highlight(display: b, primary: [2], secondary: [1, 2, 3], dimAll: false))
+
+    // Sweeping on B with the Span Modifier down adds nothing; releasing and pressing it changes only the flag.
+    run = Self.step(run.state, [Self.drag(to: Self.center(5, onDisplay: 1))])
+    #expect(Self.span(run.state).zones == [1, 2, 3])
+    #expect(
+      Self.lastHighlight(run.effects) == Highlight(display: b, primary: [5], secondary: [1, 2, 3], dimAll: false))
+    run = Self.step(run.state, [.flagsChanged(.shift), .flagsChanged(Self.shiftControl)])
+    span = Self.span(run.state)
+    #expect(span.zones == [1, 2, 3])
+    #expect(span.suspended)
+    run = Self.step(run.state, [Self.drag(to: Self.center(2, onDisplay: 1))])
+
+    // Back on A: resumed, and the highlight is the Span again.
+    let back = Self.step(run.state, [Self.drag(to: F.center(3))])
+    span = Self.span(back.state)
+    #expect(!span.suspended)
+    #expect(span.zones == onA.zones)
+    #expect(
+      Self.lastHighlight(back.effects)
+        == Highlight(display: F.primaryKey, primary: [1, 2, 3], secondary: [], dimAll: false))
+    // Returning over a new Zone resumes adding.
+    let more = Self.step(back.state, [Self.drag(to: F.center(6))])
+    #expect(Self.span(more.state).zones == [1, 2, 3, 6])
+
+    // Dropping on B while suspended snaps to B's cursor Zone only.
+    let (idle, fx) = DragSessionReducer.reduce(
+      run.state, .mouseUp(point: Self.center(2, onDisplay: 1), flags: Self.shiftControl))
+    #expect(idle == .idle)
+    guard case .snap(let plan)? = fx.last else {
+      Issue.record("no snap in \(fx)")
+      return
+    }
+    #expect(plan.display == b)
+    #expect(plan.zones == [2])
+    #expect(plan.target == F.context.layouts[b]!.zones.first { $0.number == 2 }!.frame)
+    #expect(F.isHideOverlay(fx[0]))
+  }
 }
