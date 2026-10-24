@@ -2,3 +2,4 @@
 - slice 2: mergeSiblingsOnly green — select and sibling-only merge (root leaf -> rootMerge, selected split -> nothingSelected)
 - slice 3: noChordBadgeAndRootMerge green — passed on first run (split/merge already cover it); Zone 10 accepted, only it is noChord, root merge refused
 - slice 4: minimumFractionAndWarning green — setRatio (no snapping yet) with validator mapping, EditorEngine.warnings
+- slice 5: dividerSnapAndNudge green — setRatio snapping, nudge, snappedRatio; deviation: brief's 0.34->1/3 on a 1000 pt axis is 6.7 pt (no snap), so the test uses a vertical divider (800 pt, 5.3 pt) for it

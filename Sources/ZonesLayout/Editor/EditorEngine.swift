@@ -11,7 +11,8 @@ public enum EditorEngine {
     case .select(let path): select(path, d)
     case .split(let axis): split(axis, d)
     case .merge: merge(d)
-    case .setRatio(let path, let ratio, _): setRatio(path, ratio, d)
+    case .setRatio(let path, let ratio, let snap): setRatio(path, ratio, snap: snap, d, geometry)
+    case .nudge(let path, let points): nudge(path, points: points, d, geometry)
     default: .failure(.invalidRatio)
     }
   }
@@ -57,15 +58,148 @@ public enum EditorEngine {
     return validated(next)
   }
 
-  // MARK: setRatio
+  // MARK: setRatio, nudge, snapping
 
-  private static func setRatio(_ path: NodePath, _ ratio: Double, _ d: EditorDraft) -> Result<EditorDraft, EditorError> {
-    guard ratio > 0, ratio < 1, case .split(let axis, _, let first, let second)? = node(at: path.steps[...], in: d.layout.root)
+  /// Fixed snap targets in a divider's own ratio space (AC-128).
+  private static let fixedSnapTargets = [1.0 / 4, 1.0 / 3, 1.0 / 2, 2.0 / 3, 3.0 / 4]
+
+  private static func setRatio(
+    _ path: NodePath, _ ratio: Double, snap: Bool, _ d: EditorDraft, _ geometry: (visibleFrame: CGRect, scale: Double)
+  ) -> Result<EditorDraft, EditorError> {
+    guard ratio > 0, ratio < 1, let context = dividerContext(path, in: d.layout, geometry: geometry) else {
+      return .failure(.invalidRatio)
+    }
+    let final =
+      snap
+      ? snappedRatio(
+        ratio, candidates: fixedSnapTargets + collinearTargets(path, in: d.layout.root),
+        parentExtentPoints: context.extentPoints)
+      : ratio
+    return replaceRatio(final, at: path, context: context, d)
+  }
+
+  private static func nudge(
+    _ path: NodePath, points: Double, _ d: EditorDraft, _ geometry: (visibleFrame: CGRect, scale: Double)
+  ) -> Result<EditorDraft, EditorError> {
+    guard points.isFinite, let context = dividerContext(path, in: d.layout, geometry: geometry),
+      context.extentPoints > 0
     else { return .failure(.invalidRatio) }
+    let target = context.ratio + points / context.extentPoints
+    guard target > 0, target < 1 else { return .failure(.invalidRatio) }
+    return replaceRatio(target, at: path, context: context, d)
+  }
+
+  private static func replaceRatio(
+    _ ratio: Double, at path: NodePath, context: DividerContext, _ d: EditorDraft
+  ) -> Result<EditorDraft, EditorError> {
     var next = d
     next.layout.root = replacing(
-      path.steps[...], in: d.layout.root, with: .split(axis: axis, ratio: ratio, first: first, second: second))
+      path.steps[...], in: d.layout.root,
+      with: .split(axis: context.axis, ratio: ratio, first: context.first, second: context.second))
     return validated(next)
+  }
+
+  private struct DividerContext {
+    var axis: SplitAxis
+    var ratio: Double
+    var first: SplitNode
+    var second: SplitNode
+    /// The split node's extent along its axis in points: its unit extent times the Layout rectangle's size.
+    var extentPoints: Double
+  }
+
+  private static func dividerContext(
+    _ path: NodePath, in layout: Layout, geometry: (visibleFrame: CGRect, scale: Double)
+  ) -> DividerContext? {
+    guard case .split(let axis, let ratio, let first, let second)? = node(at: path.steps[...], in: layout.root),
+      let rect = unitRect(of: path.steps[...], in: layout.root)
+    else { return nil }
+    let layoutRect = LayoutMath.layoutRect(visibleFrame: geometry.visibleFrame, surround: layout.surround)
+    let extent = axis == .horizontal ? rect.width * layoutRect.width : rect.height * layoutRect.height
+    return DividerContext(axis: axis, ratio: ratio, first: first, second: second, extentPoints: extent)
+  }
+
+  /// Positions, in the ratio space of the split at `path`, of every other divider on the same axis that lies
+  /// strictly inside it and is neither that node nor one of its descendants.
+  private static func collinearTargets(_ path: NodePath, in root: SplitNode) -> [Double] {
+    guard case .split(let axis, _, _, _)? = node(at: path.steps[...], in: root),
+      let own = unitRect(of: path.steps[...], in: root)
+    else { return [] }
+    var out: [Double] = []
+    for divider in dividers(root, steps: [], rect: UnitRect(x: 0, y: 0, width: 1, height: 1))
+    where divider.axis == axis && !divider.steps.starts(with: path.steps) {
+      let local =
+        axis == .horizontal ? (divider.position - own.x) / own.width : (divider.position - own.y) / own.height
+      if local > 0 && local < 1 { out.append(local) }
+    }
+    return out
+  }
+
+  private struct Divider {
+    var steps: [Bool]
+    var axis: SplitAxis
+    /// Unit-square coordinate of the divider along its axis.
+    var position: Double
+  }
+
+  private static func dividers(_ node: SplitNode, steps: [Bool], rect: UnitRect) -> [Divider] {
+    guard case .split(let axis, let ratio, let first, let second) = node else { return [] }
+    let a: UnitRect
+    let b: UnitRect
+    let position: Double
+    switch axis {
+    case .horizontal:
+      let w = rect.width * ratio
+      position = rect.x + w
+      a = UnitRect(x: rect.x, y: rect.y, width: w, height: rect.height)
+      b = UnitRect(x: rect.x + w, y: rect.y, width: rect.width - w, height: rect.height)
+    case .vertical:
+      let h = rect.height * ratio
+      position = rect.y + h
+      a = UnitRect(x: rect.x, y: rect.y, width: rect.width, height: h)
+      b = UnitRect(x: rect.x, y: rect.y + h, width: rect.width, height: rect.height - h)
+    }
+    return [Divider(steps: steps, axis: axis, position: position)]
+      + dividers(first, steps: steps + [false], rect: a) + dividers(second, steps: steps + [true], rect: b)
+  }
+
+  /// The unit-square rectangle of the node at `steps` (a leaf or a split).
+  private static func unitRect(of steps: ArraySlice<Bool>, in root: SplitNode) -> UnitRect? {
+    var rect = UnitRect(x: 0, y: 0, width: 1, height: 1)
+    var current = root
+    for step in steps {
+      guard case .split(let axis, let ratio, let first, let second) = current else { return nil }
+      switch axis {
+      case .horizontal:
+        let w = rect.width * ratio
+        rect =
+          step
+          ? UnitRect(x: rect.x + w, y: rect.y, width: rect.width - w, height: rect.height)
+          : UnitRect(x: rect.x, y: rect.y, width: w, height: rect.height)
+      case .vertical:
+        let h = rect.height * ratio
+        rect =
+          step
+          ? UnitRect(x: rect.x, y: rect.y + h, width: rect.width, height: rect.height - h)
+          : UnitRect(x: rect.x, y: rect.y, width: rect.width, height: h)
+      }
+      current = step ? second : first
+    }
+    return rect
+  }
+
+  /// The candidate within `Constants.dividerSnapRadius` points of `ratio` (nearest wins), else `ratio` unchanged.
+  public static func snappedRatio(_ ratio: Double, candidates: [Double], parentExtentPoints: Double) -> Double {
+    var best: Double?
+    var bestDistance = Double.infinity
+    for candidate in candidates {
+      let distance = abs(ratio - candidate) * parentExtentPoints
+      if distance <= Constants.dividerSnapRadius && distance < bestDistance {
+        best = candidate
+        bestDistance = distance
+      }
+    }
+    return best ?? ratio
   }
 
   // MARK: warnings
