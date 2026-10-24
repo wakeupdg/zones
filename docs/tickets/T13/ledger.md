@@ -1,0 +1,14 @@
+- slice 1: FrameWriteResultTests.exhaustiveSwitch green — no-default switches over FrameWriteResult, AXStatus, AXRead (types already existed, so no red phase)
+- slice 2: WindowActorTests.timeoutsSetAtLaunch green — WindowActor.applyLaunchTimeouts(to:) calls setTimeouts with Constants (WindowActor and WindowHandle already existed from T01)
+- slice 3: AXMappingTests.statusFromAXErrorCode green — AXStatus(axErrorCode:) and AXRead.failure(axErrorCode:) in Adapters/AXWindowSystem.swift
+- slice 4: AXMappingTests.subroleMapping green — Subrole(axSubrole:axRole:) in Adapters/AXWindowSystem.swift
+- slice 5: AXMappingTests.coordinateRoundTrip green — AXGeometry.ax/appKit wrap CoordinateSpace (only callers); 200 seeded rects x 2 primaries round-trip
+- slice 6: AXObserverBridgeTests.fanOut green — NoticeHub fan-out behind a lock, notices() new stream per call, internal emit(_:)
+- slice 7: AXPermissionProbeTests.probeValues green — AXPermissionProbe (isTrusted calls AXIsProcessTrusted each time, settingsURL, injected or Apple-event launchedAtLogin)
+- slice 9a: AXObserverBridgeTests.watchIsSafeAndIdempotent green — dedicated Zones.AXObserver thread with keep-alive source (loop re-entered until stopped), per-pid AXObserver, destroyed subscriptions with WindowKey refcon box; live callbacks and the 60 s idle check (SPK-013) cannot run in swift test
+- slice 9b: NSWorkspace termination feed compiles and fanOut stays green — started by the first notices() call, emits appTerminated(pid), drops that pid's observer (live termination cannot be driven under swift test)
+- slice 8: AXWindowSystemTests.conformsAndTimeoutsDoNotCrash green — AXWindowSystem conforms to WindowSystem; setTimeouts (per-app stored and applied to every handed-out element, process-wide on system-wide element); trivialRead is a real system-wide read (sandbox returned timedOut)
+- slice 9c: frames batching — frame() is one AXUIElementCopyMultipleAttributeValues; frames() loops in one turn and marks a pid's remaining handles timedOut after its first timeout (live-AX only, no assertion)
+- slice 9d: element(at:) — CoordinateSpace point, climb AXWindow/AXParent max 8, fallback smallest containing window of the hit pid; menu-bar roles and the Dock return nil (live-AX only)
+- slice 9e: enhancedUI/setEnhancedUI on the app element, absent maps to .value(nil); facts() from role/subrole/AXFullScreen/IsAttributeSettable (live-AX only)
+- note: Sources/ZonesWindowing/Seams/WindowHandle.swift (T01) still has `import ApplicationServices`, so the AC-162 grep lists it besides Adapters/; moving it is out of this brief
