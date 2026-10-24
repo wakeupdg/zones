@@ -121,4 +121,58 @@ import ZonesWindowing
     #expect(diagPlan.zones == [1, 4])
     #expect(diagPlan.target == whole)
   }
+
+  @Test func freezeResumeClear() {
+    // Span {1, 2} on the nine-Zone Grid.
+    var run = Self.step(
+      Self.armed(over: 1),
+      [.flagsChanged(Self.shiftControl), Self.drag(to: F.center(2))])
+    #expect(Self.span(run.state).zones == [1, 2])
+    #expect(!Self.span(run.state).frozen)
+
+    // Releasing the Span Modifier freezes the set; sweeping on adds nothing and the highlight stays.
+    run = Self.step(run.state, [.flagsChanged(.shift)])
+    #expect(Self.span(run.state).frozen)
+    #expect(Self.span(run.state).zones == [1, 2])
+    #expect(run.effects.isEmpty)
+    run = Self.step(run.state, [Self.drag(to: F.center(5), flags: .shift), Self.drag(to: F.center(6), flags: .shift)])
+    #expect(Self.span(run.state).zones == [1, 2])
+    #expect(run.effects.isEmpty)
+
+    // A drop applies the frozen set, wherever the cursor is.
+    let (_, dropFx) = DragSessionReducer.reduce(run.state, .mouseUp(point: F.center(6), flags: .shift))
+    guard case .snap(let plan)? = dropFx.last else {
+      Issue.record("no snap in \(dropFx)")
+      return
+    }
+    #expect(plan.zones == [1, 2])
+
+    // Pressing it again resumes adding, starting with the Zone under the cursor (6).
+    run = Self.step(run.state, [.flagsChanged(Self.shiftControl)])
+    #expect(!Self.span(run.state).frozen)
+    #expect(Self.span(run.state).zones == [1, 2, 6])
+    run = Self.step(run.state, [Self.drag(to: F.center(9))])
+    #expect(Self.span(run.state).zones == [1, 2, 6, 9])
+
+    // Releasing the Activation Modifier clears the Span: the session leaves armed and the overlay hides.
+    let armedBefore = run.state
+    run = Self.step(armedBefore, [.flagsChanged([.control])])
+    #expect(F.isMoving(run.state))
+    #expect(run.effects == [.hideOverlay])
+
+    // Pressing it again re-arms with a fresh Span: only the single cursor Zone is lit.
+    let w = Self.window
+    let rearmed = F.run(
+      [
+        F.mouseDown(flags: Self.shiftControl, candidates: [w], point: F.center(2)),
+        Self.drag(to: F.center(1)), F.sample(w.frame.offsetBy(dx: 30, dy: 10)),
+        Self.drag(to: F.center(2)), Self.drag(to: F.center(3)), .flagsChanged([.control]),
+        .flagsChanged(Self.shiftControl),
+      ])
+    #expect(F.isArmed(rearmed.state))
+    #expect(Self.span(rearmed.state).zones == [3])
+    #expect(
+      Self.lastHighlight(rearmed.effects)
+        == Highlight(display: F.primaryKey, primary: [3], secondary: [], dimAll: false))
+  }
 }

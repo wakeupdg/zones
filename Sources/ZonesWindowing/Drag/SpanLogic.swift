@@ -39,6 +39,21 @@ enum SpanLogic {
     }
   }
 
+  /// The Span after the modifiers change from `old` to `new`: releasing the Span Modifier freezes the set,
+  /// pressing it again resumes adding, starting with the Zone already under the cursor.
+  static func flagsChanged(
+    _ span: SpanState, from old: ModifierSet, to new: ModifierSet, at cursor: Cursor, config: ModifierConfig
+  ) -> SpanState {
+    let spanKey = ModifierSet(config.span)
+    var next = span
+    if old.contains(spanKey), !new.contains(spanKey) {
+      next.frozen = true
+    } else if !old.contains(spanKey), new.contains(spanKey) {
+      next.frozen = false
+    }
+    return accumulate(next, at: cursor, flags: new, config: config)
+  }
+
   /// The Span after the cursor moves to `cursor`: with the Span Modifier down, a Zone entered joins the set.
   /// Only a `.zone` hit adds; a Gap, Margin or surround (`.nearest`) is not a Zone entered.
   static func accumulate(_ span: SpanState, at cursor: Cursor, flags: ModifierSet, config: ModifierConfig)

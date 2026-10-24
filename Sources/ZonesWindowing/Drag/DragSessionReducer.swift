@@ -137,9 +137,9 @@ public enum DragSessionReducer {
       guard f.contains(ModifierSet(config.activation)) else {
         return (.moving(window: window, downFrame: downFrame, flags: f, config: config), [.hideOverlay])
       }
-      // Pressing the Span Modifier starts or resumes adding, beginning with the Zone already under the cursor.
+      // Releasing the Span Modifier freezes the set; pressing it again resumes adding.
       let cursor = SpanLogic.Cursor(display: display, hit: hit)
-      let newSpan = SpanLogic.accumulate(span, at: cursor, flags: f, config: config)
+      let newSpan = SpanLogic.flagsChanged(span, from: flags, to: f, at: cursor, config: config)
       let state = DragState.armed(
         window: window, downFrame: downFrame, flags: f, config: config, context: ctx, display: display, hit: hit,
         span: newSpan)

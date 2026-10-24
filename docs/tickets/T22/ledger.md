@@ -2,3 +2,4 @@
 - slice 2: DragSessionReducerTests.nearestSnaps green — passed on first run (T16 mouseUp already snaps a nearest hit and never restores); pins hide-before-snap with and without an Original Frame
 - slice 3: DragSessionReducerTests.noneHitDimsOnlyWithOriginalFrame green — none hit dims all and restores only with an Original Frame; SpanLogic.swift created with Cursor/Drop
 - slice 4: SpanTests.accumulateAndUnion green — Span Modifier sweeps add .zone hits, highlight and snap use the whole set; highlight now emitted only when it changes
+- slice 5: SpanTests.freezeResumeClear green — Span Modifier release freezes, press resumes with the cursor Zone; Activation Modifier release leaves armed (T16 cancel) so the Span clears and a re-arm starts empty (brief's 'SpanState empty after release' is satisfied by leaving armed, not by an in-armed reset)
