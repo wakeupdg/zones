@@ -222,4 +222,27 @@ private struct Harness {
     let (_, unstableEffects) = Self.commit(state, Self.topology([Self.a, unstable]), assignments: records)
     #expect(!unstableEffects.contains { if case .persistAssignment = $0 { true } else { false } })
   }
+
+  /// AC-121
+  @Test func separateSpacesNoticeOnce() {
+    let off = Self.topology([Self.a], separateSpaces: false)
+    let (state, first) = Self.commit(TopologyState(), off)
+    #expect(first.filter { $0 == .notice(.separateSpacesOff) }.count == 1)
+    #expect(first.first == .notice(.separateSpacesOff))
+    #expect(state.noticed == [.separateSpacesOff])
+
+    var moved = Self.a
+    moved.visibleFrame = CGRect(x: 0, y: 0, width: 1800, height: 1000)
+    let (_, later) = Self.commit(state, Self.topology([moved], separateSpaces: false))
+    #expect(!later.contains(.notice(.separateSpacesOff)))
+    #expect(later.contains(.topologyChanged(Self.topology([moved], separateSpaces: false))))
+
+    let seeded = TopologyState(noticed: [.separateSpacesOff])
+    let (_, none) = Self.commit(seeded, off)
+    #expect(!none.contains(.notice(.separateSpacesOff)))
+
+    // Separate Spaces on: no notice.
+    let (_, on) = Self.commit(TopologyState(), Self.topology([Self.a]))
+    #expect(!on.contains(.notice(.separateSpacesOff)))
+  }
 }

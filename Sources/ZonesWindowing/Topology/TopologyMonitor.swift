@@ -80,7 +80,11 @@ public enum TopologyMonitor {
     guard snapshot != state.current else { return (state, []) }
     state.previous = state.current
     state.current = snapshot
-    let effects = persistEffects(for: snapshot, assignments: assignments) + [
+    var effects: [TopologyEffect] = []
+    if !snapshot.separateSpaces, state.noticed.insert(.separateSpacesOff).inserted {
+      effects.append(.notice(.separateSpacesOff))
+    }
+    effects += persistEffects(for: snapshot, assignments: assignments) + [
       .topologyChanged(snapshot), .resizePanels(snapshot),
     ]
     return (state, effects)
