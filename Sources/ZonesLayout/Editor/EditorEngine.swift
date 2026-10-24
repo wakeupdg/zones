@@ -245,10 +245,17 @@ public enum EditorEngine {
 
   // MARK: shared helpers
 
-  /// Marks the draft dirty and maps a validator fault to an `EditorError`. Faults that are not the command's
-  /// doing (name, surround) are ignored: a draft may legitimately carry an empty name.
+  /// Marks the draft dirty and maps a validator fault to an `EditorError`. The validator reports `emptyName` and
+  /// `surroundOutOfRange` before it looks at ratios and leaf sizes, and a draft may legitimately carry an empty
+  /// name, so the probe copy gets a placeholder name and a clamped surround: tree faults are always seen.
   private static func validated(_ d: EditorDraft) -> Result<EditorDraft, EditorError> {
-    switch LayoutValidator.validate(d.layout) {
+    var probe = d.layout
+    probe.name = "probe"
+    func clamp(_ side: Double) -> Double { side >= 0 && side <= Constants.surroundMax ? side : 0 }
+    probe.surround = Surround(
+      top: clamp(probe.surround.top), left: clamp(probe.surround.left),
+      bottom: clamp(probe.surround.bottom), right: clamp(probe.surround.right))
+    switch LayoutValidator.validate(probe) {
     case .leafTooSmall: return .failure(.tooSmall)
     case .ratioOutOfRange: return .failure(.invalidRatio)
     case .emptyName, .surroundOutOfRange, .overlap, nil:

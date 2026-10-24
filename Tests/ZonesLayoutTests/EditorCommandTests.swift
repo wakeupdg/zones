@@ -116,6 +116,17 @@ struct EditorCommandTests {
     #expect(run(.setRatio(NodePath(steps: [true]), 0.1, snap: false), nested) == .failure(.tooSmall))
     #expect(throws: Never.self) { try run(.setRatio(NodePath(steps: [true]), 0.2, snap: false), nested).get() }
 
+    // an empty-name draft (rename("") is allowed) must not bypass the 1/12 minimum or the ratio range
+    var unnamed = two
+    unnamed.layout.name = ""
+    #expect(run(.setRatio(root, 0.05, snap: false), unnamed) == .failure(.tooSmall))
+    #expect(run(.setRatio(root, 1.5, snap: false), unnamed) == .failure(.invalidRatio))
+    #expect(run(.nudge(root, points: -900), unnamed) == .failure(.tooSmall))
+    var unnamedNested = nested
+    unnamedNested.layout.name = ""
+    #expect(run(.setRatio(NodePath(steps: [true]), 0.1, snap: false), unnamedNested) == .failure(.tooSmall))
+    #expect(throws: Never.self) { try run(.setRatio(root, 0.4, snap: false), unnamed).get() }
+
     func resolved(_ t: Template, _ count: Int, _ frame: CGRect) -> ResolvedLayout {
       let layout = Templates.generate(t, count: count, insets: zeroInsets)
       return LayoutMath.resolve(layout, key: .uuid("D1"), visibleFrame: frame, scale: 1)
