@@ -432,6 +432,166 @@ func axBaseline(pid: pid_t, trusted: Bool, titles: [String], spinning: Bool) -> 
     return store.all.first?.byTitle ?? [:]
 }
 
+
+// MARK: - spk016
+
+/// Child pid for the signal handlers; the handlers must be able to SIGCONT it.
+nonisolated(unsafe) var childPIDForCleanup: pid_t = 0
+
+@MainActor
+enum ChildState { static var window: NSWindow? }
+
+/// Hidden `--child-window` mode: one window, moved on a stdin command. Exits on stdin EOF.
+@MainActor
+func runChildWindow() -> Never {
+    let app = NSApplication.shared
+    app.setActivationPolicy(.accessory)
+    app.finishLaunching()
+    let screen = NSScreen.main ?? NSScreen.screens[0]
+    let r = NSRect(x: screen.visibleFrame.midX - 150, y: screen.visibleFrame.midY - 100, width: 300, height: 200)
+    let w = NSWindow(contentRect: r, styleMask: [.titled, .closable], backing: .buffered, defer: false)
+    w.isReleasedWhenClosed = false
+    w.title = "child-probe"
+    w.orderFrontRegardless()
+    ChildState.window = w
+    print("ready \(w.windowNumber)")
+    fflush(stdout)
+    DispatchQueue.global().async {
+        while let line = readLine() {
+            let parts = line.split(separator: " ")
+            if parts.count == 3, parts[0] == "move", let dx = Double(parts[1]), let dy = Double(parts[2]) {
+                DispatchQueue.main.async {
+                    MainActor.assumeIsolated {
+                        if let w = ChildState.window {
+                            var o = w.frame.origin
+                            o.x += dx; o.y -= dy          // dy is in top-left (CG) orientation
+                            w.setFrameOrigin(o)
+                        }
+                    }
+                }
+            }
+        }
+        exit(0)
+    }
+    app.run()
+    exit(0)
+}
+
+struct Child {
+    var process: Process
+    var stdin: FileHandle
+    var pid: pid_t
+    var windowID: UInt32
+}
+
+func installCleanupHandlers() {
+    let handler: @convention(c) (Int32) -> Void = { sig in
+        if childPIDForCleanup > 0 { kill(childPIDForCleanup, SIGCONT); kill(childPIDForCleanup, SIGKILL) }
+        _exit(128 + sig)
+    }
+    for sig in [SIGINT, SIGTERM, SIGHUP] { signal(sig, handler) }
+}
+
+func spawnChild() -> Child? {
+    guard let exe = Bundle.main.executableURL else { return nil }
+    let p = Process()
+    p.executableURL = exe
+    p.arguments = ["--child-window"]
+    let inPipe = Pipe(), outPipe = Pipe()
+    p.standardInput = inPipe
+    p.standardOutput = outPipe
+    do { try p.run() } catch { return nil }
+    childPIDForCleanup = p.processIdentifier
+    // Read the "ready <id>" line with a 5 s limit.
+    let deadline = Date().addingTimeInterval(5)
+    var buf = Data()
+    while Date() < deadline {
+        let chunk = outPipe.fileHandleForReading.availableData
+        if chunk.isEmpty { break }
+        buf.append(chunk)
+        if buf.contains(10) { break }
+    }
+    guard let line = String(data: buf, encoding: .utf8)?.split(separator: "\n").first,
+          line.hasPrefix("ready "), let id = UInt32(line.dropFirst(6)) else {
+        p.terminate(); return nil
+    }
+    return Child(process: p, stdin: inPipe.fileHandleForWriting, pid: p.processIdentifier, windowID: id)
+}
+
+func stopChildSafely(_ c: Child) {
+    kill(c.pid, SIGCONT)
+    c.process.terminate()
+    c.process.waitUntilExit()
+    childPIDForCleanup = 0
+}
+
+func percentile(_ a: [Double], _ p: Double) -> Double {
+    guard !a.isEmpty else { return 0 }
+    let s = a.sorted()
+    return s[min(s.count - 1, Int(Double(s.count) * p))]
+}
+
+/// AX position of the child's single window; nil on timeout or error. Elapsed ms returned too.
+func axChildPosition(pid: pid_t) -> (pos: CGPoint?, ms: Double, timedOut: Bool) {
+    let t = nowNs()
+    let r = axTitlePositions(pid: pid)
+    let ms = Double(nowNs() - t) / 1e6
+    return (r.byTitle["child-probe"], ms, r.timeouts > 0)
+}
+
+func runSpk016() -> Int32 {
+    let trials = 20, maxTicks = 12
+    let tickNs: UInt64 = 16_666_667
+    installCleanupHandlers()
+    print("SPK-016 \(osVersionLine())  AX trusted: \(AXIsProcessTrusted())")
+    guard let child = spawnChild() else { print("FAIL spk016: could not start child"); return 1 }
+    defer { stopChildSafely(child) }
+    let id = child.windowID
+    usleep(500_000)
+    guard cgDescriptionOrigins(ids: [id])[id] != nil else { print("FAIL spk016: child window not in description"); return 1 }
+
+    // Part A: samples to confirm a move at 60 Hz.
+    var cgCounts: [Int] = [], axCounts: [Int] = [], cgElapsed: [Double] = []
+    var rows: [String] = []
+    for trial in 1...trials {
+        let dx: Double = trial % 2 == 1 ? 25 : -25
+        let beforeCG = cgDescriptionOrigins(ids: [id])[id]!
+        let beforeAX = axChildPosition(pid: child.pid).pos
+        try? child.stdin.write(contentsOf: Data("move \(dx) 0\n".utf8))
+        let t0 = nowNs()
+        var cgTick: Int?, axTick: Int?
+        for tick in 1...maxTicks {
+            sleepUntil(t0 + UInt64(tick) * tickNs)
+            if cgTick == nil, let o = cgDescriptionOrigins(ids: [id])[id], abs(o.x - beforeCG.x) > 0.5 || abs(o.y - beforeCG.y) > 0.5 {
+                cgTick = tick; cgElapsed.append(Double(nowNs() - t0) / 1e6)
+            }
+            if axTick == nil, let b = beforeAX, let o = axChildPosition(pid: child.pid).pos, abs(o.x - b.x) > 0.5 || abs(o.y - b.y) > 0.5 {
+                axTick = tick
+            }
+            if cgTick != nil && axTick != nil { break }
+        }
+        cgCounts.append(cgTick ?? 99); axCounts.append(axTick ?? 99)
+        rows.append("\(trial) | \(cgTick.map(String.init) ?? "none") | \(axTick.map(String.init) ?? "none")")
+        usleep(150_000)
+    }
+    print("trial | CG samples to confirm | AX samples to confirm")
+    rows.forEach { print($0) }
+    func hist(_ a: [Int]) -> String {
+        (1...3).map { k in "\(k): \(a.filter { $0 == k }.count)" }.joined(separator: ", ")
+            + ", 4+: \(a.filter { $0 > 3 && $0 != 99 }.count), never: \(a.filter { $0 == 99 }.count)"
+    }
+    print("CG samples-to-confirm distribution (\(trials) trials): \(hist(cgCounts))")
+    print("AX samples-to-confirm distribution (\(trials) trials): \(hist(axCounts))")
+    if !cgElapsed.isEmpty {
+        print(String(format: "CG confirm elapsed from command, ms: p50 %.1f p95 %.1f max %.1f",
+                     percentile(cgElapsed, 0.5), percentile(cgElapsed, 0.95), cgElapsed.max()!))
+    }
+    let confirmOK = cgCounts.allSatisfy { $0 <= 2 }
+    print("move confirmation within 2 samples: \(cgCounts.filter { $0 <= 2 }.count) of \(trials)")
+    print(confirmOK ? "PASS spk016 (confirmation; SIGSTOP cost not run)" : "FAIL spk016 (confirmation)")
+    return confirmOK ? 0 : 1
+}
+
 // MARK: - Entry
 
 let args = CommandLine.arguments.dropFirst()
@@ -442,8 +602,9 @@ case "spk008":
     let single = args.contains("--single")
     exit(MainActor.assumeIsolated { runSpk008(single: single) })
 case "spk016":
-    print("FAIL \(args.first!): unimplemented")
-    exit(1)
+    exit(runSpk016())
+case "--child-window":
+    MainActor.assumeIsolated { runChildWindow() }
 default:
     print("usage: WindowIDProbe spk004|spk008|spk016")
     exit(64)
