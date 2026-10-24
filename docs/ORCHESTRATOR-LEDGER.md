@@ -14,3 +14,4 @@ One line per completed orchestration step. Read this plus docs/tickets/graph.jso
 - P4 preflight: app trusted until the required tccutil reset revoked it (human must re-grant); no Screen Recording / System Events on host -> in-process rendering; QA round 1 launched (wf_a78b0c12-d8c, 11 finders)
 - P4 QA round 1 done (wf_a78b0c12-d8c, resumed once after a credit stop; session model now Opus 5.5): 21 raw, 13 confirmed, 8 dropped; 145/157 distinct auto ACs pass in round 1; fix tickets T40-T46 appended; fix run launched (wf_513444d8-6fa)
 - P4 fix run 1 done (wf_513444d8-6fa): T40-T46 merged (47/47 done); hook ~8.48M; Zones relaunched and Accessibility pane opened for the user to re-grant
+- 7:55 AM PT: user reports Accessibility re-granted to Zones (System Settings). Not machine-verifiable here: TCC.db needs Full Disk Access, tccd log lines are redacted. User's instance pid 43679 shows one 640x544 layer-0 window.
