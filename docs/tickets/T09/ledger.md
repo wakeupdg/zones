@@ -1,3 +1,4 @@
 - slice 1: LayoutTilingTests.randomTreesTile green (part A) — LayoutMath.unitRects tiles the unit square; also fixed Generator.tree so every leaf (not only every ratio) is >= minFraction, as AC-116 needs
 - slice 2: LayoutTilingTests.randomTreesTile green (part B) — layoutRect (zero Surround bit-identical) and Grid.unrounded: exact Margin and Gap, shared edge-selection path for round
 - slice 3: ZoneNumberingTests.rowMajorBijection green — ZoneNumbering.numbers clusters rows against the row's first y (epsilon-transitive), then left edge, then path steps; invariance checked via Grid.unrounded frames at random frames and Insets
+- slice 4: GridRoundingTests.uniformPixelGapsAndSharedDividers green — Grid.round rule: every position snapped once to 1/scale (ties toward layout centre), Gap = max(0, round(gap*scale)) whole px, divider d gives edges d -/+ g/2 px (odd g lands on half pixels); outer edges Margin inside then snapped

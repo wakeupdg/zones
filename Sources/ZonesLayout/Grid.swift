@@ -18,6 +18,41 @@ public enum Grid {
     frames(rects, layoutRect: layoutRect, margin: insets.margin, gap: insets.gap, snap: { value, _ in value })
   }
 
+  /// Pixel-snapped frames for a display of the given `scale` (pixels per point).
+  ///
+  /// Rounding rule, applied once: every position (outer edges and interior dividers) is snapped to the nearest
+  /// `1 / scale`, with exact half-pixel ties broken toward the layout rectangle's centre so that reflecting the tree
+  /// reflects the pixels. The Gap is `max(0, round(gap * scale))` whole pixels, rounded once, and an interior divider
+  /// `d` yields zone edges `d - g/2` and `d + g/2` pixels: every Gap is the same pixel count and the divider lies on a
+  /// pixel boundary. An odd `g` puts the zone edges on half pixels (allowed by AC-069). There is no "remainder to the
+  /// last Zone".
+  public static func round(
+    _ rects: [(path: NodePath, rect: UnitRect)], layoutRect: CGRect, insets: Insets, scale: Double
+  ) -> [(path: NodePath, frame: CGRect)] {
+    let pixelScale = scale > 0 ? scale : 1
+    let gapPixels = max(0, (insets.gap * pixelScale).rounded(.toNearestOrAwayFromZero))
+    return frames(
+      rects, layoutRect: layoutRect, margin: insets.margin, gap: gapPixels / pixelScale,
+      snap: { snapToPixel($0, center: $1, scale: pixelScale) })
+  }
+
+  /// Nearest multiple of `1 / scale`; an exact half-pixel tie goes toward `center`.
+  private static func snapToPixel(_ value: Double, center: Double, scale: Double) -> Double {
+    let scaled = value * scale
+    let floor = scaled.rounded(.down)
+    let fraction = scaled - floor
+    let pixel: Double
+    if abs(fraction - 0.5) < tieTolerance {
+      pixel = value < center ? floor + 1 : floor
+    } else {
+      pixel = fraction < 0.5 ? floor : floor + 1
+    }
+    return pixel / scale
+  }
+
+  /// Tolerance, in pixels, for calling a fractional pixel an exact tie (absorbs float noise from a mirrored tree).
+  private static let tieTolerance = 1e-9
+
   /// Tolerance for treating two unit coordinates as the same divider.
   private static let unitTolerance = 1e-9
 
