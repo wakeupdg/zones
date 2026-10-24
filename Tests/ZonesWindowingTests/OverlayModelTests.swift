@@ -44,4 +44,25 @@ import ZonesWindowing
     #expect(fallback.count == 3)
     for (panel, display) in zip(fallback, Self.topology.displays) { #expect(panel.frame == display.visibleFrame) }
   }
+
+  @Test func highlightDistinctAtLowOpacity() {
+    for o in [0.10, 0.50, 1.0] {
+      let panels = OverlayModel.panels(Self.scene(opacity: o), topology: Self.topology)
+      for panel in panels {
+        let s = panel.style
+        #expect(abs(s.idle.a - o) < 1e-9)
+        for z in panel.zones { #expect(z.fill == s.idle) }
+        if o == 0.10 {
+          #expect(s.highlight.a - s.idle.a >= 0.25)
+          #expect(s.highlight.r != s.idle.r || s.highlight.g != s.idle.g || s.highlight.b != s.idle.b)
+        }
+        if s.highlight.a == 1 && o == 1 {
+          #expect(s.secondary.a <= s.highlight.a && s.secondary.a >= s.idle.a)
+        } else {
+          #expect(s.secondary.a > s.idle.a && s.secondary.a < s.highlight.a)
+        }
+        #expect(s.dim.a < s.idle.a)
+      }
+    }
+  }
 }

@@ -67,9 +67,7 @@ public enum OverlayModel {
   }
 
   private static func build(_ s: OverlayScene, frame: (ResolvedLayout) -> CGRect) -> [PanelModel] {
-    let style = PanelStyle(
-      idle: RGBA(r: s.appearance.fill.r, g: s.appearance.fill.g, b: s.appearance.fill.b, a: s.appearance.opacity),
-      highlight: s.appearance.fill, secondary: s.appearance.fill, dim: s.appearance.fill, animationDuration: nil)
+    let style = makeStyle(s.appearance, s.options)
     return s.layouts.map { layout in
       let labels = Dictionary(
         LabelModel.labels(layout, appearance: s.appearance).map { ($0.number, $0) }, uniquingKeysWith: { a, _ in a })
@@ -80,5 +78,34 @@ public enum OverlayModel {
       return PanelModel(
         display: layout.display, frame: frame(layout), zones: zones, style: style, spanOutline: false)
     }
+  }
+
+  // MARK: colors
+
+  private static func makeStyle(_ appearance: Appearance, _ options: AccessibilityOptions) -> PanelStyle {
+    let f = appearance.fill
+    let o = min(max(appearance.opacity, 0), 1)
+    let ext = luminance(f) < 0.5 ? RGBA(r: 1, g: 1, b: 1, a: 1) : RGBA(r: 0, g: 0, b: 0, a: 1)
+    let lifted = mix(f, ext, 0.35)
+    let idle = rgba(f, a: o)
+    let highlight = rgba(lifted, a: min(1, max(o + 0.30, 0.40)))
+    return PanelStyle(
+      idle: idle, highlight: highlight, secondary: rgba(lifted, a: (idle.a + highlight.a) / 2),
+      dim: rgba(f, a: o * 0.4), animationDuration: nil)
+  }
+
+  private static func rgba(_ c: RGBA, a: Double) -> RGBA { RGBA(r: c.r, g: c.g, b: c.b, a: a) }
+
+  private static func mix(_ c: RGBA, _ t: RGBA, _ k: Double) -> RGBA {
+    RGBA(r: c.r + (t.r - c.r) * k, g: c.g + (t.g - c.g) * k, b: c.b + (t.b - c.b) * k, a: 1)
+  }
+
+  /// WCAG 2 relative luminance (sRGB linearization), alpha ignored.
+  private static func luminance(_ c: RGBA) -> Double {
+    func lin(_ v: Double) -> Double {
+      let x = min(max(v, 0), 1)
+      return x <= 0.03928 ? x / 12.92 : pow((x + 0.055) / 1.055, 2.4)
+    }
+    return 0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b)
   }
 }

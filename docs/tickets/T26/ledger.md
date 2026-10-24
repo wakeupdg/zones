@@ -4,3 +4,4 @@ decision | KNOWN LIMIT: Highlight has one display, so a Span suspended on Displa
 decision | ZoneDrawing, PanelStyle, PanelModel were undeclared by T01, so they are declared in OverlayModel.swift with public memberwise inits.
 decision | ZonesWindowingTests depends on ZonesTestSupport, so the slice-6 property test is in scope.
 2:36 AM PT | slice 1 | zonesWithinVisibleFrame | green | 41066d7
+2:36 AM PT | slice 2 | highlightDistinctAtLowOpacity | green | pending
