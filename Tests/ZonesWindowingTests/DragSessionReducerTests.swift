@@ -213,6 +213,59 @@ import ZonesWindowing
     #expect(emptyFx == [.stopSampling])
   }
 
+  @Test func phaseTwoFailureEndsPress() {
+    func facts(
+      _ subrole: Subrole = .standard, full: Bool = false, position: Bool = true, size: Bool = true
+    ) -> WindowFacts {
+      WindowFacts(subrole: subrole, isFullScreen: full, positionSettable: position, sizeSettable: size)
+    }
+    let rows: [(String, WindowFacts, SkipReason)] = [
+      ("fullScreen", facts(full: true), .fullScreen),
+      ("sheet", facts(.sheet), .sheetOrPopover),
+      ("popover", facts(.popover), .sheetOrPopover),
+      ("floating", facts(.floating), .nonStandardSubrole),
+      ("unknown", facts(.unknown), .nonStandardSubrole),
+      ("positionNotSettable", facts(position: false), .positionNotSettable),
+    ]
+    for (name, f, reason) in rows {
+      #expect(ExclusionPolicy.phaseTwo(f) == .skip(reason), "\(name)")
+      var (state, fx) = DragSessionReducer.reduce(.idle, F.mouseDown(flags: .shift))
+      (state, fx) = DragSessionReducer.reduce(state, F.dragged())
+      (state, fx) = DragSessionReducer.reduce(state, F.sample(F.downFrame.offsetBy(dx: 30, dy: 10), facts: f))
+      #expect(state == .idle, "\(name)")
+      #expect(fx == [.stopSampling, .skip(reason, F.window)], "\(name)")
+      #expect(!fx.contains(where: F.isShowOverlay), "\(name)")
+      // Never armed afterwards, whatever else arrives: nothing is sampled and no overlay appears.
+      let rest = F.run(
+        [F.dragged(F.center(3)), F.moved(), .armContext(F.context), .mouseUp(point: F.center(3), flags: .shift)],
+        from: state)
+      #expect(rest.state == .idle, "\(name)")
+      #expect(rest.effects.isEmpty, "\(name)")
+    }
+
+    // Positive rows: standard facts move on; size not settable is still a drag (position-only).
+    let ok = F.run([F.mouseDown(flags: .shift), F.dragged(), F.moved()])
+    #expect(F.isArmed(ok.state))
+    let positionOnly = F.run([
+      F.mouseDown(flags: .shift), F.dragged(), F.sample(F.downFrame.offsetBy(dx: 30, dy: 10), facts: facts(size: false)),
+    ])
+    #expect(ExclusionPolicy.phaseTwo(facts(size: false)) == .allow(.positionOnly))
+    #expect(F.isArmed(positionOnly.state))
+    #expect(positionOnly.effects.filter(F.isShowOverlay).count == 1)
+
+    // A moved sample without facts has no safe phase two: skip(unresponsive).
+    var (state, _) = DragSessionReducer.reduce(.idle, F.mouseDown(flags: .shift))
+    (state, _) = DragSessionReducer.reduce(state, F.dragged())
+    let (idle, fx) = DragSessionReducer.reduce(state, F.sample(F.downFrame.offsetBy(dx: 30, dy: 10), facts: nil))
+    #expect(idle == .idle)
+    #expect(fx == [.stopSampling, .skip(.unresponsive, F.window)])
+
+    // Facts on an unmoved sample are not consulted.
+    let (kept, keptFx) = DragSessionReducer.reduce(state, F.sample(F.downFrame, facts: facts(full: true)))
+    #expect(F.isPressed(kept))
+    #expect(keptFx == [.requestSample([F.window.id])])
+  }
+
   @Test func ignoresSecondMouseDownCore() {
     let (pressed, _) = DragSessionReducer.reduce(.idle, F.mouseDown())
     let (s, fx) = DragSessionReducer.reduce(

@@ -75,6 +75,13 @@ public enum DragSessionReducer {
       if tick.resized { return (.idle, [.stopSampling]) }
       // One mover wins at once, even when another candidate timed out in the same tick.
       if tick.movers.count == 1, let winner = tick.movers.first {
+        // Phase two: the facts riding on the first moved sample decide whether the window may be moved at all.
+        // Missing facts mean no safe phase two (ledger decision). `allow(.positionOnly)` moves on; the mode has
+        // no carrier in `moving`/`armed`, so SnapPlan mode stays `.full` (ledger note).
+        guard let facts = winner.facts else { return (.idle, [.stopSampling, .skip(.unresponsive, winner.ref)]) }
+        if case .skip(let reason) = ExclusionPolicy.phaseTwo(facts) {
+          return (.idle, [.stopSampling, .skip(reason, winner.ref)])
+        }
         var fx: [DragEffect] = [.stopSampling]
         if flags.contains(ModifierSet(config.activation)) {
           fx.append(.requestArmContext(window: winner.ref, point: down))
