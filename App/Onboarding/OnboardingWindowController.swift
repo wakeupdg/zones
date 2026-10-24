@@ -47,6 +47,17 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
     window.makeKeyAndOrderFront(nil)
   }
 
+  /// The "Grant Accessibility" menu item: an explicit user click, so it is never inert. Launched at login no
+  /// window appears (ADR-0021), so it opens Privacy & Security > Accessibility directly; otherwise it fronts
+  /// the onboarding window.
+  func grantAccessibility() {
+    if probe.launchedAtLogin {
+      probe.openAccessibilitySettings()
+    } else {
+      show()
+    }
+  }
+
   /// `PermissionEffect.dismissOnboarding`: closes whichever page is showing.
   func dismiss() {
     window?.close()

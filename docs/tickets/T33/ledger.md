@@ -9,3 +9,4 @@
 - AC-004: implemented (one window via OnboardingWindowController; button calls probe.openAccessibilitySettings only), manual, not run
 - AC-005: implemented (window closes on dismiss(), driven by dismissOnboarding; no polling in the view; badge from StatusItemModel), manual, not run; needs the composition root to execute effects
 - AC-020: implemented (CheatSheetView lists three gestures; KeyCapView redraws from Preferences re-read on UserDefaults.didChangeNotification), manual, not run
+- review fix: "Grant Accessibility" menu item was inert launched at login (show() no-ops there) — red: OnboardingControllerTests.grantMenuItemOpensSettingsWhenLaunchedAtLogin; fix: OnboardingWindowController.grantAccessibility() opens System Settings via probe at login, else show(); StatusItemController onGrant is to be wired to grantAccessibility (not show) by the composition root

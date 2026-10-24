@@ -49,4 +49,22 @@ import ZonesWindowing
     controller.openSettings()
     #expect(probe.calls == [.openAccessibilitySettings])
   }
+
+  /// The "Grant Accessibility" menu item is an explicit user click: at login (no window by ADR-0021) it must
+  /// still open System Settings, or the stand-in is inert.
+  @Test func grantMenuItemOpensSettingsWhenLaunchedAtLogin() {
+    let (controller, probe, created) = make(launchedAtLogin: true)
+    controller.grantAccessibility()
+    #expect(created() == 0)
+    #expect(controller.window == nil)
+    #expect(probe.calls == [.openAccessibilitySettings])
+  }
+
+  @Test func grantMenuItemShowsWindowOtherwise() {
+    let (controller, probe, created) = make()
+    controller.grantAccessibility()
+    #expect(created() == 1)
+    #expect(probe.calls.isEmpty)
+    controller.dismiss()
+  }
 }

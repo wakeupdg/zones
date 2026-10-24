@@ -7,7 +7,7 @@ import ZonesWindowing
 @testable import Zones
 
 /// Slice 8: the badge follows `StatusItemModel.badged` and the "Grant Accessibility" item (from
-/// `MenuModel.build`) calls the onboarding `show`. The model and menu content themselves are pinned in
+/// `MenuModel.build`) calls `onGrant` (OnboardingWindowController.grantAccessibility). The model and menu content themselves are pinned in
 /// StatusItemModelTests and MenuModelTests; this covers only the controller binding.
 @MainActor
 @Suite struct StatusItemBindingTests {

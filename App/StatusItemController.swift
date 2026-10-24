@@ -2,7 +2,7 @@ import AppKit
 import ZonesWindowing
 
 /// Binds the menu bar icon's badge to `StatusItemModel.badged` and the menu to `MenuModel.build` output. The
-/// "Grant Accessibility" item calls `onGrant` (OnboardingWindowController.show). Items other than Grant and Quit
+/// "Grant Accessibility" item calls `onGrant` (OnboardingWindowController.grantAccessibility: opens System Settings at login, else fronts the window). Items other than Grant and Quit
 /// render their title only; their actions belong to the tickets that own them.
 @MainActor
 final class StatusItemController {
