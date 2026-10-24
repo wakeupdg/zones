@@ -412,4 +412,48 @@ func write(_ text: String, to url: URL) throws {
     let text = try String(contentsOf: cask, encoding: .utf8)
     #expect(text.contains("app \"Zones.app\""))
   }
+  // MARK: slice 7, bundle checks on a real Debug build (AC-002, AC-003, AC-013)
+
+  static let debugApp: URL = repoRoot().appendingPathComponent(
+    ".build/DerivedData/Build/Products/Debug/Zones.app")
+
+  static let canCheckBundle: Bool = {
+    guard FileManager.default.fileExists(atPath: debugApp.path) else { return false }
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/security")
+    process.arguments = ["find-identity", "-p", "codesigning"]
+    let pipe = Pipe()
+    process.standardOutput = pipe
+    process.standardError = FileHandle.nullDevice
+    guard (try? process.run()) != nil else { return false }
+    let data = pipe.fileHandleForReading.readDataToEndOfFile()
+    process.waitUntilExit()
+    return String(decoding: data, as: UTF8.self).contains("\"Zones Dev\"")
+  }()
+
+  @Test(.enabled(if: GateScriptTests.canCheckBundle))
+  func devBuildSignatureHasIdentifierAndNoCdhash() throws {
+    let result = try runScript("scripts/check-symbols.sh", ["--signature", Self.debugApp.path])
+    #expect(result.status == 0, "\(result.stdout)")
+  }
+
+  @Test(.enabled(if: GateScriptTests.canCheckBundle))
+  func devBuildHasNoForbiddenSymbols() throws {
+    let result = try runScript("scripts/check-symbols.sh", [Self.debugApp.path])
+    #expect(result.status == 0, "\(result.stdout)")
+    #expect(result.stdout.contains("symbols: ok"))
+  }
+
+  @Test func projectYmlPinsSigningKeys() throws {
+    let text = try String(contentsOf: repoRoot().appendingPathComponent("project.yml"), encoding: .utf8)
+    let lines = text.components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
+    for line in [
+      "PRODUCT_BUNDLE_IDENTIFIER: com.dganesh.zones", "ENABLE_HARDENED_RUNTIME: YES",
+      "CODE_SIGN_STYLE: Manual", "CODE_SIGN_IDENTITY: \"Zones Dev\"",
+      "CODE_SIGN_ENTITLEMENTS: App/Zones.entitlements", "MARKETING_VERSION: \"0.1.0\"",
+      "CURRENT_PROJECT_VERSION: \"1\"",
+    ] {
+      #expect(lines.contains(line), "missing \(line)")
+    }
+  }
 }
