@@ -3,3 +3,4 @@
 - slice 3: StatusItemModelTests.badgeTable green — StatusItemModel.derive over 15 permission x tap cases
 - slice 4: GeneralPaneModelTests.statusRows green — two rows Accessibility/Event tap; suspect counts as Granted, unavailable as Dead
 - slice 5: MenuModelTests.orderAndStateForDisplayUnderCursor green — MenuModel.build/MenuItem with separators between groups
+- slice 6-8: MenuModelTests.grantItemOnlyWhenNotGranted/excludeItemFollowsFrontmost/nilDisplayAndMissingLayout/separatorsNeverAdjacentOrAtEnds green — behaviours already in build; nil display checks nothing; reducer agrees grant item absent only for granted/suspect

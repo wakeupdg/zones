@@ -20,7 +20,7 @@ public enum MenuModel {
     let header = cursorDisplay.map { "\($0.name) — \(assigned)" } ?? "No display"
 
     var items: [MenuItem] = [.header(header), .separator]
-    items += layouts.map { .layout($0.id, title: title($0), checked: $0.id == assignment) }
+    items += layouts.map { .layout($0.id, title: title($0), checked: cursorDisplay != nil && $0.id == assignment) }
     items.append(.separator)
     if let frontmost {
       items.append(

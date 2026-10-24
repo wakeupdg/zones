@@ -56,4 +56,48 @@ import ZonesWindowing
     #expect(items.contains(.layout(Self.columns3, title: "Columns 3", checked: true)))
     #expect(items.contains(.layout(Self.desk.id, title: "Desk", checked: false)))
   }
+
+  @Test func grantItemOnlyWhenNotGranted() {
+    for p in allPermissionSamples {
+      let items = Self.build(permission: p).filter { $0 != .separator }
+      let shows: Bool
+      switch p {
+      case .granted, .suspect: shows = false
+      default: shows = true
+      }
+      #expect(items.contains(.grantAccessibility) == shows, "\(p)")
+      if shows, let i = items.firstIndex(of: MenuItem.grantAccessibility) {
+        #expect(items[i - 1] == .settings && items[i + 1] == .about)
+      }
+    }
+  }
+
+  @Test func excludeItemFollowsFrontmost() {
+    #expect(!Self.build(frontmost: nil).contains { if case .excludeApp = $0 { true } else { false } })
+    let free = Self.build(exclusions: [])
+    #expect(free.contains(.excludeApp(name: "Safari", bundleID: "com.apple.Safari", checked: false)))
+  }
+
+  @Test func nilDisplayAndMissingLayout() {
+    let none = Self.build(display: nil)
+    #expect(none.first == .header("No display"))
+    #expect(!none.contains { if case .layout(_, _, true) = $0 { true } else { false } })
+    #expect(none.contains { if case .layout = $0 { true } else { false } })
+    let ghost = LayoutID(rawValue: "ghost")
+    let missing = Self.build(assignment: ghost)
+    #expect(missing.first == .header("Studio — ghost"))
+    #expect(!missing.contains { if case .layout(_, _, true) = $0 { true } else { false } })
+    let both = Self.build(display: nil, assignment: ghost)
+    #expect(both.first == .header("No display"))
+  }
+
+  @Test func separatorsNeverAdjacentOrAtEnds() {
+    for p in allPermissionSamples {
+      for frontmost in [Self.safari, nil] {
+        let items = Self.build(frontmost: frontmost, permission: p)
+        #expect(items.first != .separator && items.last != .separator)
+        #expect(!zip(items, items.dropFirst()).contains { $0 == .separator && $1 == .separator })
+      }
+    }
+  }
 }
