@@ -2,15 +2,18 @@ import AppKit
 import ZonesWindowing
 
 /// Binds the menu bar icon's badge to `StatusItemModel.badged` and the menu to `MenuModel.build` output. The
-/// "Grant Accessibility" item calls `onGrant` (OnboardingWindowController.grantAccessibility: opens System Settings at login, else fronts the window). Items other than Grant and Quit
-/// render their title only; their actions belong to the tickets that own them.
+/// "Grant Accessibility" item calls `onGrant` (OnboardingWindowController.grantAccessibility: opens System Settings at login, else fronts the window),
+/// and "Edit Layouts…" calls `onEditLayouts` (EditorLauncher.openEditor). Items other than Grant, Edit Layouts and
+/// Quit render their title only; their actions belong to the tickets that own them.
 @MainActor
 final class StatusItemController {
   private let statusItem: NSStatusItem
   private let onGrant: () -> Void
+  private let onEditLayouts: () -> Void
 
-  init(onGrant: @escaping () -> Void) {
+  init(onGrant: @escaping () -> Void, onEditLayouts: @escaping () -> Void) {
     self.onGrant = onGrant
+    self.onEditLayouts = onEditLayouts
     statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     statusItem.button?.image = Self.icon(badged: false)
   }
@@ -18,12 +21,14 @@ final class StatusItemController {
   /// Re-renders from the latest model and menu list; call on every permission or tap change.
   func apply(_ model: StatusItemModel, menu items: [MenuItem]) {
     statusItem.button?.image = Self.icon(badged: Self.badged(model))
-    statusItem.menu = Self.makeMenu(from: items, onGrant: onGrant)
+    statusItem.menu = Self.makeMenu(from: items, onGrant: onGrant, onEditLayouts: onEditLayouts)
   }
 
   nonisolated static func badged(_ model: StatusItemModel) -> Bool { model.badged }
 
-  static func makeMenu(from items: [MenuItem], onGrant: @escaping () -> Void) -> NSMenu {
+  static func makeMenu(
+    from items: [MenuItem], onGrant: @escaping () -> Void, onEditLayouts: @escaping () -> Void
+  ) -> NSMenu {
     let menu = NSMenu()
     for item in items {
       switch item {
@@ -42,7 +47,7 @@ final class StatusItemController {
         row.state = checked ? .on : .off
         menu.addItem(row)
       case .editLayouts:
-        menu.addItem(NSMenuItem(title: "Edit Layouts…", action: nil, keyEquivalent: ""))
+        menu.addItem(ActionTarget.item(title: "Edit Layouts…", onEditLayouts))
       case .settings:
         menu.addItem(NSMenuItem(title: "Settings…", action: nil, keyEquivalent: ","))
       case .grantAccessibility:
@@ -86,7 +91,7 @@ final class StatusItemController {
 
 /// Target for a menu item's block action.
 @MainActor
-private final class ActionTarget: NSObject {
+final class ActionTarget: NSObject {
   private let action: () -> Void
   init(_ action: @escaping () -> Void) { self.action = action }
   @objc func fire(_ sender: Any?) { action() }
