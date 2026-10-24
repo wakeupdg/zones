@@ -60,4 +60,28 @@ import ZonesWindowing
     let saved = EditorKeyMap.event(characters: "S", keyCode: 1, modifiers: commandCaps, selection: nil)
     #expect(saved == .save)
   }
+
+  @Test func arrowKeysNudgeSelectedDivider() {
+    let path = NodePath(steps: [false, true])
+    // keyCode: 123 left, 124 right, 125 down, 126 up. Left/Up shrink the first child (-), Right/Down grow it (+).
+    let table: [(UInt16, NSEvent.ModifierFlags, Double?)] = [
+      (123, [], -1), (126, [], -1), (124, [], 1), (125, [], 1),
+      (123, .shift, -10), (126, .shift, -10), (124, .shift, 10), (125, .shift, 10),
+      // AppKit adds .function and .numericPad to arrow events; they must not matter.
+      (124, [.function, .numericPad], 1), (123, [.function, .numericPad, .shift], -10),
+      // Other modifiers are not nudges.
+      (124, .command, nil), (124, .option, nil), (124, .control, nil),
+      // Not an arrow.
+      (0, [], nil),
+    ]
+    for (code, flags, points) in table {
+      let got = EditorKeyMap.event(characters: "", keyCode: code, modifiers: flags, selection: path)
+      let expected = points.map { EditorEvent.command(.nudge(path, points: $0)) }
+      #expect(got == expected, "keyCode \(code) \(flags) -> \(String(describing: got))")
+    }
+    // No selection: no event.
+    for code: UInt16 in [123, 124, 125, 126] {
+      #expect(EditorKeyMap.event(characters: "", keyCode: code, modifiers: [], selection: nil) == nil)
+    }
+  }
 }
