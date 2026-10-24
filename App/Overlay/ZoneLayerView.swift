@@ -48,6 +48,25 @@ final class ZoneLayerView: NSView {
       + zoneNumbers.compactMap { labelLayers[$0] }
   }
 
+  /// Builds the fill and label layers for Zones `1...count` that do not exist yet, hidden behind the panel while it is
+  /// ordered out, so the first `apply` only sets frames and colors. The label text layer gets a font now, which
+  /// is the slow part of its first use (AC-040).
+  func prebuild(zoneCount count: Int) {
+    guard count > 0 else { return }
+    CATransaction.begin()
+    CATransaction.setDisableActions(true)
+    defer { CATransaction.commit() }
+    for number in 1...count {
+      if fillLayers[number] == nil { _ = makeFillLayer(for: number) }
+      if labelLayers[number] == nil {
+        let label = makeLabelLayer(for: number)
+        label.contentsScale = backingScale
+        label.string = NSAttributedString(
+          string: String(number), attributes: [.font: NSFont.systemFont(ofSize: 14, weight: .semibold)])
+      }
+    }
+  }
+
   func apply(_ model: PanelModel, scale: Double? = nil) {
     CATransaction.begin()
     CATransaction.setDisableActions(true)

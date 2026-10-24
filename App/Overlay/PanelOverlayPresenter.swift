@@ -11,6 +11,9 @@ final class PanelOverlayPresenter: OverlayPresenter {
   /// Where the current Display geometry comes from. Production passes `{ displays.snapshot() }`.
   typealias TopologyProvider = @MainActor () -> TopologySnapshot
 
+  /// Zones whose layers each panel builds ahead of the first `show` (a 3x3 grid; bigger layouts build the rest on show).
+  static let prebuiltZoneCount = 9
+
   private let topologyProvider: TopologyProvider
   /// The last snapshot given to `resize(to:)`; wins over the provider until the next `resize`.
   private var topology: TopologySnapshot?
@@ -83,6 +86,9 @@ final class PanelOverlayPresenter: OverlayPresenter {
       } else {
         _ = makePanel(for: display.key, frame: display.frame, scale: display.scale)
       }
+    }
+    if !sessionActive {
+      for view in views.values { view.prebuild(zoneCount: Self.prebuiltZoneCount) }
     }
     guard sessionActive, let scene else { return }
     baseModels = OverlayModel.panels(scene, topology: snapshot)

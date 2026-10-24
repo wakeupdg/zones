@@ -1,0 +1,2 @@
+- slice 1: OverlayPerformanceTests.firstShowUnderOneFrame green — ZoneLayerView.prebuild(zoneCount:) builds fill+label layers; red was 8.8 ms, now best-of-3 about 2-3 ms
+- slice 2: OverlayPerformanceTests.layersBuiltAtResize green — resize(to:) prebuilds 9 Zones per panel while ordered out (PanelOverlayPresenter.prebuiltZoneCount)
