@@ -1,0 +1,1 @@
+- slice 1: OnboardingViewStateTests.notGrantedShowsOpenSettingsOnly green — OnboardingViewState struct + derive for notGranted (Sources/ZonesWindowing/Shell)
