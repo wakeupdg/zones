@@ -8,7 +8,8 @@ import ZonesWindowing
 @MainActor
 protocol KeyCapturing: AnyObject {}
 
-/// The recorder: click it, press a chord, and `onChord` receives it. Escape or clicking away stops recording.
+/// The recorder: click it (or focus it and press Space or Return), press a chord, and `onChord` receives it.
+/// Tab and Shift-Tab always move focus on; Escape or clicking away stops recording.
 /// Building a `Chord` needs a mapped key; keys Zones cannot bind are ignored. Validation (Command or Control,
 /// conflicts, warnings) is `ShortcutRules.recorderState`, applied by the model, not here.
 struct ChordRecorderView: NSViewRepresentable {
@@ -62,39 +63,49 @@ final class RecorderField: NSView, KeyCapturing {
     recording = true
   }
 
-  override func becomeFirstResponder() -> Bool {
-    recording = true
-    return true
-  }
-
+  /// Focus arrival does not arm the recorder (that traps keyboard users); Space or Return, a click, or the
+  /// accessibility press does.
   override func resignFirstResponder() -> Bool {
     recording = false
     return true
   }
 
-  override func keyDown(with event: NSEvent) { capture(event) }
+  override func accessibilityPerformPress() -> Bool {
+    window?.makeFirstResponder(self)
+    recording = true
+    return true
+  }
+
+  override func keyDown(with event: NSEvent) {
+    if !handle(event) { super.keyDown(with: event) }
+  }
 
   /// Command chords arrive here first; take them while recording so the window does not act on them.
   override func performKeyEquivalent(with event: NSEvent) -> Bool {
     guard recording, window?.firstResponder === self else { return false }
-    capture(event)
-    return true
+    return handle(event)
   }
 
-  private func capture(_ event: NSEvent) {
-    if event.keyCode == 53 {  // Escape stops recording
+  /// Returns false when the key should go up the responder chain.
+  private func handle(_ event: NSEvent) -> Bool {
+    let flags = UInt64(event.modifierFlags.rawValue)
+    switch RecorderKeyMap.disposition(keyCode: event.keyCode, rawFlags: flags, recording: recording) {
+    case .startRecording:
+      recording = true
+    case .stopRecording:
       recording = false
-      window?.makeFirstResponder(nil)
-      return
-    }
-    guard let key = RecorderKeyMap.key(forKeyCode: event.keyCode) else {
+    case .moveFocus(let forward):
+      recording = false
+      if forward { window?.selectNextKeyView(self) } else { window?.selectPreviousKeyView(self) }
+    case .capture(let chord):
+      recording = false
+      onChord?(chord)
+    case .reject:
       NSSound.beep()
-      return
+    case .passThrough:
+      return false
     }
-    let modifiers = RecorderKeyMap.modifiers(rawFlags: UInt64(event.modifierFlags.rawValue))
-    recording = false
-    window?.makeFirstResponder(nil)
-    onChord?(Chord(key: key, modifiers: modifiers))
+    return true
   }
 
   override func draw(_ dirtyRect: NSRect) {

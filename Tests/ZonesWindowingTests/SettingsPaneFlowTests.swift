@@ -387,4 +387,28 @@ func makeFlow(
     #expect(ShortcutsFlow.text(for: chord(.comma, [.command])) == "\u{2318},")
     #expect(ShortcutsFlow.name(of: .sendToZone(3)) == "Send to Zone 3")
   }
+
+  @Test func recorderKeyboardReachable() {
+    let shift: UInt64 = 1 << 17
+    let command: UInt64 = 1 << 20
+    let control: UInt64 = 1 << 18
+    // Not armed (focus alone never arms): Space and Return arm; Tab moves on; anything else passes up.
+    #expect(RecorderKeyMap.disposition(keyCode: 49, rawFlags: 0, recording: false) == .startRecording)
+    #expect(RecorderKeyMap.disposition(keyCode: 36, rawFlags: 0, recording: false) == .startRecording)
+    #expect(RecorderKeyMap.disposition(keyCode: 76, rawFlags: 0, recording: false) == .startRecording)
+    #expect(RecorderKeyMap.disposition(keyCode: 48, rawFlags: 0, recording: false) == .moveFocus(forward: true))
+    #expect(RecorderKeyMap.disposition(keyCode: 48, rawFlags: shift, recording: false) == .moveFocus(forward: false))
+    #expect(RecorderKeyMap.disposition(keyCode: 40, rawFlags: 0, recording: false) == .passThrough)
+    #expect(RecorderKeyMap.disposition(keyCode: 40, rawFlags: command, recording: false) == .passThrough)
+    // Armed: Tab and Shift-Tab leave the field; Escape disarms in place; chords capture; unbindable keys beep.
+    #expect(RecorderKeyMap.disposition(keyCode: 48, rawFlags: 0, recording: true) == .moveFocus(forward: true))
+    #expect(RecorderKeyMap.disposition(keyCode: 48, rawFlags: shift, recording: true) == .moveFocus(forward: false))
+    #expect(RecorderKeyMap.disposition(keyCode: 53, rawFlags: 0, recording: true) == .stopRecording)
+    #expect(
+      RecorderKeyMap.disposition(keyCode: 40, rawFlags: command, recording: true)
+        == .capture(chord(.letter("K"), [.command])))
+    #expect(RecorderKeyMap.disposition(keyCode: 49, rawFlags: control, recording: true) == .reject)
+    #expect(RecorderKeyMap.disposition(keyCode: 49, rawFlags: 0, recording: true) == .reject)
+    #expect(RecorderKeyMap.disposition(keyCode: 48, rawFlags: command, recording: true) == .reject)
+  }
 }
