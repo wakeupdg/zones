@@ -11,3 +11,5 @@
 - slice 8: ShortcutDispatchTests.droppedAndQueuedDuringSession green — ShortcutDispatcher drop + one log; set queued while not idle, folded on idle (log counted via Log.shared.ring, not a sink, because other suites replace the sink)
 - slice 9: DragSessionReducerTests.modifierConfigReadAtMouseDown green on first run — T16 reducer already stores config at mouseDown; test pins it
 - slice 10: ShortcutStoreTests.carbonKeyCodeTable green — CarbonKeyMap keycode and modifier tables
+- slice 11: CarbonHotkeyRegistrar builds clean — import Carbon.HIToolbox worked (no @_silgen_name shims); register-new-then-unregister-old; no deinit cleanup (process-lifetime object)
+- AC-106/AC-107 manual, needs App wiring

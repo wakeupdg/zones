@@ -1,3 +1,4 @@
+import Carbon.HIToolbox
 import Foundation
 import ZonesCore
 
@@ -33,4 +34,83 @@ enum CarbonKeyMap {
     if m.contains(.control) { bits |= 4096 }
     return bits
   }
+}
+
+/// Production `HotkeyRegistrar` over Carbon `RegisterEventHotKey` (ADR-0011). Hotkeys need no TCC grant
+/// (ADR-0020). Wiring into the app is a later ticket. Intended to live for the whole process: the event
+/// handler holds an unretained pointer to it.
+@MainActor public final class CarbonHotkeyRegistrar: HotkeyRegistrar {
+  public let presses: AsyncStream<ShortcutAction>
+
+  private static let signature: OSType = 0x5A4F_4E45  // 'ZONE'
+  private static let existsStatus: OSStatus = -9878  // eventHotKeyExistsErr
+
+  private let continuation: AsyncStream<ShortcutAction>.Continuation
+  private var refs: [ShortcutAction: EventHotKeyRef] = [:]
+  private var chords: [ShortcutAction: Chord] = [:]
+  private var handler: EventHandlerRef?
+
+  public init() {
+    (presses, continuation) = AsyncStream.makeStream(of: ShortcutAction.self)
+    var spec = EventTypeSpec(
+      eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
+    let userData = Unmanaged.passUnretained(self).toOpaque()
+    var installed: EventHandlerRef?
+    let status = InstallEventHandler(
+      GetApplicationEventTarget(), Self.callback, 1, &spec, userData, &installed)
+    if status == noErr { handler = installed }
+  }
+
+  /// Stable id per action: its `allCases` index plus one.
+  private static func id(for action: ShortcutAction) -> UInt32? {
+    ShortcutAction.allCases.firstIndex(of: action).map { UInt32($0 + 1) }
+  }
+
+  private static func action(forID id: UInt32) -> ShortcutAction? {
+    let i = Int(id) - 1
+    return ShortcutAction.allCases.indices.contains(i) ? ShortcutAction.allCases[i] : nil
+  }
+
+  private static let callback: EventHandlerUPP = { _, event, userData in
+    guard let event, let userData else { return OSStatus(eventNotHandledErr) }
+    var hotKeyID = EventHotKeyID()
+    let status = GetEventParameter(
+      event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID), nil,
+      MemoryLayout<EventHotKeyID>.size, nil, &hotKeyID)
+    guard status == noErr, hotKeyID.signature == CarbonHotkeyRegistrar.signature else {
+      return OSStatus(eventNotHandledErr)
+    }
+    let registrar = Unmanaged<CarbonHotkeyRegistrar>.fromOpaque(userData)
+    // Application-target events are delivered on the main thread.
+    MainActor.assumeIsolated {
+      if let action = action(forID: hotKeyID.id) { registrar.takeUnretainedValue().continuation.yield(action) }
+    }
+    return noErr
+  }
+
+  public func register(_ chord: Chord, for action: ShortcutAction) -> HotkeyRegistration {
+    guard let code = CarbonKeyMap.keyCode(for: chord.key), let id = Self.id(for: action) else {
+      return .invalid
+    }
+    if chords[action] == chord, refs[action] != nil { return .registered }
+    var newRef: EventHotKeyRef?
+    // Register the new hotkey first; the old one stays live if this fails.
+    let status = RegisterEventHotKey(
+      code, CarbonKeyMap.modifiers(chord.modifiers), EventHotKeyID(signature: Self.signature, id: id),
+      GetApplicationEventTarget(), 0, &newRef)
+    guard status == noErr, let newRef else {
+      return status == Self.existsStatus ? .inUse : .invalid
+    }
+    if let old = refs[action] { UnregisterEventHotKey(old) }
+    refs[action] = newRef
+    chords[action] = chord
+    return .registered
+  }
+
+  public func unregister(_ action: ShortcutAction) {
+    if let ref = refs.removeValue(forKey: action) { UnregisterEventHotKey(ref) }
+    chords[action] = nil
+  }
+
+  public func bound(_ action: ShortcutAction) -> Chord? { chords[action] }
 }
