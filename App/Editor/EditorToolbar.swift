@@ -64,6 +64,15 @@ enum EditorToolbarModel {
 final class EditorToolbarView: NSVisualEffectView {
   var onEvent: (EditorEvent) -> Void = { _ in }
   var onSaveAndClose: () -> Void = {}
+  /// Seam for `NSAccessibility.post`; tests replace it to observe what would be spoken.
+  var postAnnouncement: (_ element: Any, _ message: String) -> Void = { element, message in
+    NSAccessibility.post(
+      element: element, notification: .announcementRequested,
+      userInfo: [
+        .announcement: message,
+        .priority: NSAccessibilityPriorityLevel.high.rawValue,
+      ])
+  }
 
   private let displayPopup = NSPopUpButton(frame: .zero, pullsDown: false)
   private let templatePopup = NSPopUpButton(frame: .zero, pullsDown: true)
@@ -160,7 +169,13 @@ final class EditorToolbarView: NSVisualEffectView {
     gapLabel.stringValue = "Gap \(Int(gap.rounded()))"
   }
 
-  func show(message: String) { messageLabel.stringValue = message }
+  /// Shows `message` inline and, when it is non-empty, speaks it: VoiceOver does not read value changes of an
+  /// unfocused static text, so an invalid command would otherwise fail silently (QA-2.4).
+  func show(message: String) {
+    messageLabel.stringValue = message
+    guard !message.isEmpty else { return }
+    postAnnouncement(messageLabel, message)
+  }
 
   @objc private func displayPicked() {
     let index = displayPopup.indexOfSelectedItem

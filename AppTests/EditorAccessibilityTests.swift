@@ -59,4 +59,35 @@ import ZonesWindowing
       #expect(Self.hasName(control), "unlabelled \(control.accessibilityRole()?.rawValue ?? "?") \(type(of: control))")
     }
   }
+
+  /// An invalid command's message is spoken: VoiceOver ignores value changes of an unfocused static text
+  /// (QA-2.4), so `show(message:)` must post `.announcementRequested` with the text, and nothing for "".
+  @Test func messagesAreAnnounced() throws {
+    let (toolbar, window) = Self.makeToolbar()
+    defer { window.close() }
+    var announced: [String] = []
+    toolbar.postAnnouncement = { _, message in announced.append(message) }
+
+    // A fresh one-Zone Layout with its Zone selected: Merge is refused with the reducer's error.
+    let topology = EditorWindowTests.topology()
+    let layout = EditorWindowTests.blankLayout()
+    var state = EditorModel.open(
+      layout, display: .uuid("AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA"), topology: topology, assignments: [:])
+    let context = (topology: topology, document: ZonesDocument())
+    (state, _) = EditorModel.reduce(state, .command(.select(NodePath(steps: []))), context: context)
+    let (_, effects) = EditorModel.reduce(state, .command(.merge), context: context)
+    let error: EditorError = try #require(
+      effects.compactMap { effect -> EditorError? in
+        if case .error(let error) = effect { return error }
+        return nil
+      }.first)
+    let text = EditorEffectRouter.text(for: error)
+    #expect(!text.isEmpty)
+
+    toolbar.show(message: text)
+    #expect(announced == [text])
+
+    toolbar.show(message: "")
+    #expect(announced == [text], "an empty message is cleared silently")
+  }
 }
