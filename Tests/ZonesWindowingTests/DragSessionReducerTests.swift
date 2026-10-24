@@ -453,4 +453,34 @@ import ZonesWindowing
       }
     }
   }
+
+  // AC-050
+  @Test func secondMouseDownIgnored() {
+    let (pressed, _) = DragSessionReducer.reduce(.idle, F.mouseDown(flags: .shift))
+    let (moving, _) = DragSessionReducer.reduce(
+      DragSessionReducer.reduce(pressed, F.dragged()).0, F.moved())
+    let (armed, _) = Self.armedOverZone2()
+    #expect(F.isPressed(pressed))
+    #expect(F.isMoving(moving))
+    #expect(F.isArmed(armed))
+
+    let other = F.ref(2, pid: 200)
+    let second: [DragEvent] = [
+      F.mouseDown(),
+      F.mouseDown(flags: .shift, candidates: [other], point: CGPoint(x: 5, y: 5)),
+      F.mouseDown(phaseOne: .skip(.ownProcess)),
+    ]
+    for state in [pressed, moving, armed] {
+      for event in second {
+        let (next, effects) = DragSessionReducer.reduce(state, event)
+        #expect(next == state, "\(state)")
+        #expect(effects.isEmpty, "\(state)")
+      }
+    }
+
+    // Guard against a vacuous test: from idle the same event is not ignored.
+    let (fromIdle, _) = DragSessionReducer.reduce(.idle, F.mouseDown(flags: .shift))
+    #expect(fromIdle != .idle)
+    #expect(F.isPressed(fromIdle))
+  }
 }
