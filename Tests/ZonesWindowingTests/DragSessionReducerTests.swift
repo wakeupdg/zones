@@ -50,10 +50,29 @@ import ZonesWindowing
     #expect(controlFx.isEmpty)
   }
 
-  @Test func emptyCandidatesStayIdle() {
-    let (s, fx) = DragSessionReducer.reduce(.idle, F.mouseDown(candidates: []))
+  @Test func candidateTableFiveCandidates() {
+    let five = (1...5).map { F.ref(UInt32($0)) }
+    let (s, fx) = DragSessionReducer.reduce(.idle, F.mouseDown(candidates: five))
     #expect(s == .idle)
-    #expect(fx.isEmpty)
+    #expect(fx == [.skip(.ambiguousMatch, nil)])
+    #expect(!fx.contains(where: F.isRequestSample))
+
+    // Four is accepted and kept in the given z-order.
+    let four = Array(five.prefix(4))
+    let (pressed, fourFx) = DragSessionReducer.reduce(.idle, F.mouseDown(candidates: four))
+    #expect(fourFx.isEmpty)
+    guard case .pressed(let kept, _, let frames, _, _, _, _) = pressed else {
+      Issue.record("not pressed")
+      return
+    }
+    #expect(kept == four)
+    #expect(Set(frames.keys) == Set(four.map(\.id)))
+
+    // Zero candidates: idle with a log and no skip.
+    let (none, noneFx) = DragSessionReducer.reduce(.idle, F.mouseDown(candidates: []))
+    #expect(none == .idle)
+    #expect(noneFx.count == 1)
+    if case .log? = noneFx.first {} else { Issue.record("no log in \(noneFx)") }
   }
 
   @Test func ignoresSecondMouseDownCore() {

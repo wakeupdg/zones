@@ -34,14 +34,15 @@ public enum DragSessionReducer {
   private static func idle(_ s: DragState, _ e: DragEvent) -> (DragState, [DragEffect]) {
     guard case .mouseDown(let point, let flags, let candidates, let phaseOne, let config) = e else { return (s, []) }
     if case .skip(let reason) = phaseOne { return (.idle, [.skip(reason, candidates.first)]) }
-    guard !candidates.isEmpty else { return (.idle, []) }
-    // EXTENSION(T21): `.allow(mode)` is accepted and the mode is not stored; SnapPlan mode is `.full` for now.
-    // EXTENSION(T21): candidate resolution (ambiguity, cooldown) beyond the first `candidateCap` windows.
-    let capped = Array(candidates.prefix(Constants.candidateCap))
-    let frames = Dictionary(capped.map { ($0.id, $0.frame) }, uniquingKeysWith: { first, _ in first })
+    guard !candidates.isEmpty else { return (.idle, [.log("mouseDown: no candidate window under the cursor")]) }
+    // More candidates than the cap cannot be told apart in one batched read: skip before any sampling.
+    guard candidates.count <= Constants.candidateCap else { return (.idle, [.skip(.ambiguousMatch, nil)]) }
+    // EXTENSION(T21): `.allow(mode)` is accepted and the mode is not stored; SnapPlan mode is `.full` for now
+    // (phase one only ever allows `.full`; see the ledger note on `positionOnly`).
+    let frames = Dictionary(candidates.map { ($0.id, $0.frame) }, uniquingKeysWith: { first, _ in first })
     return (
       .pressed(
-        candidates: capped, down: point, downFrames: frames, flags: flags, config: config, samples: 0,
+        candidates: candidates, down: point, downFrames: frames, flags: flags, config: config, samples: 0,
         retried: false), []
     )
   }
