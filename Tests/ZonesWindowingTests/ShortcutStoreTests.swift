@@ -215,6 +215,52 @@ import ZonesTestSupport
     u.send(.permission(granted: true))
     #expect(u.registrar.bound(.cycleRight) == newChord)
   }
+
+  @Test func carbonKeyCodeTable() {
+    for shortcut in ShortcutRules.defaults {
+      let key = shortcut.chord!.key
+      #expect(CarbonKeyMap.keyCode(for: key) != nil)
+    }
+    var codes: [UInt32] = []
+    let digitCodes: [Int: UInt32] = [
+      1: 18, 2: 19, 3: 20, 4: 21, 5: 23, 6: 22, 7: 26, 8: 28, 9: 25, 0: 29,
+    ]
+    for d in 0...9 {
+      let code = CarbonKeyMap.keyCode(for: .digit(d))
+      #expect(code == digitCodes[d])
+      codes.append(code ?? 9999)
+    }
+    let letterCodes: [String: UInt32] = [
+      "A": 0, "S": 1, "D": 2, "F": 3, "H": 4, "G": 5, "Z": 6, "X": 7, "C": 8, "V": 9, "B": 11, "Q": 12,
+      "W": 13, "E": 14, "R": 15, "Y": 16, "T": 17, "O": 31, "U": 32, "I": 34, "P": 35, "L": 37, "J": 38,
+      "K": 40, "N": 45, "M": 46,
+    ]
+    #expect(letterCodes.count == 26)
+    for (letter, expected) in letterCodes {
+      #expect(CarbonKeyMap.keyCode(for: .letter(letter)) == expected)
+      #expect(CarbonKeyMap.keyCode(for: .letter(letter.lowercased())) == expected)
+      codes.append(expected)
+    }
+    #expect(CarbonKeyMap.keyCode(for: .arrowLeft) == 123)
+    #expect(CarbonKeyMap.keyCode(for: .arrowRight) == 124)
+    #expect(CarbonKeyMap.keyCode(for: .arrowDown) == 125)
+    #expect(CarbonKeyMap.keyCode(for: .arrowUp) == 126)
+    #expect(CarbonKeyMap.keyCode(for: .comma) == 43)
+    codes += [123, 124, 125, 126, 43]
+    #expect(Set(codes).count == codes.count)  // all distinct
+    #expect(codes.count == 41)
+
+    #expect(CarbonKeyMap.keyCode(for: .digit(10)) == nil)
+    #expect(CarbonKeyMap.keyCode(for: .digit(-1)) == nil)
+    #expect(CarbonKeyMap.keyCode(for: .letter("AB")) == nil)
+    #expect(CarbonKeyMap.keyCode(for: .letter("")) == nil)
+
+    #expect(CarbonKeyMap.modifiers([.control, .option]) == 4096 + 2048)
+    #expect(CarbonKeyMap.modifiers([.command]) == 256)
+    #expect(CarbonKeyMap.modifiers([.shift]) == 512)
+    #expect(CarbonKeyMap.modifiers([.command, .shift, .option, .control]) == 256 + 512 + 2048 + 4096)
+    #expect(CarbonKeyMap.modifiers([]) == 0)
+  }
 }
 
 /// Test-local driver: runs the reducer, executes effects on the fake registrar, and feeds each result back

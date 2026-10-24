@@ -10,3 +10,4 @@
 - slice 7: ShortcutStoreTests.diffReregistersOnlyChanged green — identical chord no-op, only changed action re-registered
 - slice 8: ShortcutDispatchTests.droppedAndQueuedDuringSession green — ShortcutDispatcher drop + one log; set queued while not idle, folded on idle (log counted via Log.shared.ring, not a sink, because other suites replace the sink)
 - slice 9: DragSessionReducerTests.modifierConfigReadAtMouseDown green on first run — T16 reducer already stores config at mouseDown; test pins it
+- slice 10: ShortcutStoreTests.carbonKeyCodeTable green — CarbonKeyMap keycode and modifier tables
