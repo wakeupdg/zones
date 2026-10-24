@@ -52,10 +52,11 @@ public struct TopologySnapshot: Hashable, Sendable {
   public var displays: [DisplaySnapshot]
   public var separateSpaces: Bool
   public var primaryFrame: CGRect
-  // `display(_:)` is added by the topology ticket.
   public init(displays: [DisplaySnapshot], separateSpaces: Bool, primaryFrame: CGRect) {
     self.displays = displays
     self.separateSpaces = separateSpaces
     self.primaryFrame = primaryFrame
   }
+
+  public func display(_ key: DisplayKey) -> DisplaySnapshot? { displays.first { $0.key == key } }
 }

@@ -133,7 +133,7 @@ private let layoutsJSON = """
   }
 
   @Test func rejectsNonUUIDKey() throws {
-    for bad in ["unstable:3", "abc", ""] {
+    for bad in ["unstable:3", "nil:7", "abc", ""] {
       let json = Data("[\"\(bad)\"]".utf8)
       #expect(throws: DocumentError.nonUUIDKey(bad)) {
         _ = try JSONDecoder().decode([PersistentDisplayKey].self, from: json)
@@ -142,6 +142,9 @@ private let layoutsJSON = """
     let upper = "37D8832A-2D66-02CA-B9F7-8F30A301B230"
     let ok = try JSONDecoder().decode([PersistentDisplayKey].self, from: Data("[\"\(upper)\"]".utf8))
     #expect(ok == [PersistentDisplayKey(uuid: upper)])
+    let lower = upper.lowercased()
+    let okLower = try JSONDecoder().decode([PersistentDisplayKey].self, from: Data("[\"\(lower)\"]".utf8))
+    #expect(okLower == [PersistentDisplayKey(uuid: lower)])
     let back = try JSONDecoder().decode(
       [PersistentDisplayKey].self, from: JSONEncoder().encode(ok))
     #expect(back == ok)
