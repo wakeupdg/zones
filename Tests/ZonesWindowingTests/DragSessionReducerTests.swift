@@ -294,7 +294,7 @@ import ZonesWindowing
     }
     #expect(display == nil)
     #expect(hit == .none)
-    #expect(overFx == [.updateHighlight(Highlight(display: nil, primary: [], secondary: [], dimAll: true))])
+    #expect(overFx == [.updateHighlight(Highlight(display: nil, primary: [], secondary: [], dimAll: false))])
   }
 
   @Test func straddlingWindowSnapsOnCursorDisplay() throws {
@@ -396,7 +396,7 @@ import ZonesWindowing
     #expect(goneDisplay == nil)
     #expect(goneHit == .none)
     #expect(goneFx.filter(F.isShowOverlay).count == 1)
-    #expect(goneFx.last == .updateHighlight(Highlight(display: nil, primary: [], secondary: [], dimAll: true)))
+    #expect(goneFx.last == .updateHighlight(Highlight(display: nil, primary: [], secondary: [], dimAll: false)))
 
     // Pressed, moving and idle hold no snapshot: nothing changes.
     let (pressed, _) = DragSessionReducer.reduce(.idle, F.mouseDown(flags: .shift))
@@ -425,7 +425,7 @@ import ZonesWindowing
     // Over no Zone the re-asserted highlight dims everything.
     let (off, _) = DragSessionReducer.reduce(armed, .dragged(point: CGPoint(x: 9000, y: 9000), flags: .shift))
     let (_, offFx) = DragSessionReducer.reduce(off, .spaceChanged)
-    #expect(offFx == [.reassertPanels, .updateHighlight(Highlight(display: nil, primary: [], secondary: [], dimAll: true))])
+    #expect(offFx == [.reassertPanels, .updateHighlight(Highlight(display: nil, primary: [], secondary: [], dimAll: false))])
 
     // Pressed, moving and idle hold no panels: nothing happens.
     let (pressed, _) = DragSessionReducer.reduce(.idle, F.mouseDown(flags: .shift))
@@ -615,7 +615,7 @@ import ZonesWindowing
 
     // Off every Display: no Zone, empty highlight.
     let (off, offFx) = DragSessionReducer.reduce(next, .dragged(point: CGPoint(x: 9000, y: 9000), flags: []))
-    #expect(offFx == [.updateHighlight(Highlight(display: nil, primary: [], secondary: [], dimAll: true))])
+    #expect(offFx == [.updateHighlight(Highlight(display: nil, primary: [], secondary: [], dimAll: false))])
     #expect(F.isArmed(off))
   }
 
@@ -706,6 +706,26 @@ import ZonesWindowing
     let (_, off) = DragSessionReducer.reduce(armed, .mouseUp(point: CGPoint(x: 9000, y: 9000), flags: .shift))
     #expect(off.first == .hideOverlay)
     #expect(!off.contains(where: F.isSnap))
+  }
+
+  /// AC-082 / AC-091: the restore cue (dimAll) appears only with an Original Frame to restore; without one the
+  /// highlight must match the empty drop set (LI-009).
+  @Test func dimAllNeedsAnOriginalFrame() {
+    let off = CGPoint(x: 9000, y: 9000)
+    let w = Self.windowCentered(in: 2)
+    let script: [DragEvent] = [
+      F.mouseDown(flags: .shift, candidates: [w], point: F.center(2)), F.dragged(F.center(2)),
+      F.sample(w.frame.offsetBy(dx: 30, dy: 10)), .dragged(point: F.center(2), flags: .shift),
+    ]
+    let (without, _) = F.run(script)
+    let (_, withoutFx) = DragSessionReducer.reduce(without, .dragged(point: off, flags: .shift))
+    #expect(withoutFx == [.updateHighlight(Highlight(display: nil, primary: [], secondary: [], dimAll: false))])
+
+    var context = F.context
+    context.hasOriginalFrame = true
+    let (with, _) = F.run(script, context: context)
+    let (_, withFx) = DragSessionReducer.reduce(with, .dragged(point: off, flags: .shift))
+    #expect(withFx == [.updateHighlight(Highlight(display: nil, primary: [], secondary: [], dimAll: true))])
   }
 
   @Test func snapOmitsOriginalFrameWhenOneIsRecorded() {
