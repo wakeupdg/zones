@@ -1,0 +1,15 @@
+- slice 1: ModifierMaskTests.ignoresNonModifierBits green — ModifierSet.init(_:) and masked(_:) with named CGEventFlags bits
+- slice 2: DragSessionReducerTests.clickRequestsNoSample green — idle mouseDown and pressed mouseUp/windowGone, DragFixtures harness
+- CONTRACT-NOTE: armed entry has hit .none until the replayed dragged
+- slice 3: DragSessionReducerTests.overlayOnlyAfterMovedSample green — pressed dragged/frameSample/flagsChanged, moving armContext to armed
+- slice 4: DragSessionReducerTests.modifierFirstArmsAfterMove green — passed on first run, slice 3 logic already covers it
+- slice 5: DragSessionReducerTests.pauseThenMoveStillArms green — passed on first run, pressed sample loop from slice 3 covers it
+- slice 6: DragSessionReducerTests.resizeFromEveryEdgeEndsSession green — size delta over tolerance ends the session before the origin check
+- slice 7: DragSessionReducerTests.modifierLateArms and plainDragIsInert green — moving flagsChanged requests arm context when the modifier is newly present
+- slice 8: DragSessionReducerTests.highlightFollowsCursorNotWindow green — armed dragged hit-tests the cursor Display and Zone, emits updateHighlight on change only
+- slice 9: DragSessionReducerTests.modifierReleaseCancels green — armed flagsChanged without the Activation Modifier hides the overlay and returns to moving
+- slice 10: DragSessionReducerTests.snapOnlyWithModifierAtMouseUp green — armed mouseUp snaps only with the Activation Modifier in its own flags, hit recomputed from the mouse-up point
+- slice 11: DragSessionReducerTests.hideOverlayPrecedesSnap green — passed on first run, slice 10 emits hideOverlay first
+- slice 12: DragSessionReducerTests.windowGoneHidesOverlay green — armed windowGone hides and returns to idle with no snap
+- slice 13: DragSessionReducerTests.backgroundWindowArms green — passed on first run, the reducer input has no focus flag so pid never matters
+- slice 14: noSamplesAfterMovingCore, configReadAtMouseDownOnly, topologyAndWakeAreInertCore green — supporting tests; EXTENSION markers and known-gap doc comment added
