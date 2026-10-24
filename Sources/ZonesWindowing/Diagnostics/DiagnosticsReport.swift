@@ -60,7 +60,9 @@ public struct DiagnosticsReport: Hashable, Codable, Sendable {
     out.append("assignments: \(assignments.count)")
     for key in assignments.keys.sorted() {
       guard let a = assignments[key] else { continue }
-      out.append("  \(key) layout=\(a.layout) display=\(a.displayName) visibleFrame=\(a.lastVisibleFrame) scale=\(a.lastScale)")
+      out.append(
+        "  \(key) layout=\(a.layout.rawValue) display=\(a.displayName) "
+          + "visibleFrame=\(a.lastVisibleFrame) scale=\(a.lastScale)")
     }
     out.append("preferences:")
     out += preferenceLines()

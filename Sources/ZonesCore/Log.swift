@@ -7,7 +7,7 @@ public enum LogCategory: String, Codable, CaseIterable, Sendable {
 
 public enum LogLevel: String, Codable, Sendable { case debug, info, notice, error }
 
-/// Has NO title field, ever (AC-154).
+/// Carries no window text field, ever (AC-154, LI-003).
 public struct LogEvent: Hashable, Codable, Sendable {
   public var time: TimeInterval
   public var category: LogCategory

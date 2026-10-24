@@ -108,4 +108,73 @@ import ZonesWindowing
 
     #expect(!BundleInfo.current().signingIdentity.isEmpty)
   }
+
+  @Test func reportContentsAndPreviewFirst() throws {
+    let os = OperatingSystemVersion(majorVersion: 15, minorVersion: 0, patchVersion: 0)
+    let bundle = BundleInfo.make(
+      infoDictionary: ["CFBundleShortVersionString": "2.0", "CFBundleVersion": "7"], signingCommonName: nil,
+      osVersion: os)
+    let topology = Fixtures.threeDisplays
+    let a = Assignment(
+      layout: LayoutID(rawValue: "grid-2x2"), displayName: "Primary 1x",
+      lastVisibleFrame: CGRect(x: 0, y: 0, width: 1920, height: 1055), lastScale: 1, lastSeen: nil)
+    let b = Assignment(
+      layout: LayoutID(rawValue: "cols-3"), displayName: "Left 2x",
+      lastVisibleFrame: CGRect(x: -1440, y: 0, width: 1440, height: 900), lastScale: 2, lastSeen: nil)
+    let assignments = ["11111111-1111-4111-8111-111111111111": a, "22222222-2222-4222-8222-222222222222": b]
+    var ring = EventRing()
+    let bundles = ["com.example.a", "com.example.b"]
+    for i in 0..<250 {
+      let skip: SkipReason? = i % 2 == 0 ? .fullScreen : nil
+      ring.append(
+        LogEvent(
+          time: Double(i), category: .snap, level: .info, message: "e\(i)", bundleID: bundles[i % 2],
+          pid: 5, skip: skip))
+    }
+
+    let report = Diagnostics.report(
+      bundle: bundle, permission: .granted, tap: .alive, topology: topology, assignments: assignments,
+      prefs: .defaults, ring: ring)
+    #expect(report.version == "2.0")
+    #expect(report.build == "7")
+    #expect(report.signingIdentity == "ad-hoc")
+    #expect(report.macOS == "15.0.0")
+    #expect(report.permission == "granted")
+    #expect(report.tap == "alive")
+    #expect(report.displays.count == 3)
+    for (shown, source) in zip(report.displays, topology.displays) {
+      guard case .uuid(let key) = source.key else { Issue.record("fixture key is not a uuid"); continue }
+      #expect(shown.key == key)
+      #expect(shown.frame == source.frame)
+      #expect(shown.visibleFrame == source.visibleFrame)
+      #expect(shown.scale == source.scale)
+    }
+    #expect(report.assignments == assignments)
+    #expect(report.preferences == .defaults)
+    #expect(report.events.count == 200)
+    #expect(report.events.first?.time == 50)
+    #expect(report.skipCounts == ring.skipCounts)
+    #expect(report.skipCounts["com.example.a"]?[.fullScreen] == 125)
+
+    let text = report.render()
+    for d in report.displays { #expect(text.contains(d.key)) }
+    for key in assignments.keys { #expect(text.contains(key)) }
+    for bundleID in report.skipCounts.keys { #expect(text.contains(bundleID)) }
+    #expect(text == report.render())
+
+    let empty = Diagnostics.report(
+      bundle: bundle, permission: .notGranted, tap: .unavailable, topology: nil, assignments: [:],
+      prefs: .defaults, ring: EventRing())
+    #expect(empty.displays.isEmpty)
+
+    let data = try JSONEncoder().encode(report)
+    let root = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+    let events = try #require(root["events"] as? [[String: Any]])
+    let keys = Set(events.flatMap { $0.keys })
+    #expect(keys == ["time", "category", "level", "message", "bundleID", "pid", "skip"])
+    #expect(!keys.contains("title") && !keys.contains("name"))
+
+    let effects = Diagnostics.effects(for: report)
+    #expect(effects == [.preview(text), .copy(text)])
+  }
 }
