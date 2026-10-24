@@ -4,9 +4,11 @@ import ZonesCore
 import ZonesWindowing
 
 /// Adopted by a first responder that wants every key, Command chords included, before the window's own
-/// key equivalents (Cmd+W closes Settings otherwise).
+/// key equivalents (Cmd+W closes Settings otherwise) while `isRecording`; idle, the window keeps its keys.
 @MainActor
-protocol KeyCapturing: AnyObject {}
+protocol KeyCapturing: AnyObject {
+  var isRecording: Bool { get }
+}
 
 /// The recorder: click it (or focus it and press Space or Return), press a chord, and `onChord` receives it.
 /// Tab and Shift-Tab always move focus on; Escape or clicking away stops recording.
@@ -45,6 +47,8 @@ final class RecorderField: NSView, KeyCapturing {
       refreshAccessibilityValue()
     }
   }
+
+  var isRecording: Bool { recording }
 
   /// What the field shows, and what VoiceOver reads as its value.
   private var displayText: String {

@@ -55,4 +55,50 @@ import ZonesWindowing
     let atMinimum = tabBarIsVisible(window)
     #expect(atMinimum.visible, "minimum \(window.contentLayoutRect.width): \(atMinimum.detail)")
   }
+
+  // MARK: Cmd-W with a recorder focused (QA-2.2)
+
+  private func windowWithRecorder() -> (SettingsWindow, RecorderField, () -> Int, () -> [Chord]) {
+    let window = SettingsWindow(
+      contentRect: NSRect(x: -4000, y: -4000, width: 320, height: 200),
+      styleMask: NSWindow.StyleMask(rawValue: WindowPlacement.settingsStyleMaskRaw), backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    let content = NSView(frame: NSRect(x: 0, y: 0, width: 320, height: 200))
+    let field = RecorderField(frame: NSRect(x: 10, y: 10, width: 150, height: 24))
+    content.addSubview(field)
+    window.contentView = content
+    var closes = 0
+    var chords: [Chord] = []
+    field.onChord = { chords.append($0) }
+    let token = NotificationCenter.default.addObserver(
+      forName: NSWindow.willCloseNotification, object: window, queue: nil
+    ) { _ in MainActor.assumeIsolated { closes += 1 } }
+    _ = token
+    window.makeFirstResponder(field)
+    return (window, field, { closes }, { chords })
+  }
+
+  private func commandW(in window: NSWindow) -> NSEvent {
+    NSEvent.keyEvent(
+      with: .keyDown, location: .zero, modifierFlags: .command, timestamp: 0, windowNumber: window.windowNumber,
+      context: nil, characters: "w", charactersIgnoringModifiers: "w", isARepeat: false, keyCode: 13)!
+  }
+
+  @Test func cmdWClosesWithIdleRecorderFocused() {
+    let (window, field, closes, chords) = windowWithRecorder()
+    #expect(window.firstResponder === field)
+    #expect(!field.isRecording)
+    #expect(window.performKeyEquivalent(with: commandW(in: window)))
+    #expect(closes() == 1)
+    #expect(chords().isEmpty)
+  }
+
+  @Test func cmdWStaysCapturedWhileRecording() {
+    let (window, field, closes, chords) = windowWithRecorder()
+    #expect(field.accessibilityPerformPress())
+    #expect(field.isRecording)
+    #expect(window.performKeyEquivalent(with: commandW(in: window)))
+    #expect(closes() == 0)
+    #expect(chords() == [Chord(key: .letter("W"), modifiers: [.command])])
+  }
 }

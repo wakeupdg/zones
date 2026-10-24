@@ -1,1 +1,2 @@
 - slice 1: SettingsWindowTests.allTabsVisibleAtDefaultAndMinimumWidth green — default 760x460, min 720x360 content size so the 564 pt tab strip stays out of the overflow
+- slice 2: SettingsWindowTests.cmdWClosesWithIdleRecorderFocused green — KeyCapturing.isRecording; window bypasses Cmd-W only while recording
