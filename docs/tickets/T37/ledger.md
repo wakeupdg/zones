@@ -9,3 +9,4 @@
 - slice 9: DragSessionReducerTests.noSamplesAfterMoving green — 20 constructed + 100 seeded dragEvents streams from moving and armed never emit requestSample; pressed: first dragged one requestSample, second none
 - slice 10: BudgetTests.hotPathsHoldNoMemory green — five hot paths grow malloc size_in_use <= 64 KiB over 1000 calls after 1000 warm-up (min of 3 rounds against parallel-test noise; a leaking canary was verified to trip it)
 - slice 11: BudgetTests.tenThousandDraggedEventsUnderTwoSeconds green — 10,000 dragged events on the armed 9-Zone context reduce in well under 2 s (ContinuousClock; ~0.03 s debug)
+- slice 12: IdleScheduleTests.exactTimersPerState green — notGranted [trustPoll], granted [healthTick], suspect [suspectResolve], revoked [trustPoll], needsRelaunch [trustPoll] (+relaunchGate only while the gate is open); no duplicate ids, 60 s idle adds nothing; schedules never replace so a missing cancel would show
