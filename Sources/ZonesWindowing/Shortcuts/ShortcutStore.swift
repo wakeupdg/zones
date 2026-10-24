@@ -73,6 +73,7 @@ public enum ShortcutStore {
       if s.registered.remove(a) != nil { effects.append(.unregister(a)) }
       effects.append(.persist(s.shortcuts))
     case .set(let a, let chord?):
+      if chord == s.chord(of: a), s.registered.contains(a) || !s.eligible(a) { break }
       if s.eligible(a) {
         s.pending[a] = chord
         effects = [.register(chord, a)]

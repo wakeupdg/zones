@@ -182,6 +182,39 @@ import ZonesTestSupport
     #expect(!later.contains { if case .register(_, .restore) = $0 { true } else { false } })
     #expect(h.registrar.bound(.restore) == nil)
   }
+
+  @Test @MainActor func diffReregistersOnlyChanged() {
+    let h = StoreHarness()
+    h.send(.launch)
+    h.send(.permission(granted: true))
+    let before = h.mutations.count
+    let newChord = Chord(key: .letter("L"), modifiers: [.control, .option])
+
+    h.send(.set(.cycleLeft, newChord))
+    let delta = Array(h.mutations.dropFirst(before))
+    #expect(delta == [.register(newChord, .cycleLeft)])
+    #expect(h.registrar.bound(.cycleLeft) == newChord)
+    for a in ShortcutAction.allCases where a != .cycleLeft {
+      #expect(h.registrar.bound(a) == ShortcutRules.defaults.first { $0.action == a }?.chord)
+    }
+
+    // The identical chord again produces zero calls.
+    let steady = h.mutations.count
+    let effects = h.send(.set(.cycleLeft, newChord))
+    #expect(effects.isEmpty)
+    #expect(h.mutations.count == steady)
+
+    // A window action set while ungranted commits and persists with no registration.
+    let u = StoreHarness()
+    u.send(.launch)
+    let ueffects = u.send(.set(.cycleRight, newChord))
+    #expect(ueffects == [.persist(u.state.shortcuts)])
+    #expect(u.state.chord(of: .cycleRight) == newChord)
+    #expect(u.registrar.bound(.cycleRight) == nil)
+    // Granting later registers the new chord.
+    u.send(.permission(granted: true))
+    #expect(u.registrar.bound(.cycleRight) == newChord)
+  }
 }
 
 /// Test-local driver: runs the reducer, executes effects on the fake registrar, and feeds each result back
