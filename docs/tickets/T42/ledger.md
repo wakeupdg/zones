@@ -1,0 +1,1 @@
+- slice 1: recorderIsAccessibilityElement green — RecorderField is an AX element (setAccessibilityElement(true)), value from displayText kept current in chord/recording didSet

@@ -33,11 +33,27 @@ struct ChordRecorderView: NSViewRepresentable {
 final class RecorderField: NSView, KeyCapturing {
   var onChord: ((Chord) -> Void)?
   var chord: Chord? {
-    didSet { if chord != oldValue { needsDisplay = true } }
+    didSet {
+      guard chord != oldValue else { return }
+      needsDisplay = true
+      refreshAccessibilityValue()
+    }
   }
   private var recording = false {
-    didSet { needsDisplay = true }
+    didSet {
+      needsDisplay = true
+      refreshAccessibilityValue()
+    }
   }
+
+  /// What the field shows, and what VoiceOver reads as its value.
+  private var displayText: String {
+    if recording { return "Type shortcut" }
+    if let chord { return ShortcutsFlow.text(for: chord) }
+    return "Not set"
+  }
+
+  private func refreshAccessibilityValue() { setAccessibilityValue(displayText) }
 
   override init(frame: NSRect) {
     super.init(frame: frame)
@@ -50,7 +66,9 @@ final class RecorderField: NSView, KeyCapturing {
   }
 
   private func configure() {
+    setAccessibilityElement(true)
     setAccessibilityRole(.button)
+    setAccessibilityValue(displayText)
     focusRingType = .default
   }
 
@@ -115,24 +133,14 @@ final class RecorderField: NSView, KeyCapturing {
     (recording ? NSColor.controlAccentColor : NSColor.separatorColor).setStroke()
     path.lineWidth = recording ? 2 : 1
     path.stroke()
-    let text: String
-    let color: NSColor
-    if recording {
-      text = "Type shortcut"
-      color = .secondaryLabelColor
-    } else if let chord {
-      text = ShortcutsFlow.text(for: chord)
-      color = .labelColor
-    } else {
-      text = "Not set"
-      color = .tertiaryLabelColor
-    }
+    let text = displayText
+    let color: NSColor =
+      recording ? .secondaryLabelColor : (chord == nil ? .tertiaryLabelColor : .labelColor)
     let attributes: [NSAttributedString.Key: Any] = [
       .font: NSFont.systemFont(ofSize: NSFont.systemFontSize), .foregroundColor: color,
     ]
     let size = (text as NSString).size(withAttributes: attributes)
     (text as NSString).draw(
       at: NSPoint(x: bounds.midX - size.width / 2, y: bounds.midY - size.height / 2), withAttributes: attributes)
-    setAccessibilityValue(text)
   }
 }
