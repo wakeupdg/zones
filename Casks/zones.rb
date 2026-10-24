@@ -1,7 +1,7 @@
 cask "zones" do
   version "0.1.0"
-  # Placeholder: scripts/release.sh prints the real sha256 line for the DMG it builds.
-  sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+  # sha256 of dist/Zones-0.1.0.dmg (ad-hoc signed) built by scripts/release.sh on 2026-10-24.
+  sha256 "fec98598883d4f8388c994ed710fd2e079c3e5b0409f5e18360aa6343daeeadc"
 
   url "https://github.com/wakeupdg/zones/releases/download/v#{version}/Zones-#{version}.dmg"
   name "Zones"
