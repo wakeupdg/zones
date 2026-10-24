@@ -82,4 +82,27 @@ struct HitTestTests {
     mirrored.displays.insert(copy, at: 0)
     #expect(HitTest.display(at: CGPoint(x: 100, y: 100), in: mirrored) == primary)
   }
+
+  @Test func zoneCentersAreZones() {
+    let bounds = CGRect(x: 0, y: 0, width: 1200, height: 800)
+    for seed in 0..<200 as Range<UInt64> {
+      var gen = Generator(seed: seed)
+      let layout = gen.layout(maxDepth: 4)
+      let r = LayoutMath.resolve(layout, key: .uuid("D1"), visibleFrame: bounds, scale: 1)
+      for zone in r.zones {
+        let center = CGPoint(x: zone.frame.midX, y: zone.frame.midY)
+        let got = HitTest.hit(center, in: r)
+        #expect(
+          got == .zone(zone.number),
+          Comment(rawValue: Generator.failureMessage(seed: seed, layout: layout, note: "center of zone \(zone.number) gave \(got)")))
+      }
+      for _ in 0..<20 {
+        let p = CGPoint(x: gen.double(bounds.minX...bounds.maxX), y: gen.double(bounds.minY...bounds.maxY))
+        let got = HitTest.hit(p, in: r)
+        #expect(
+          got != .none,
+          Comment(rawValue: Generator.failureMessage(seed: seed, layout: layout, note: "point \(p) gave none")))
+      }
+    }
+  }
 }
