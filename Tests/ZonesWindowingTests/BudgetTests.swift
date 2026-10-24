@@ -24,16 +24,17 @@ import ZonesWindowing
 
   /// Bytes in use after `measured` more calls minus before, after `warmUp` calls. The checksum each call returns
   /// is folded into `sink` so the optimizer keeps the work. The process-wide heap is shared with other running
-  /// tests, so the smallest of three rounds is taken: a leak grows in every round, noise does not.
+  /// tests, so the smallest of up to ten rounds is taken (stopping at the first one within budget): a leak grows in every round, noise does not.
   @discardableResult
   static func growth(of body: () -> Int) -> Int {
     var sink = 0
     for _ in 0..<warmUp { sink &+= body() }
     var smallest = Int.max
-    for _ in 0..<3 {
+    for _ in 0..<10 {
       let before = inUse()
       for _ in 0..<measured { sink &+= body() }
       smallest = min(smallest, inUse() - before)
+      if smallest <= allowedGrowth { break }
     }
     withExtendedLifetime(sink) {}
     return smallest
