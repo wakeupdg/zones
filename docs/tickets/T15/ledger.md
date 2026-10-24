@@ -2,3 +2,4 @@
 - slice 2: SnapServiceTests.writeOrderSizePositionSize green — FrameWriter size/position/size/read-back, SnapService pre-read, EnhancedUIRecovery stub, no-op Enhanced UI hook
 - slice 3: SnapServiceTests.resultCarriesReadBackFrame green — outcome.readBack is the fake's frame and result is .clamped (read-back classification already came with slice 2)
 - slice 4: SnapServiceTests.sameZoneIsNoOp green — noOp(sameFrame) with zero writes within 1 pt, origin-only in position-only mode
+- slice 5: SnapServiceTests.clampedGetsOneRepositionOnly green — one position-only follow-up on clamped, result stays .clamped with the new read-back

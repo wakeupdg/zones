@@ -45,7 +45,26 @@ public struct SnapService: Sendable {
     }
     let result = writer.write(
       plan.target, mode: plan.mode, to: handle, policy: policy, health: &health, now: clock.now)
-    return SnapOutcome(result: result, readBack: Self.frame(of: result))
+    guard case .clamped(let accepted) = result else {
+      return SnapOutcome(result: result, readBack: Self.frame(of: result))
+    }
+    return realign(accepted, to: plan.target, handle: handle, health: &health)
+  }
+
+  /// The app kept a different size. One position write puts the top-left on the Zone's origin, then
+  /// the read-back is the truth. The result stays `.clamped` so the caller can log it. A follow-up
+  /// that fails keeps the first read-back; a timeout still aborts, as everywhere.
+  @WindowActor private func realign(
+    _ accepted: CGRect, to target: CGRect, handle: WindowHandle, health: inout AppHealth
+  ) -> SnapOutcome {
+    let follow = writer.write(
+      CGRect(origin: target.origin, size: accepted.size), mode: .positionOnly, to: handle,
+      policy: policy, health: &health, now: clock.now)
+    switch follow {
+    case .applied(let r), .clamped(let r): return SnapOutcome(result: .clamped(r), readBack: r)
+    case .timedOut: return SnapOutcome(result: .timedOut, readBack: accepted)
+    default: return SnapOutcome(result: .clamped(accepted), readBack: accepted)
+    }
   }
 
   static func frame(of result: FrameWriteResult) -> CGRect? {

@@ -100,4 +100,24 @@ import ZonesWindowing
     let moved = rig.run(rig.plan())
     #expect(moved.result == .applied(Self.target))
   }
+
+  /// AC-071: the app kept a larger size, so one position write puts the top-left in the Zone. No more.
+  @Test @WindowActor func clampedGetsOneRepositionOnly() {
+    var rig = Rig()
+    let accepted = CGRect(x: 60, y: 20, width: 650, height: 500)  // bigger than the Zone, drifted
+    let aligned = CGRect(origin: Self.target.origin, size: accepted.size)
+    rig.script(current: Self.elsewhere, readBack: accepted)
+    rig.ws.enqueue(.frame(.value(aligned)))
+    let outcome = rig.run(rig.plan())
+    let h = rig.handle
+    #expect(
+      rig.ws.calls == [
+        .frame(h),
+        .setSize(Self.target.size, h), .setPosition(Self.target.origin, h),
+        .setSize(Self.target.size, h), .frame(h),
+        .setPosition(Self.target.origin, h), .frame(h),
+      ])
+    #expect(outcome.result == .clamped(aligned))
+    #expect(outcome.readBack == aligned)
+  }
 }
