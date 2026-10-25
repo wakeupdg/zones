@@ -2003,8 +2003,8 @@
     ],
     "est_tokens": 80000,
     "brief_path": "docs/tickets/T61.md",
-    "state": "building",
-    "tokens_spent": 2288075,
+    "state": "review",
+    "tokens_spent": 3689219,
     "branch": "ticket/T61"
   }
 ]
