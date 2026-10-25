@@ -1985,7 +1985,8 @@
     ],
     "est_tokens": 50000,
     "brief_path": "docs/tickets/T60.md",
-    "state": "todo",
-    "tokens_spent": 0
+    "state": "building",
+    "tokens_spent": 0,
+    "branch": "ticket/T60"
   }
 ]
