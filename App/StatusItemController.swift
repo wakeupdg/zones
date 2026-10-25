@@ -97,12 +97,16 @@ final class StatusItemController {
     return menu
   }
 
+  /// Asset catalog name of the direction B menu-bar glyph (Figma g18 `36:1220`).
+  static let glyphName = "MenuBarGlyph"
+
   /// The glyph as a template image in every state, so the menu bar tints it for light and dark. The badge is
   /// drawn by `badgeView`, never into this image (template tinting would erase its red).
+  /// A copy of the 18 pt asset, so setting the per-state description never mutates the shared named image.
   static func icon(badged: Bool) -> NSImage {
     let description = badged ? "Zones, needs Accessibility access" : "Zones"
-    let symbol = NSImage(systemSymbolName: "rectangle.split.3x3", accessibilityDescription: description)
-    let image = symbol?.withSymbolConfiguration(.init(pointSize: 14, weight: .regular)) ?? symbol ?? NSImage()
+    let image = (NSImage(named: glyphName)?.copy() as? NSImage) ?? NSImage(size: NSSize(width: 18, height: 18))
+    image.size = NSSize(width: 18, height: 18)
     image.isTemplate = true
     image.accessibilityDescription = description
     return image

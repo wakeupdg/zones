@@ -1,0 +1,131 @@
+{
+  "fill-specializations" : [
+    {
+      "value" : {
+        "solid" : "srgb:0.95686,0.94902,0.93333,1.00000"
+      }
+    },
+    {
+      "appearance" : "dark",
+      "value" : {
+        "solid" : "srgb:0.10980,0.12157,0.14118,1.00000"
+      }
+    }
+  ],
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "glass" : true,
+          "image-name" : "Tiles.svg",
+          "name" : "Tiles"
+        }
+      ],
+      "name" : "Tiles",
+      "position" : {
+        "scale" : 1.243,
+        "translation-in-points" : [
+          0,
+          0
+        ]
+      },
+      "shadow" : {
+        "kind" : "layer-color",
+        "opacity" : 0.5
+      },
+      "specular" : true,
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    },
+    {
+      "layers" : [
+        {
+          "fill-specializations" : [
+            {
+              "appearance" : "dark",
+              "value" : {
+                "solid" : "srgb:0.37255,0.82745,0.62745,1.00000"
+              }
+            }
+          ],
+          "glass" : false,
+          "image-name" : "LitBorder.svg",
+          "name" : "Lit border"
+        },
+        {
+          "fill-specializations" : [
+            {
+              "appearance" : "dark",
+              "value" : {
+                "solid" : "srgb:0.37255,0.82745,0.62745,1.00000"
+              }
+            }
+          ],
+          "glass" : false,
+          "image-name" : "LitFill.svg",
+          "name" : "Lit fill",
+          "opacity" : 0.28
+        }
+      ],
+      "name" : "Lit zone",
+      "position" : {
+        "scale" : 1.243,
+        "translation-in-points" : [
+          0,
+          0
+        ]
+      },
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "specular" : false,
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0
+      }
+    },
+    {
+      "layers" : [
+        {
+          "fill-specializations" : [
+            {
+              "appearance" : "dark",
+              "value" : {
+                "solid" : "srgb:0.37255,0.82745,0.62745,1.00000"
+              }
+            }
+          ],
+          "glass" : false,
+          "image-name" : "Glow.svg",
+          "name" : "Glow",
+          "opacity" : 0.4
+        }
+      ],
+      "name" : "Glow",
+      "position" : {
+        "scale" : 1.243,
+        "translation-in-points" : [
+          0,
+          0
+        ]
+      },
+      "shadow" : {
+        "kind" : "none",
+        "opacity" : 0
+      },
+      "specular" : false,
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "squares" : [
+      "macOS"
+    ]
+  }
+}

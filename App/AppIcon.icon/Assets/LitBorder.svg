@@ -1,0 +1,4 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Figma 50:1648 "Lit border (33 px, inside)": flat accent ring. -->
+  <path fill-rule="evenodd" d="M463 314C481.225 314 496 328.775 496 347V677C496 695.225 481.225 710 463 710H314C295.775 710 281 695.225 281 677V347C281 328.775 295.775 314 314 314H463ZM314 347V677H463V347H314Z" fill="#178A5F"/>
+</svg>

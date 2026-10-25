@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/assets/zones-icon-256.png" width="128" height="128" alt="Zones app icon"></p>
+
 # Zones
 
 A menu-bar window manager for macOS that snaps windows into Zone Layouts, in the style of Microsoft FancyZones (https://learn.microsoft.com/en-us/windows/powertoys/fancyzones).
