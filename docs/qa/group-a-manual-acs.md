@@ -82,14 +82,16 @@ AC-168 (release checklist) is not in this group. It uses results from all groups
 - Result: **part 1 pass** (11:09 PM PT). Editor opened on VG270K (bounds = its frame); orchestrator screenshot of that display shows all 3 windows through the backdrop with Zones 1-3 drawn over them (screenshot not kept: private window content). Part 2 **pass** (11:11 PM PT): watcher captured the editor window bounds (-3008,162,3008,1692) while the Overlay showed (Overlay windows on all 3 displays, layer 1000). Lit Overlay Zone 1 = x 8-752 pt, y 8-1684 pt; 8 pt gap; Zone 2 starts at 760 pt. That is the editor Layout (Margin 8, Gap 8, 25/50/25 columns) exactly. Each edge shows one border only, no second editor edge within 25 pt. Capture deleted (private window content).
 
 ### [ ] AC-139 — Keyboard-only editor loop
+- **Spec:** amended by C15 (T65). The loop starts from a Template copy; the editor has no "New Layout" action.
 - **Do:** Do not touch the mouse after step 1.
-  1. Open the editor (**Control+Option+E**). Click **Template** → **Focus 1** (the only one-Zone Template). Click the Zone once to select it.
-  2. Press **H**, **H**, **Command+S**, **Command+Shift+A**, **Command+W**.
+  1. Open the editor (**Control+Option+E**). Click **Template** → **Focus 1** (the only one-Zone Template). Click the Zone once to select it. The editor is now the key window: do not click another window.
+  2. Press **H** once, then **H** once. Do not hold a key. Then press **Command+S**, **Command+Shift+A**, **Command+W**.
   3. Control-drag a window on that display.
   4. Open Settings → Layouts.
 - **Pass if:**
-  - [ ] The Overlay shows 3 Zones side by side.
+  - [ ] The Overlay shows 3 Zones side by side (25 / 25 / 50 percent of the center area).
   - [ ] The Layouts pane shows the new Layout, assigned to that display.
+- **By spec (not a fail):** the name is "<Layout the editor opened on> copy", for example "Priority Grid copy" (AC-138 keeps the draft's name). The Zones sit in the center 60 percent (the Focus surround 0.2, C1).
 - Result: **FAIL, re-run needed** (11:18 PM PT). Saved 11:17:24 PM, assigned 11:17:28 PM to VG270K (layouts.json id 67FA039B). Findings: (1) saved tree has 4 leaves (((½,½),½),½ nested = 12.5/12.5/25/50 %), not 3: an extra H, or a bug; (2) the Layout is named "Priority Grid copy" though it came from Focus 1; (3) it keeps the Focus surround 0.2, so the Zones sit in the center 60 % only; (4) Command+W did not close the editor: the editor was behind Safari and Settings, so the key went to another window. Overlay not captured. Spec gap: the editor has no "new Layout" action; AC-139 says "fresh Layout". Decision (11:24 PM PT): re-run first, with the editor as the key window; ticket only the findings that stay.
 
 ## Part 3 — Drags (4 ACs)

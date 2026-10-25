@@ -39,7 +39,7 @@ public enum DocumentError: Error, Hashable, Sendable {
 }
 
 public enum EditorError: Error, Hashable, Sendable {
-  case notSiblings(hint: String), tooSmall, rootMerge, invalidRatio, nothingSelected
+  case notSiblings(hint: String), tooSmall, rootMerge, invalidRatio, nothingSelected, emptyName, surroundOutOfRange
 }
 
 public enum LoginItemError: Error, Hashable, Sendable { case launchDeniedByUser, invalidSignature, other(String) }

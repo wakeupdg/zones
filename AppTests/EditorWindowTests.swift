@@ -86,7 +86,38 @@ import ZonesWindowing
     }
   }
 
+  /// T65, AC-139 finding "4 leaves after H, H": one H key-down reaches the reducer once, and a held H (key repeat)
+  /// adds nothing, so H, H can only give three Zones.
+  @Test func oneHPressIsOneSplit() throws {
+    let window = EditorWindowController.makeWindow(display: Self.display())
+    var events: [EditorEvent] = []
+    window.onEvent = { events.append($0) }
+    func h(repeat isARepeat: Bool) throws -> NSEvent {
+      try #require(
+        NSEvent.keyEvent(
+          with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber,
+          context: nil, characters: "h", charactersIgnoringModifiers: "h", isARepeat: isARepeat, keyCode: 4))
+    }
+    window.keyDown(with: try h(repeat: false))
+    #expect(events == [.command(.split(.horizontal))])
+    #expect(!window.performKeyEquivalent(with: try h(repeat: false)), "a bare H is not a key equivalent")
+    window.keyDown(with: try h(repeat: true))
+    #expect(events == [.command(.split(.horizontal))], "a key repeat does not split again")
+    window.close()
+  }
+
   // MARK: effect routing
+
+  /// T65 (T28/T30 known issue): an empty name and a surround fault have their own words, not the divider text.
+  @Test func editorErrorTextsAreDistinct() {
+    let errors: [EditorError] = [
+      .notSiblings(hint: "x"), .tooSmall, .rootMerge, .invalidRatio, .nothingSelected, .emptyName, .surroundOutOfRange,
+    ]
+    let texts = errors.map(EditorEffectRouter.text(for:))
+    #expect(Set(texts).count == errors.count)
+    #expect(EditorEffectRouter.text(for: .emptyName).contains("name"))
+    #expect(EditorEffectRouter.text(for: .surroundOutOfRange).contains("45 percent"))
+  }
 
   private static let uuidA = "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA"
   private static let uuidB = "BBBBBBBB-BBBB-4BBB-8BBB-BBBBBBBBBBBB"
@@ -216,9 +247,9 @@ import ZonesWindowing
     let visible = CGRect(x: 100, y: 50, width: 1440, height: 875)
     let insets = Insets(margin: 12, gap: 8)
     let layouts: [Layout] = [
-      Templates.generate(.grid, count: 4, insets: insets),
-      Templates.generate(.priorityGrid, count: 3, insets: insets),
-      Templates.generate(.focus, count: 1, insets: insets),  // surround 0.2
+      Templates.generate(.grid, count: 4, insets: insets)!,
+      Templates.generate(.priorityGrid, count: 3, insets: insets)!,
+      Templates.generate(.focus, count: 1, insets: insets)!,  // surround 0.2
     ]
     for layout in layouts {
       let state = EditorModel.open(

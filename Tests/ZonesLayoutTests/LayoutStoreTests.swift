@@ -39,7 +39,7 @@ struct LayoutStoreTests {
   }
 
   @Test func initDropsBuiltInsFromDocument() {
-    let builtIn = Templates.generate(.columns, count: 2, insets: Insets(margin: 1, gap: 1))
+    let builtIn = Templates.generate(.columns, count: 2, insets: Insets(margin: 1, gap: 1))!
     let store = LayoutStore(document: ZonesDocument(layouts: [builtIn]), defaults: Insets(margin: 8, gap: 8))
     #expect(store.custom.isEmpty)
     #expect(store.document.layouts.isEmpty)
@@ -57,7 +57,7 @@ struct LayoutStoreTests {
     #expect(store.layout(LayoutID(rawValue: "B")) == renamed)
 
     let before = store
-    store.upsert(Templates.generate(.rows, count: 2, insets: Insets(margin: 0, gap: 0)))
+    store.upsert(Templates.generate(.rows, count: 2, insets: Insets(margin: 0, gap: 0))!)
     var fake = custom("builtin:fake:1", "Fake")
     store.upsert(fake)
     fake = custom("D", "D")

@@ -218,8 +218,9 @@ public enum EditorEngine {
 
   /// Root and surround come from the Template; the draft keeps its id, name and insets.
   private static func template(_ t: Template, count: Int, _ d: EditorDraft) -> Result<EditorDraft, EditorError> {
-    guard t.counts.contains(count) else { return .failure(.invalidRatio) }
-    let generated = Templates.generate(t, count: count, insets: d.layout.insets)
+    guard let generated = Templates.generate(t, count: count, insets: d.layout.insets) else {
+      return .failure(.invalidRatio)
+    }
     var next = d
     next.layout.root = generated.root
     next.layout.surround = generated.surround
@@ -257,8 +258,8 @@ public enum EditorEngine {
       bottom: clamp(probe.surround.bottom), right: clamp(probe.surround.right))
     switch LayoutValidator.validate(probe) {
     case .leafTooSmall: return .failure(.tooSmall)
-    case .ratioOutOfRange: return .failure(.invalidRatio)
-    case .emptyName, .surroundOutOfRange, .overlap, nil:
+    case .ratioOutOfRange, .overlap: return .failure(.invalidRatio)
+    case .emptyName, .surroundOutOfRange, nil:
       var out = d
       out.dirty = true
       return .success(out)

@@ -19,7 +19,9 @@ final class EditorLauncher {
     let fallback = Templates.builtInID(.priorityGrid, count: 3)
     var id = fallback
     if let display { id = AssignmentLookup.layoutID(for: display.key, in: assignments, session: [:]) }
-    return store.layout(id) ?? store.layout(fallback) ?? Templates.generate(.priorityGrid, count: 3, insets: Insets(margin: 8, gap: 8))
+    // Priority Grid 3 is an offered count, so the last `generate` never returns nil.
+    return store.layout(id) ?? store.layout(fallback)
+      ?? Templates.generate(.priorityGrid, count: 3, insets: Insets(margin: 8, gap: 8))!
   }
 
   /// What the editor window needs from the app's one owner of Layouts and Assignments.

@@ -112,8 +112,10 @@ private func assignment(_ layout: String) -> Assignment {
   @Test func importValidatesWholeFile() throws {
     let ratioOne = SplitNode.split(axis: .horizontal, ratio: 1.0, first: .leaf, second: .leaf)
     let tiny = SplitNode.split(axis: .horizontal, ratio: 0.05, first: .leaf, second: .leaf)
+    let overlapping = SplitNode.split(axis: .horizontal, ratio: 1.5, first: .leaf, second: .leaf)
     let bad: [(String, Layout, LayoutFault)] = [
       ("ratio", custom("X1", "Bad ratio", root: ratioOne), .ratioOutOfRange(NodePath(steps: []))),
+      ("overlap", custom("X4", "Bad overlap", root: overlapping), .overlap),
       ("small", custom("X2", "Bad small", root: tiny), .leafTooSmall(NodePath(steps: [false]))),
       (
         "surround",

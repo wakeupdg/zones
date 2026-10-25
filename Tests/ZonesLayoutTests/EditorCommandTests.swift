@@ -128,7 +128,7 @@ struct EditorCommandTests {
     #expect(throws: Never.self) { try run(.setRatio(root, 0.4, snap: false), unnamed).get() }
 
     func resolved(_ t: Template, _ count: Int, _ frame: CGRect) -> ResolvedLayout {
-      let layout = Templates.generate(t, count: count, insets: zeroInsets)
+      let layout = Templates.generate(t, count: count, insets: zeroInsets)!
       return LayoutMath.resolve(layout, key: .uuid("D1"), visibleFrame: frame, scale: 1)
     }
     #expect(
@@ -211,7 +211,7 @@ struct EditorCommandTests {
     start.layout.insets = Insets(margin: 7, gap: 3)
     start.layout.builtIn = BuiltInRef(template: .rows, count: 2)
     let picked = try run(.template(.grid, count: 4), start).get()
-    let grid = Templates.generate(.grid, count: 4, insets: Insets(margin: 7, gap: 3))
+    let grid = Templates.generate(.grid, count: 4, insets: Insets(margin: 7, gap: 3))!
     #expect(picked.layout.root == grid.root)
     #expect(picked.layout.surround == grid.surround)
     #expect(picked.layout.name == "My Layout")
@@ -223,7 +223,7 @@ struct EditorCommandTests {
     // Focus brings its surround along
     let focus = try run(.template(.focus, count: 1), start).get()
     #expect(focus.layout.root == .leaf)
-    #expect(focus.layout.surround == Templates.generate(.focus, count: 1, insets: zeroInsets).surround)
+    #expect(focus.layout.surround == Templates.generate(.focus, count: 1, insets: zeroInsets)!.surround)
     // a count the Template does not offer
     #expect(run(.template(.grid, count: 5), start) == .failure(.invalidRatio))
     #expect(run(.template(.columns, count: 1), start) == .failure(.invalidRatio))
