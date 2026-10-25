@@ -37,6 +37,21 @@ import ZonesWindowing
     #expect(NSApp.windows.filter { $0.title == "Welcome to Zones" && $0.isVisible }.isEmpty)
   }
 
+  /// T66 (T33 known issue): a show the user did not ask for fronts the window without activating Zones, so the
+  /// user's app keeps focus; the default show (first run, the menu item) still activates.
+  @Test func backgroundShowNeverActivates() {
+    var activations = 0
+    let controller = OnboardingWindowController(
+      probe: FakePermissionProbe(clock: FakeClock()), preferences: { Preferences.defaults }, relaunch: {},
+      activate: { activations += 1 }, makeWindow: OnboardingWindowController.defaultWindow)
+    defer { controller.dismiss() }
+    controller.show(activating: false)
+    #expect(activations == 0)
+    #expect(controller.window?.isVisible == true)
+    controller.show()
+    #expect(activations == 1)
+  }
+
   @Test func noWindowWhenLaunchedAtLogin() {
     let (controller, _, created) = make(launchedAtLogin: true)
     controller.show()

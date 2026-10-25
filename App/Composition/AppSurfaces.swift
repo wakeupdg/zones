@@ -28,7 +28,13 @@ final class AppSurfaces: PermissionSurfaces {
 
   func showOnboarding() {
     sync()
-    onboarding.show()
+    onboarding.show(activating: Self.activates(permission()))
+  }
+
+  /// First launch and Re-run Onboarding arrive in `notGranted`: the user just acted, so Zones activates. A loss
+  /// while Zones runs in the background (`revoked`) fronts the window without taking focus (T66, T33 known issue).
+  static func activates(_ p: PermissionState) -> Bool {
+    if case .notGranted = p { true } else { false }
   }
 
   func dismissOnboarding() { onboarding.dismiss() }
@@ -39,7 +45,7 @@ final class AppSurfaces: PermissionSurfaces {
     relaunchOffered = on
     sync()
     refresh()
-    if on { onboarding.show() }
+    if on { onboarding.show(activating: false) }
   }
 
   private func sync() { onboarding.update(permission: permission(), relaunchOffered: relaunchOffered) }
