@@ -196,6 +196,57 @@ func write(_ text: String, to url: URL) throws {
     #expect(result.stdout.range(of: "[0-9a-f]{48}", options: .regularExpression) == nil)
   }
 
+  // MARK: T66, dev-cert.sh recovery (T51 known issue), throwaway keychains only
+
+  /// `/usr/bin/security` with explicit keychain paths; returns the exit status and stdout.
+  @discardableResult
+  func security(_ args: String...) throws -> (status: Int32, out: String) {
+    let process = Process()
+    let pipe = Pipe()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/security")
+    process.arguments = args
+    process.standardOutput = pipe
+    process.standardError = FileHandle.nullDevice
+    try process.run()
+    let data = pipe.fileHandleForReading.readDataToEndOfFile()
+    process.waitUntilExit()
+    return (process.terminationStatus, String(decoding: data, as: UTF8.self))
+  }
+
+  /// The dev keychain exists with its stored password but holds no identity: the script imports a new identity
+  /// into that keychain. Both keychains are throwaway files; the real dev and login keychains are never named.
+  @Test func devCertImportsIntoAnExistingKeychainWithNoIdentity() throws {
+    let dir = try makeScratchDir()
+    let kc = dir.appendingPathComponent("zones-dev.keychain-db").path
+    let passKC = dir.appendingPathComponent("pass.keychain-db").path
+    defer {
+      _ = try? security("delete-keychain", kc)
+      _ = try? security("delete-keychain", passKC)
+      try? FileManager.default.removeItem(at: dir)
+    }
+    #expect(try security("create-keychain", "-p", "test-pass-kc", passKC).status == 0)
+    #expect(
+      try security("add-generic-password", "-a", "zones-dev", "-s", "zones-dev-keychain", "-w", "kc-pw", passKC)
+        .status == 0)
+    #expect(try security("create-keychain", "-p", "kc-pw", kc).status == 0)
+    #expect(try !security("find-identity", "-p", "codesigning", kc).out.contains("\"Zones Dev\""))
+
+    let result = try runScript(
+      "scripts/dev-cert.sh", env: ["ZONES_DEV_KEYCHAIN": kc, "ZONES_DEV_PASS_KEYCHAIN": passKC])
+    #expect(result.status == 0, "stderr: \(result.stderr)")
+    #expect(result.stdout == "Zones Dev\n")
+    #expect(try security("find-identity", "-p", "codesigning", kc).out.contains("\"Zones Dev\""))
+  }
+
+  @Test func devCertTestKeychainNeedsItsOwnPasswordKeychain() throws {
+    let dir = try makeScratchDir()
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let kc = dir.appendingPathComponent("zones-dev.keychain-db").path
+    let result = try runScript("scripts/dev-cert.sh", env: ["ZONES_DEV_KEYCHAIN": kc])
+    #expect(result.status == 64)
+    #expect(!FileManager.default.fileExists(atPath: kc))
+  }
+
   // MARK: slice 2, ticket-lint (AC-167)
 
   static func ticket(
