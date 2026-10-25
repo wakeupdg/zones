@@ -54,7 +54,7 @@ import ZonesWindowing
     let five = (1...5).map { F.ref(UInt32($0)) }
     let (s, fx) = DragSessionReducer.reduce(.idle, F.mouseDown(candidates: five))
     #expect(s == .idle)
-    #expect(fx == [.skip(.ambiguousMatch, nil)])
+    #expect(fx == [.log("mouseDown: 5 candidate windows under the cursor (cap 4)"), .skip(.ambiguousMatch, nil)])
     #expect(!fx.contains(where: F.isRequestSample))
 
     // Four is accepted and kept in the given z-order.
@@ -210,7 +210,7 @@ import ZonesWindowing
     // None left: idle.
     let (empty, emptyFx) = DragSessionReducer.reduce(state, Self.tick([1: .gone, 2: .gone]))
     #expect(empty == .idle)
-    #expect(emptyFx == [.stopSampling])
+    #expect(emptyFx == [.stopSampling, .log("drag: no Accessibility window matches the 2 candidates")])
   }
 
   @Test func phaseTwoFailureEndsPress() {
@@ -648,7 +648,7 @@ import ZonesWindowing
       #expect(next == .idle, "\(name)")
       #expect(!fx.contains(where: F.isShowOverlay), "\(name)")
       #expect(!fx.contains(where: F.isRequestArmContext), "\(name)")
-      #expect(fx == [.stopSampling], "\(name)")
+      #expect(fx == [.stopSampling, .log("drag: window resized, not moved")], "\(name)")
     }
   }
 

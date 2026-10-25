@@ -37,7 +37,10 @@ public enum DragSessionReducer {
     if case .skip(let reason) = phaseOne { return (.idle, [.skip(reason, candidates.first)]) }
     guard !candidates.isEmpty else { return (.idle, [.log("mouseDown: no candidate window under the cursor")]) }
     // More candidates than the cap cannot be told apart in one batched read: skip before any sampling.
-    guard candidates.count <= Constants.candidateCap else { return (.idle, [.skip(.ambiguousMatch, nil)]) }
+    guard candidates.count <= Constants.candidateCap else {
+      let note = "mouseDown: \(candidates.count) candidate windows under the cursor (cap \(Constants.candidateCap))"
+      return (.idle, [.log(note), .skip(.ambiguousMatch, nil)])
+    }
     // Phase one only ever allows `.full`; the SnapMode comes from phase two on the first moved sample.
     let frames = Dictionary(candidates.map { ($0.id, $0.frame) }, uniquingKeysWith: { first, _ in first })
     return (
@@ -66,13 +69,18 @@ public enum DragSessionReducer {
           candidates: candidates, down: down, downFrames: downFrames, flags: f, config: config, samples: samples,
           retried: retried), []
       )
-    case .mouseUp, .windowGone:
-      return (.idle, samples > 0 ? [.stopSampling] : [])
+    case .mouseUp:
+      // A click (no `dragged`) ends silently; a sampled press that never saw its window move leaves a note (T63).
+      guard samples > 0 else { return (.idle, []) }
+      let count = candidates.count == 1 ? "1 candidate" : "\(candidates.count) candidates"
+      return (.idle, [.stopSampling, .log("drag: mouse-up before the window moved (\(count))")])
+    case .windowGone:
+      return (.idle, samples > 0 ? [.stopSampling, .log("drag: window gone before it moved")] : [])
     case .frameSample(let results):
       let tick = CandidateTick.classify(candidates: candidates, downFrames: downFrames, results: results)
       // A size change over the tolerance is a resize, checked before any mover so a top-left resize that also
       // shifts the origin still ends the session (AC-048).
-      if tick.resized { return (.idle, [.stopSampling]) }
+      if tick.resized { return (.idle, [.stopSampling, .log("drag: window resized, not moved")]) }
       // One mover wins at once, even when another candidate timed out in the same tick.
       if tick.movers.count == 1, let winner = tick.movers.first {
         // Phase two: the facts riding on the first moved sample decide whether the window may be moved at all.
@@ -95,7 +103,10 @@ public enum DragSessionReducer {
         return (.idle, [.stopSampling, .skip(.ambiguousMatch, nil)])
       }
       let survivors = tick.survivors
-      guard !survivors.isEmpty else { return (.idle, [.stopSampling]) }
+      guard !survivors.isEmpty else {
+        // Every candidate read `.gone`: no Accessibility window matched the CoreGraphics frame (T63).
+        return (.idle, [.stopSampling, .log("drag: no Accessibility window matches the \(candidates.count) candidates")])
+      }
       // No mover and a timed-out read: one immediate retry per press, then give up on the app.
       var nowRetried = retried
       if tick.movers.isEmpty, let slow = tick.timedOut.first {

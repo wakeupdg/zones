@@ -57,4 +57,6 @@ struct CompositionAdapters {
   /// The frontmost app and the cursor, for the menu (read on the main actor, never through Accessibility).
   var frontmost: @MainActor () -> (name: String, bundleID: String)?
   var cursor: @MainActor () -> CGPoint
+  /// Installed on `Log.shared` by the root. Production: `UnifiedLogSink` (subsystem "Zones"); nil leaves it as is.
+  var logSink: (any LogSink)? = nil
 }

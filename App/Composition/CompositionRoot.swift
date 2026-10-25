@@ -26,6 +26,8 @@ final class CompositionRoot {
 
   init(adapters: CompositionAdapters) {
     self.adapters = adapters
+    // Before anything logs: without a sink, `Log.shared` lines reach only the Diagnostics ring (T63).
+    if let sink = adapters.logSink { Log.shared.install(sink: sink) }
     documents = DocumentStore(fs: adapters.files, directory: adapters.supportDirectory, clock: adapters.clock)
     state = AppState(documents: documents, storage: adapters.preferences)
     recovery = EnhancedUIRecovery(store: documents)
