@@ -72,6 +72,24 @@ enum SpanLogic {
     return next
   }
 
+  /// The Span carried from snapshot `old` to snapshot `new` (T67). Zone numbers mean something only in the Layout
+  /// they were swept on: the set is kept while the Span's Display keeps that Layout (same id and Zone numbers; the
+  /// rectangles re-resolve), and cleared when the Layout changed, so the re-hit's `accumulate` starts it again at
+  /// the cursor. A Display gone from `new` keeps the set suspended (US-063); one coming back keeps it only while
+  /// every member exists in its Layout. `frozen` is kept either way (US-062). Never a silent shrink.
+  static func rebase(_ span: SpanState, from old: ArmContext, to new: ArmContext) -> SpanState {
+    guard !span.zones.isEmpty, let display = span.display, let now = new.layouts[display] else { return span }
+    let numbers = Set(now.zones.map(\.number))
+    let kept =
+      if let was = old.layouts[display] {
+        was.layoutID == now.layoutID && Set(was.zones.map(\.number)) == numbers
+      } else {
+        span.zones.isSubset(of: numbers)
+      }
+    if kept { return span }
+    return SpanState(zones: [], display: nil, frozen: span.frozen, suspended: false)
+  }
+
   /// What a drop at `cursor` does, given the Span as it stands after `accumulate`. While the Span is suspended
   /// the cursor Zone alone is the drop and the suspended set rides along as the secondary highlight on the Span's own Display.
   static func drop(at cursor: Cursor, span: SpanState, in ctx: ArmContext) -> Drop {

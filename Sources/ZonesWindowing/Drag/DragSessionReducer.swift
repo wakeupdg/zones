@@ -203,8 +203,10 @@ public enum DragSessionReducer {
           rehit(lastHitPoint(display: display, hit: hit, in: ctx), previous: display, in: newCtx)
         }
       // Accumulate the Span at the new cursor exactly as `dragged` does, so the stored Span (and `suspended`)
-      // matches what mouseUp will drop (LI-009).
-      let newSpan = SpanLogic.accumulate(span, at: cursor, flags: flags, config: config)
+      // matches what mouseUp will drop (LI-009). The Span is rebased first: numbers from a changed Layout never
+      // reach the drop (T67).
+      let newSpan = SpanLogic.accumulate(
+        SpanLogic.rebase(span, from: ctx, to: newCtx), at: cursor, flags: flags, config: config)
       let state = DragState.armed(
         window: window, downFrame: downFrame, flags: flags, config: config, context: newCtx, display: cursor.display,
         hit: cursor.hit, span: newSpan, point: lastPoint, mode: mode)

@@ -529,7 +529,8 @@ import ZonesWindowing
       return
     }
     #expect(hit == .zone(1))
-    #expect(span.zones == [1, 2])
+    // A's Layout changed, so the old Zone 2 is dropped and the Span starts again at the re-hit (T67).
+    #expect(span.zones == [1])
     expectHighlightEqualsDrop(next, fx, at: point, flags: held)
   }
 
