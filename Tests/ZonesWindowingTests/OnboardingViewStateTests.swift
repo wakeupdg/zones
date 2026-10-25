@@ -46,6 +46,16 @@ import ZonesWindowing
     #expect(OnboardingViewState.derive(p, relaunchOffered: false, waited: 60).staleEntryHelp == Self.help, "\(p)")
   }
 
+  /// T56: only the waiting states get the help line, however long the Clock has run (grant at 12 s included).
+  @Test(arguments: [PermissionState.granted, .suspect(since: 1), .needsRelaunch])
+  func noStaleEntryHelpOutsideWaitingStates(_ p: PermissionState) {
+    for waited in [0, 10, 12, 600] as [Double] {
+      #expect(OnboardingViewState.derive(p, relaunchOffered: false, waited: waited).staleEntryHelp == nil, "\(p)")
+      #expect(OnboardingViewState.derive(p, relaunchOffered: true, waited: waited).staleEntryHelp == nil, "\(p)")
+    }
+    #expect(!OnboardingViewState.waitsForGrant(p), "\(p)")
+  }
+
   @Test func grantedAndSuspectHaveNoWindow() {
     for p in [PermissionState.granted, .suspect(since: 1)] {
       #expect(!OnboardingViewState.derive(p, relaunchOffered: false).windowVisible, "\(p)")
