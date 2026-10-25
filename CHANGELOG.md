@@ -95,6 +95,9 @@ First pre-release. Built and unit-tested, but not yet verified on real hardware.
 ### Known issues
 
 - Live drag, Snap and overlay behavior has not been verified on real hardware.
+- Turning Accessibility off while Zones runs is not detected: no badge and no onboarding window appear, and
+  dragging stops until access is turned on again. The 5 s heartbeat check is off until SPK-006 has human trials
+  (AC-009, found in the human run on 2026-10-24).
 - 30 manual acceptance checks (of 169) are pending a human run (see [docs/STATUS.md](docs/STATUS.md)).
 - `scripts/dev-cert.sh --harden` must be run once by the user on a keychain made by the older script.
 - `scripts/dev-cert.sh` recovery path: when the dev keychain exists but holds no identity, the import step fails

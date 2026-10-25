@@ -25,16 +25,16 @@ Tester: DG  macOS version: 27.0.1  Date: 2026-10-24 (results recorded 12:18 PM P
   - [ ] The onboarding window closes in **under 1.5 s**.
   - [ ] The menu-bar icon has no badge.
   - [ ] The process id did not change (no relaunch).
-- Result: **not run yet**
+- Result: **blocked** (2026-10-24): needs the onboarding window open before the toggle goes on; AC-009 failed, so the window never came back. Re-run after the AC-009 fix.
 
-### [ ] AC-009 — Revocation on a real Mac
+### [ ] AC-009 — Revocation on a real Mac — **FAIL**
 - **Do:** With Zones idle, turn the toggle **off**. Start the stopwatch.
 - **Pass if:**
   - [ ] The icon shows a badge at the next drag, or in **5 s or less** if the heartbeat is on.
   - [ ] The onboarding window comes back.
   - [ ] You recorded the probe value from the diagnostics report.
 - **CAUTION:** Copy Diagnostics has no menu item yet (CHANGELOG known issue). If you cannot get the report, write "no UI" here and continue.
-- Result: **not run yet**
+- Result: **FAIL** (human run 6:06 PM PT, 2026-10-24; Debug build pid 43679, Zones Dev signed). Toggle off for about 12.5 min: no badge, no onboarding window, process id unchanged. A Shift-drag while off showed no overlay and did not snap, so macOS did stop access but Zones did not detect it. Probe value: no UI. Cause: `heartbeatEnabled = false` (SPK-006 provisional default); a revoked listen-only tap gets no events, so no Drag Session starts and no AX error arrives. Watcher log: [logs/ac009-watch-2026-10-24.log](logs/ac009-watch-2026-10-24.log).
 
 ### [x] AC-010 — Re-grant recovery
 - **Do:** Turn the toggle **on** again. Shift-drag a window.
