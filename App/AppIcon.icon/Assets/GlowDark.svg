@@ -1,0 +1,12 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Dark-appearance copy of Glow.svg in accent D #5FD3A0. A solid fill specialization would replace the radial
+       falloff with a hard ellipse, so Dark swaps the image instead; the 70 % dark opacity is set in icon.json. -->
+  <defs>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#5FD3A0" stop-opacity="1"/>
+      <stop offset="0.55" stop-color="#5FD3A0" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#5FD3A0" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <ellipse cx="512" cy="512" rx="165" ry="231" fill="url(#glow)"/>
+</svg>
