@@ -1,6 +1,6 @@
 # Zones
 
-A menu-bar window manager for macOS that snaps windows into Zone Layouts, in the style of FancyZones.
+A menu-bar window manager for macOS that snaps windows into Zone Layouts, in the style of Microsoft FancyZones (https://learn.microsoft.com/en-us/windows/powertoys/fancyzones).
 
 > **STATUS: Pre-release (0.1.0).** Built and unit-tested (330+ tests), but live drag-and-snap has not yet
 > been verified on real hardware. Expect bugs. See [docs/STATUS.md](docs/STATUS.md).
