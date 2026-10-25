@@ -28,8 +28,14 @@ Q_LINES=25 Q_LOG="$L".build.log "$q" swift build || { echo "BUILD FAILED"; exit 
 Q_LINES=25 Q_LOG="$L".test.log "$q" swift test || { echo "TESTS FAILED"; exit 12; }
 if [ -f project.yml ]; then
   Q_LINES=10 "$q" xcodegen generate >/dev/null || { echo "XCODEGEN FAILED"; exit 13; }
-  "$main/scripts/dev-cert.sh" --unlock >/dev/null 2>&1 || true  # the dev keychain auto-locks after 1 hour (QA-2.1)
-  Q_LINES=25 Q_LOG="$L".xcode.log "$q" xcodebuild -quiet -project Zones.xcodeproj -scheme Zones -configuration Debug -derivedDataPath .build/DerivedData CODE_SIGN_IDENTITY="Zones Dev" build || { echo "XCODEBUILD FAILED"; exit 13; }
+  if [ "${ZONES_UNSIGNED:-0}" = 1 ]; then
+    # Unsigned gate, as in CI: no keychain access, so no password dialog when the dev keychain cannot unlock.
+    sign=(CODE_SIGN_IDENTITY=- CODE_SIGNING_ALLOWED=NO)
+  else
+    "$main/scripts/dev-cert.sh" --unlock >/dev/null 2>&1 || true  # the dev keychain auto-locks after 1 hour (QA-2.1)
+    sign=(CODE_SIGN_IDENTITY="Zones Dev")
+  fi
+  Q_LINES=25 Q_LOG="$L".xcode.log "$q" xcodebuild -quiet -project Zones.xcodeproj -scheme Zones -configuration Debug -derivedDataPath .build/DerivedData "${sign[@]}" build || { echo "XCODEBUILD FAILED"; exit 13; }
 fi
 cd "$main"
 if ! git merge --no-ff -q -m "merge: $id into integration
