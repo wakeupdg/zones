@@ -1,2 +1,3 @@
 - slice 1-4: healthTickProbeFalseRevokes, suspectResolvesToGrantedOrRevoked (paths A and C), staleHeartbeatDoesNotRecoverSuspect, heartbeatIsolation green — granted health tick asks the trust probe; suspect resolves only on a true probe after tapRecreated(true) (builder run 1 stopped by the worktree guard; finished by the orchestrator)
 - AC-009 (manual): implementation done; worst case to badge is 8 s (5 s tick + 3 s suspect window), so the amended AC-009 says 8 s, not the brief's 5 s. Needs a human re-run after merge.
+- slice 5: spec — AC-007 and AC-009 amended, challenge C12 added
