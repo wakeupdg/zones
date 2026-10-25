@@ -1959,9 +1959,7 @@
     "kind": "fix",
     "delivers": "The macOS 14/15 and small-size app icon uses the hinted Figma frames (16/32 px) instead of the actool downscale; the macOS 26 Liquid Glass icon is unchanged.",
     "acceptance_ids": [],
-    "blocked_by": [
-      "T57"
-    ],
+    "blocked_by": [],
     "files_expected": [
       "App/AppIcon.icon",
       "App/Assets.xcassets",
@@ -1970,8 +1968,9 @@
     ],
     "est_tokens": 60000,
     "brief_path": "docs/tickets/T59.md",
-    "state": "todo",
-    "tokens_spent": 0
+    "state": "building",
+    "tokens_spent": 0,
+    "branch": "ticket/T59"
   },
   {
     "id": "T60",
@@ -1990,5 +1989,22 @@
     "tokens_spent": 2119108,
     "branch": "ticket/T60",
     "last_report": "merged fa8ff28"
+  },
+  {
+    "id": "T61",
+    "title": "App icon Dark, Clear and Tinted styles",
+    "kind": "fix",
+    "delivers": "The Icon Composer icon keeps a soft glow in Dark and a readable active zone in Clear and Tinted, approved by DG in a real render.",
+    "acceptance_ids": [],
+    "blocked_by": [],
+    "files_expected": [
+      "App/AppIcon.icon/icon.json",
+      "App/AppIcon.icon/Assets"
+    ],
+    "est_tokens": 80000,
+    "brief_path": "docs/tickets/T61.md",
+    "state": "building",
+    "tokens_spent": 0,
+    "branch": "ticket/T61"
   }
 ]
