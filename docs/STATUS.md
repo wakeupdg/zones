@@ -1,6 +1,6 @@
 # Zones — STATUS
 
-Phase: 5 (release) COMPLETE — 57 of 57 tickets done, 0 blocked (T55, T56 fix tickets from the human run); draft PR integration -> main and draft release v0.1.0
+Phase: 5 (release) COMPLETE — 57 of 57 tickets done, 0 blocked (T55, T56 fix tickets from the human run); draft PR integration -> main; release v0.1.0 PUBLISHED as a pre-release (9:15 PM PT, tag v0.1.0 -> f8448a0)
 Updated: 2026-10-24, end of Phase 5
 
 ## Result
@@ -8,7 +8,7 @@ Updated: 2026-10-24, end of Phase 5
 - Acceptance: 169 ACs. Auto 139: 139 pass, 0 fail. Manual 30: 6 pass in human runs on 2026-10-24 (AC-004, AC-005, AC-009, AC-010, AC-057, AC-066); AC-005 and AC-009 pass in the re-test after T55; 24 need a human run (list below). Source: docs/qa/acceptance-matrix.md.
 - Root `swift test`: 340 tests in 66 suites green (after T55, T56).
 - Release artifact: dist/Zones-0.1.0.dmg, 2,831,335 bytes (rebuilt 9:05 PM PT with T55 and T56), sha256 a6e42456c5ba3bda381b6cf37de1b97ac98b575cceab08f2409dbe23ef688ef0. Ad-hoc signed: `hdiutil verify` VALID, `codesign` ok, `spctl` rejects (no Developer ID).
-- Homebrew cask: Casks/zones.rb points at the v0.1.0 release asset; `depends_on macos: :sonoma`.
+- Homebrew cask: Casks/zones.rb points at the v0.1.0 release asset; `depends_on macos: :sonoma`. Checked after publish: public URL HTTP 200, sha256 matches; `brew tap` + `brew fetch --cask wakeupdg/zones/zones` pass (sandbox cache, tap removed after).
 
 ## Phase results
 - Phase 0/1/2: research, ADRs, LOCKED-SPEC (169 AC), CONTRACTS, 39 tickets. See git history.
@@ -39,7 +39,7 @@ AC-020, AC-023, AC-025, AC-028, AC-030, AC-040, AC-044, AC-046, AC-061, AC-064, 
 The list of record is "Known issues" in CHANGELOG.md (0.1.0). In short:
 - Live drag, Snap and overlay behavior is not verified on real hardware.
 - AC-009 failed in the first human run; T55 fixed it (C12); the re-test passed. T56 help line passed on screen.
-- Dev signing: the zones-dev keychain was recreated on 2026-10-24 (new Zones Dev cert 13d6ab…) after its stored password stopped working; T55 and T56 were merged with `ZONES_UNSIGNED=1`. /Applications/Zones.app is now the signed Debug build (old DMG copy in .build/backup/). The draft release DMG predates T55 and T56.
+- Dev signing: the zones-dev keychain was recreated on 2026-10-24 (new Zones Dev cert 13d6ab…) after its stored password stopped working; T55 and T56 were merged with `ZONES_UNSIGNED=1`. /Applications/Zones.app is now the signed Debug build (old DMG copy in .build/backup/). The published DMG includes T55 and T56.
 - The 24 open manual ACs above.
 - `scripts/dev-cert.sh` recovery path fails when the dev keychain exists but holds no identity (T51 review).
 - Copy Diagnostics has no menu item or button yet.
