@@ -1968,8 +1968,8 @@
     ],
     "est_tokens": 60000,
     "brief_path": "docs/tickets/T59.md",
-    "state": "building",
-    "tokens_spent": 1248417,
+    "state": "done",
+    "tokens_spent": 1259441,
     "branch": "ticket/T59"
   },
   {
@@ -2004,7 +2004,7 @@
     "est_tokens": 80000,
     "brief_path": "docs/tickets/T61.md",
     "state": "building",
-    "tokens_spent": 2276680,
+    "tokens_spent": 2288075,
     "branch": "ticket/T61"
   }
 ]
