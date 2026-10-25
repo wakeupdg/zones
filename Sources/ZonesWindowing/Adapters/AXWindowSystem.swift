@@ -75,9 +75,41 @@ enum AXGeometry {
   }
 }
 
-// MARK: Raw AX access (no policy; every call here is a single AX request)
+// MARK: Hit-test climb (pure over injected reads; tested without a live AX connection)
 
-private enum AXRaw {
+/// Where the climb from a hit element to its `AXWindow` ended.
+enum Climb<Element> {
+  case window(Element)
+  /// The hit element is menu-bar chrome, which belongs to no window.
+  case chrome
+  /// No window within reach: the caller falls back to the smallest containing window.
+  case lost
+  /// A read timed out. The app is hung, so no further call is made for this hit test.
+  case timedOut
+
+  /// `role` is one AX read; `up` is the `AXWindow` read, then `AXParent` when that fails. Each returns its raw code.
+  static func run(
+    from hit: Element, steps: Int, isChrome: (String?) -> Bool,
+    role: (Element) -> (code: Int32, role: String?), up: (Element) -> (code: Int32, element: Element?)
+  ) -> Climb {
+    var current = hit
+    for step in 0..<steps {
+      let read = role(current)
+      if read.code == AXCode.cannotComplete { return .timedOut }
+      if step == 0, isChrome(read.role) { return .chrome }
+      if read.role == kAXWindowRole { return .window(current) }
+      let next = up(current)
+      if next.code == AXCode.cannotComplete { return .timedOut }
+      guard let parent = next.element else { return .lost }
+      current = parent
+    }
+    return .lost
+  }
+}
+
+// MARK: Raw AX access (no policy; every call here is a single AX request, on WindowActor per ADR-0015)
+
+@WindowActor private enum AXRaw {
   struct Copied {
     var code: Int32
     var value: CFTypeRef?
@@ -157,19 +189,19 @@ public final class AXWindowSystem: WindowSystem {
     _ = AXUIElementSetMessagingTimeout(AXUIElementCreateSystemWide(), Float(processWide))
   }
 
-  private func applyTimeout(to element: AXUIElement) {
+  @WindowActor private func applyTimeout(to element: AXUIElement) {
     let seconds = perAppTimeout.withLock { $0 }
     _ = AXUIElementSetMessagingTimeout(element, Float(seconds))
   }
 
-  private func app(_ pid: pid_t) -> AXUIElement {
+  @WindowActor private func app(_ pid: pid_t) -> AXUIElement {
     let element = AXUIElementCreateApplication(pid)
     applyTimeout(to: element)
     return element
   }
 
   /// Every handle given out has the per-app timeout and a destroyed subscription.
-  private func makeHandle(_ element: AXUIElement, pid: pid_t) -> WindowHandle {
+  @WindowActor private func makeHandle(_ element: AXUIElement, pid: pid_t) -> WindowHandle {
     applyTimeout(to: element)
     let handle = WindowHandle(element: element, pid: pid)
     bridge.watch(handle)
@@ -196,7 +228,8 @@ public final class AXWindowSystem: WindowSystem {
   }
 
   /// Hit-tests the point (AppKit global). Climbs to the owning `AXWindow`; when that fails, falls back to the
-  /// smallest window of the hit element's process that contains the point. Menu bar, Dock and desktop give nil.
+  /// smallest window of the hit element's process that contains the point. Menu bar, Dock and desktop give nil, and
+  /// so does a timeout: a hung app gets no further call in this hit test.
   @WindowActor public func element(at point: CGPoint) -> WindowHandle? {
     let primary = primaryFrame()
     let axPoint = AXGeometry.ax(CGRect(origin: point, size: .zero), primaryFrame: primary).origin
@@ -205,23 +238,28 @@ public final class AXWindowSystem: WindowSystem {
       AXUIElementCreateSystemWide(), Float(axPoint.x), Float(axPoint.y), &hit)
     guard error == .success, let hit else { return nil }
     var pid: pid_t = 0
-    guard AXUIElementGetPid(hit, &pid) == .success else { return nil }
+    guard AXUIElementGetPid(hit, &pid) == .success, !isDock(pid) else { return nil }
     applyTimeout(to: hit)
-    let hitRole = AXRaw.string(AXRaw.copy(hit, kAXRoleAttribute).value)
-    if Self.chromeRoles.contains(hitRole ?? "") || isDock(pid) { return nil }
 
-    var current = hit
-    for _ in 0..<Self.maxClimb {
-      if AXRaw.string(AXRaw.copy(current, kAXRoleAttribute).value) == kAXWindowRole {
-        return makeHandle(current, pid: pid)
-      }
-      let next = AXRaw.copy(current, kAXWindowAttribute)
-      let parent = next.code == 0 ? next : AXRaw.copy(current, kAXParentAttribute)
-      guard let up = AXRaw.element(parent.value) else { break }
-      applyTimeout(to: up)
-      current = up
+    let climb = Climb.run(
+      from: hit, steps: Self.maxClimb, isChrome: { Self.chromeRoles.contains($0 ?? "") },
+      role: { element in
+        let read = AXRaw.copy(element, kAXRoleAttribute)
+        return (read.code, AXRaw.string(read.value))
+      },
+      up: { [self] element in
+        let window = AXRaw.copy(element, kAXWindowAttribute)
+        if window.code == AXCode.cannotComplete { return (window.code, nil) }
+        let parent = window.code == 0 ? window : AXRaw.copy(element, kAXParentAttribute)
+        let up = AXRaw.element(parent.value)
+        if let up { applyTimeout(to: up) }
+        return (parent.code, up)
+      })
+    switch climb {
+    case .window(let window): return makeHandle(window, pid: pid)
+    case .chrome, .timedOut: return nil
+    case .lost: return smallestWindow(of: pid, containing: point)
     }
-    return smallestWindow(of: pid, containing: point)
   }
 
   private static let chromeRoles: Set<String> = [
@@ -234,8 +272,10 @@ public final class AXWindowSystem: WindowSystem {
 
   @WindowActor private func smallestWindow(of pid: pid_t, containing point: CGPoint) -> WindowHandle? {
     var best: (handle: WindowHandle, area: CGFloat)?
-    for handle in windows(of: pid) {
-      guard case .value(let rect) = frame(handle), rect.contains(point) else { continue }
+    let handles = windows(of: pid)
+    let reads = frames(handles)  // stops reading this pid after its first timeout
+    for handle in handles {
+      guard case .value(let rect) = reads[handle.key], rect.contains(point) else { continue }
       let area = rect.width * rect.height
       if area < (best?.area ?? .greatestFiniteMagnitude) { best = (handle, area) }
     }

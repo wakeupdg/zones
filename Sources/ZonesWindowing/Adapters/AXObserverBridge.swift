@@ -49,22 +49,31 @@ final class NoticeHub: Sendable {
 }
 
 /// The refcon of one destroyed subscription. It carries the key, never the element: a destroyed element must not be
-/// hashed (CFHash on a dead element is meaningless).
+/// hashed (CFHash on a dead element is meaningless). AX holds it unretained, so the table keeps it until the pid's
+/// observer goes, even after `forget`.
 final class SubscriptionBox {
   let key: WindowKey
   let hub: NoticeHub
   weak var table: ObserverTable?
+  private var fired = false
 
   init(key: WindowKey, hub: NoticeHub, table: ObserverTable) {
     self.key = key
     self.hub = hub
     self.table = table
   }
+
+  /// True the first time only, so a repeated destroyed notification emits nothing. Observer thread only.
+  func fire() -> Bool {
+    defer { fired = true }
+    return !fired
+  }
 }
 
-private let destroyedCallback: AXObserverCallback = { _, _, _, refcon in
+let destroyedCallback: AXObserverCallback = { _, _, _, refcon in
   guard let refcon else { return }
   let box = Unmanaged<SubscriptionBox>.fromOpaque(refcon).takeUnretainedValue()
+  guard box.fire() else { return }
   box.hub.emit(.destroyed(box.key))
   box.table?.forget(box.key, pid: box.key.pid)
 }
@@ -74,6 +83,8 @@ final class ObserverTable {
   private struct Entry {
     var observer: AXObserver
     var boxes: [WindowKey: SubscriptionBox] = [:]
+    /// Forgotten boxes whose refcon AX may still hold; released with the observer (one small box per destroyed window).
+    var retired: [SubscriptionBox] = []
   }
 
   private var entries: [pid_t: Entry] = [:]
@@ -83,27 +94,33 @@ final class ObserverTable {
 
   func subscribe(_ handle: WindowHandle) {
     let key = handle.key
-    guard var entry = entry(for: handle.pid) else {
+    guard let observer = observer(for: handle.pid) else {
       hub.unwatch(key)
       return
     }
     let box = SubscriptionBox(key: key, hub: hub, table: self)
     let code = AXObserverAddNotification(
-      entry.observer, handle.element, kAXUIElementDestroyedNotification as CFString,
+      observer, handle.element, kAXUIElementDestroyedNotification as CFString,
       Unmanaged.passUnretained(box).toOpaque())
+    record(code, box, pid: handle.pid)
+  }
+
+  /// Files the result of one `AXObserverAddNotification`. Internal so tests can drive it without a live
+  /// registration; the pid's observer must exist.
+  func record(_ code: AXError, _ box: SubscriptionBox, pid: pid_t) {
     switch code {
     case .success:
-      entry.boxes[key] = box
+      if let old = entries[pid]?.boxes.updateValue(box, forKey: box.key) { entries[pid]?.retired.append(old) }
     case .notificationAlreadyRegistered:
       break  // an equivalent subscription exists; its box is already in the table
     default:
-      hub.unwatch(key)  // element gone, app hung or API disabled: a later handle may retry
+      hub.unwatch(box.key)  // element gone, app hung or API disabled: a later handle may retry
     }
-    entries[handle.pid] = entry
   }
 
+  /// The box moves to `retired`, not away: its AX registration and refcon stay until the observer is dropped.
   func forget(_ key: WindowKey, pid: pid_t) {
-    entries[pid]?.boxes.removeValue(forKey: key)
+    if let box = entries[pid]?.boxes.removeValue(forKey: key) { entries[pid]?.retired.append(box) }
     hub.unwatch(key)
   }
 
@@ -117,14 +134,14 @@ final class ObserverTable {
     for pid in Array(entries.keys) { drop(pid: pid) }
   }
 
-  private func entry(for pid: pid_t) -> Entry? {
-    if let existing = entries[pid] { return existing }
+  /// The pid's observer, created and added to this thread's run loop on first use. Internal for tests.
+  func observer(for pid: pid_t) -> AXObserver? {
+    if let existing = entries[pid] { return existing.observer }
     var observer: AXObserver?
     guard AXObserverCreate(pid, destroyedCallback, &observer) == .success, let observer else { return nil }
     CFRunLoopAddSource(CFRunLoopGetCurrent(), AXObserverGetRunLoopSource(observer), .defaultMode)
-    let created = Entry(observer: observer)
-    entries[pid] = created
-    return created
+    entries[pid] = Entry(observer: observer)
+    return observer
   }
 
   private func detach(_ observer: AXObserver) {

@@ -37,4 +37,36 @@ import ZonesCore
     bridge.stop(pid: pid)
     bridge.watch(handle)
   }
+
+  /// T64: AX keeps a subscription's refcon after `forget`, so the box must live until the pid's observer goes. A
+  /// second destroyed callback for the same refcon is ignored instead of reading freed memory.
+  @Test func forgottenBoxLivesUntilTheObserverGoes() async throws {
+    let hub = NoticeHub()
+    let table = ObserverTable(hub: hub)
+    let pid = getpid()
+    let key = WindowKey(pid: pid, elementHash: 99)
+    let observer = try #require(table.observer(for: pid))
+    var notices = hub.stream().makeAsyncIterator()
+    weak var weakBox: SubscriptionBox?
+    let refcon: UnsafeMutableRawPointer
+    do {
+      let box = SubscriptionBox(key: key, hub: hub, table: table)
+      weakBox = box
+      refcon = Unmanaged.passUnretained(box).toOpaque()
+      table.record(.success, box, pid: pid)
+    }
+    #expect(weakBox != nil)
+
+    let element = AXUIElementCreateApplication(pid)
+    let name = kAXUIElementDestroyedNotification as CFString
+    destroyedCallback(observer, element, name, refcon)  // forgets the key
+    #expect(weakBox != nil)  // AX still holds the refcon
+    if weakBox != nil { destroyedCallback(observer, element, name, refcon) }  // a duplicate delivery
+    hub.emit(.appTerminated(1))
+    #expect(await next(&notices) == .destroyed(key))
+    #expect(await next(&notices) == .appTerminated(1))
+
+    table.drop(pid: pid)
+    #expect(weakBox == nil)
+  }
 }

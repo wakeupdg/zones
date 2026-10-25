@@ -7,16 +7,89 @@ import os
 /// permission" case (ADR-0020), never a crash. Tests inject a maker so no live tap is created.
 struct TapMaker: Sendable {
   var make: @Sendable (TapConfig, UnsafeMutableRawPointer) -> CFMachPort?
+  var enable: @Sendable (CFMachPort, Bool) -> Void = { CGEvent.tapEnable(tap: $0, enable: $1) }
+  var isEnabled: @Sendable (CFMachPort) -> Bool = { CGEvent.tapIsEnabled(tap: $0) }
+}
+
+/// The queue between the tap callback and the one `events` consumer. Bounded for drags: with `dragLimit` drags
+/// queued, a new drag drops the oldest queued drag, so the newest pointer position always gets through and the
+/// rest keep their order. Down, up and flagsChanged are never dropped: each needs a human action, so they cannot
+/// flood the queue, and the drag reducer needs every one of them.
+final class InputBuffer: Sendable {
+  private struct State {
+    var queue: [InputEvent] = []
+    var drags = 0
+    /// The consumer, suspended on an empty queue.
+    var waiter: CheckedContinuation<InputEvent?, Never>?
+    var finished = false
+  }
+
+  let dragLimit: Int
+  private let state = OSAllocatedUnfairLock(initialState: State())
+
+  init(dragLimit: Int) { self.dragLimit = dragLimit }
+
+  /// The stream over this buffer. Cancelling its consumer finishes the buffer, as with a plain `AsyncStream`.
+  func stream() -> AsyncStream<InputEvent> {
+    AsyncStream(unfolding: { [self] in await next() }, onCancel: { [self] in finish() })
+  }
+
+  /// O(1) on the tap thread, except a drop, which scans for the oldest drag.
+  func push(_ event: InputEvent) {
+    let waiter = state.withLock { s -> CheckedContinuation<InputEvent?, Never>? in
+      if s.finished { return nil }
+      if let waiter = s.waiter {
+        s.waiter = nil
+        return waiter
+      }
+      if event.kind == .leftDragged {
+        if s.drags >= dragLimit, let oldest = s.queue.firstIndex(where: { $0.kind == .leftDragged }) {
+          s.queue.remove(at: oldest)
+        } else {
+          s.drags += 1
+        }
+      }
+      s.queue.append(event)
+      return nil
+    }
+    waiter?.resume(returning: event)
+  }
+
+  /// Queued events are still delivered after `finish()`; then nil.
+  func finish() {
+    let waiter = state.withLock { s -> CheckedContinuation<InputEvent?, Never>? in
+      s.finished = true
+      defer { s.waiter = nil }
+      return s.waiter
+    }
+    waiter?.resume(returning: nil)
+  }
+
+  private func next() async -> InputEvent? {
+    await withCheckedContinuation { continuation in
+      let ready = state.withLock { s -> InputEvent?? in
+        if !s.queue.isEmpty {
+          let event = s.queue.removeFirst()
+          if event.kind == .leftDragged { s.drags -= 1 }
+          return .some(event)
+        }
+        if s.finished { return .some(nil) }
+        s.waiter = continuation
+        return nil
+      }
+      if let ready { continuation.resume(returning: ready) }
+    }
+  }
 }
 
 /// What the `@convention(c)` tap callback reaches through `userInfo`. Immutable and `Sendable` by construction.
 final class TapCallbackBox: Sendable {
-  let events: AsyncStream<InputEvent>.Continuation
+  let events: InputBuffer
   let signals: AsyncStream<TapSignal>.Continuation
   let primaryFrame: @Sendable () -> CGRect
 
   init(
-    events: AsyncStream<InputEvent>.Continuation, signals: AsyncStream<TapSignal>.Continuation,
+    events: InputBuffer, signals: AsyncStream<TapSignal>.Continuation,
     primaryFrame: @escaping @Sendable () -> CGRect
   ) {
     self.events = events
@@ -32,7 +105,7 @@ final class TapCallbackBox: Sendable {
     case .tapDisabledByUserInput: signals.yield(.disabledByUserInput)
     default:
       if let input = EventTapInputSource.translate(type: type, event: event, primaryFrame: primaryFrame()) {
-        events.yield(input)
+        events.push(input)
       }
     }
   }
@@ -68,6 +141,12 @@ public final class EventTapInputSource: InputSource, Sendable {
   public let events: AsyncStream<InputEvent>
   public let signals: AsyncStream<TapSignal>
 
+  /// Queued drags kept for a slow consumer: about 0.25 s at 1000 Hz, 2 s at 120 Hz.
+  static let dragLimit = 256
+  /// Queued tap signals kept for a slow consumer, newest first: recovery acts on the latest tap state, and 32
+  /// queued signals mean the main actor has stalled.
+  static let signalLimit = 32
+
   let tapMaker: TapMaker
   private let box: TapCallbackBox
   var callbackBox: TapCallbackBox { box }
@@ -87,7 +166,7 @@ public final class EventTapInputSource: InputSource, Sendable {
   }
 
   private let state = OSAllocatedUnfairLock(uncheckedState: State())
-  /// Serializes start, stop and recreate so two callers cannot bring up two taps.
+  /// Serializes start, stop, reenable and recreate so two callers cannot bring up two taps.
   private let lifecycle = OSAllocatedUnfairLock()
 
   /// `primaryFrame` runs on the tap thread and must be safe to call from any thread.
@@ -100,11 +179,12 @@ public final class EventTapInputSource: InputSource, Sendable {
   ) {
     self.config = config
     self.tapMaker = tapMaker
-    let (events, eventsContinuation) = AsyncStream<InputEvent>.makeStream()
-    let (signals, signalsContinuation) = AsyncStream<TapSignal>.makeStream()
-    self.events = events
+    let buffer = InputBuffer(dragLimit: Self.dragLimit)
+    let (signals, signalsContinuation) = AsyncStream<TapSignal>.makeStream(
+      bufferingPolicy: .bufferingNewest(Self.signalLimit))
+    events = buffer.stream()
     self.signals = signals
-    box = TapCallbackBox(events: eventsContinuation, signals: signalsContinuation, primaryFrame: primaryFrame)
+    box = TapCallbackBox(events: buffer, signals: signalsContinuation, primaryFrame: primaryFrame)
   }
 
   deinit {
@@ -113,18 +193,26 @@ public final class EventTapInputSource: InputSource, Sendable {
     box.signals.finish()
   }
 
+  /// `.unavailable` also yields `.recreated(false)`, as a failed `recreate()` does.
   public func start() -> TapStart {
-    lifecycle.withLock { bringUp() }
+    lifecycle.withLock {
+      let result = bringUp()
+      if result == .unavailable { box.signals.yield(.recreated(false)) }
+      return result
+    }
   }
 
   public func stop() {
     lifecycle.withLock { teardown() }
   }
 
+  /// Under `lifecycle`, so a concurrent stop or recreate cannot invalidate the tap mid-call.
   public func reenable() -> Bool {
-    guard let tap = state.withLockUnchecked({ $0.runtime?.tap }) else { return false }
-    CGEvent.tapEnable(tap: tap, enable: true)
-    return CGEvent.tapIsEnabled(tap: tap)
+    lifecycle.withLock {
+      guard let tap = state.withLockUnchecked({ $0.runtime?.tap }) else { return false }
+      tapMaker.enable(tap, true)
+      return tapMaker.isEnabled(tap)
+    }
   }
 
   public func recreate() -> TapStart {
@@ -172,7 +260,7 @@ public final class EventTapInputSource: InputSource, Sendable {
       s.runtime = Runtime(tap: tap, runLoop: s.runLoop!, finished: finished)
       s.runLoop = nil
     }
-    CGEvent.tapEnable(tap: tap, enable: true)
+    tapMaker.enable(tap, true)
     return .started
   }
 
@@ -183,7 +271,7 @@ public final class EventTapInputSource: InputSource, Sendable {
       defer { s.runtime = nil }
       return s.runtime
     }) else { return }
-    CGEvent.tapEnable(tap: runtime.tap, enable: false)
+    tapMaker.enable(runtime.tap, false)
     CFMachPortInvalidate(runtime.tap)
     CFRunLoopStop(runtime.runLoop)
     CFRunLoopWakeUp(runtime.runLoop)
