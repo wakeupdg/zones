@@ -40,6 +40,6 @@ extension CompositionRoot {
         guard let app = NSWorkspace.shared.frontmostApplication, let id = app.bundleIdentifier else { return nil }
         return (name: app.localizedName ?? id, bundleID: id)
       },
-      cursor: { NSEvent.mouseLocation })
+      cursor: { NSEvent.mouseLocation }, logSink: UnifiedLogSink())
   }
 }

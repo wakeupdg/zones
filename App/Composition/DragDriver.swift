@@ -182,7 +182,11 @@ final class DragDriver {
     case .restore(let window, _): _ = await worker.restore(window, topology: topology.currentSnapshot())
     case .skip(let reason, let ref): Log.shared.skip(reason, ref, category: .input)
     case .log(let message):
-      Log.shared.event(LogEvent(time: clock.now, category: .input, level: .info, message: message))
+      // The press's front candidate names the app the line is about (T63); nil for a press with no candidate.
+      let ref = candidates.first
+      Log.shared.event(
+        LogEvent(
+          time: clock.now, category: .input, level: .info, message: message, bundleID: ref?.bundleID, pid: ref?.pid))
     }
   }
 

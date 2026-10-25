@@ -47,6 +47,8 @@ final class Harness {
   let overlay: FakeOverlayPresenter
   /// Wraps the fake overlay (to observe ordering against other fakes); defaults to the fake itself.
   var overlayOverride: (any OverlayPresenter)?
+  /// The sink the root installs on `Log.shared`; nil keeps the shared log as it is.
+  var logSink: (any LogSink)?
   let hotkeys: FakeHotkeyRegistrar
   let probe: FakePermissionProbe
   let files = FakeFileSystem()
@@ -84,7 +86,7 @@ final class Harness {
       ownPid: 999_999, runningApps: { running.withLock { $0 } }, bundleID: { _ in nil }, identify: { _ in nil },
       accessibilityOptions: { AccessibilityOptions(reduceTransparency: false, reduceMotion: false) },
       bundleInfo: { BundleInfo(version: "1.0", build: "1", signingIdentity: "ad-hoc", macOS: "27.0.0") },
-      frontmost: { frontmost.withLock { $0 } }, cursor: { .zero })
+      frontmost: { frontmost.withLock { $0 } }, cursor: { .zero }, logSink: logSink)
   }
 
   func makeRoot() -> CompositionRoot { CompositionRoot(adapters: adapters) }
