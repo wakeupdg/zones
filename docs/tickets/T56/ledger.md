@@ -1,0 +1,1 @@
+- slice 1: OnboardingViewStateTests.staleEntryHelpAppearsAtTenSeconds green — staleEntryHelp on OnboardingViewState, derive(_:relaunchOffered:waited:) (waited defaults to 0), help in notGranted/revoked at waited >= 10 s; timer choice: no new timer (AC-156 allows only the 1 s trust poll in notGranted/revoked), waited is refreshed on each trust-poll probe
