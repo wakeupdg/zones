@@ -2038,7 +2038,7 @@
     "est_tokens": 70000,
     "brief_path": "docs/tickets/T63.md",
     "state": "building",
-    "tokens_spent": 1229214,
+    "tokens_spent": 1241811,
     "branch": "ticket/T63"
   },
   {
@@ -2055,7 +2055,7 @@
     "est_tokens": 80000,
     "brief_path": "docs/tickets/T64.md",
     "state": "review",
-    "tokens_spent": 1199765,
+    "tokens_spent": 1211067,
     "branch": "ticket/T64"
   },
   {
@@ -2072,8 +2072,9 @@
     ],
     "est_tokens": 80000,
     "brief_path": "docs/tickets/T65.md",
-    "state": "review",
-    "tokens_spent": 1031216,
-    "branch": "ticket/T65"
+    "state": "done",
+    "tokens_spent": 1042519,
+    "branch": "ticket/T65",
+    "last_report": "merged ffd817a"
   }
 ]
