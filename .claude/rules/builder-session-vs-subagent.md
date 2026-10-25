@@ -23,6 +23,7 @@ DG, 2026-10-24: "We need to have some sort of logic to this that determines when
 2. `start_session` with `cwd` = that worktree and `use_worktree: false` (an app worktree may carry the same guard).
 3. Brief = the ticket file + the standard limits: no push, no merge, no `merge-ticket.sh`, unsigned build (`ZONES_UNSIGNED=1`), no keychain or `dev-cert.sh`, no `/Applications`, never relaunch or kill the running Zones app.
 4. Before `merge-ticket.sh <id>`: move the builder's untracked `READY.md` out of the worktree and delete any unsigned Debug app in its `.build/DerivedData`. The script commits all untracked files as "wip" (T60 put READY.md in integration, fa8ff28) and GateScriptTests fails on an unsigned app.
-5. The successor card lists the session links under RE-ARM FIRST as "running, no restart needed".
+5. After a ticket is merged or closed, propose to archive its session (list them, ask DG once, archive on yes). Never archive without DG's yes (DG, 2026-10-25: "parent sessions should clean up after their nested sessions ... but confirm with me before actually doing so").
+6. The successor card lists the session links under RE-ARM FIRST as "running, no restart needed".
 
 **Probe status (2026-10-24, session wt-probe in `../.zones-worktrees/T57`, `use_worktree: false`):** `xcodebuild -version`, `swift --version`, `xcodegen --version`, `git status`, `pwd` all ACCEPTED. The same `xcodebuild -version` is REFUSED in an isolated agent worktree. A full `swift test`/`xcodebuild` build was not run in the probe.
