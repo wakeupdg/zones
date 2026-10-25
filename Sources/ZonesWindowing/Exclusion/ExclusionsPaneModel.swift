@@ -11,13 +11,13 @@ public enum ExclusionsPaneModel {
     }
   }
 
-  /// One row per bundle id. `name` is `names[bundleID]`, or the bundle id when absent. Sorted by name
-  /// (case-insensitive), then bundle id.
+  /// One row per bundle id. `name` is `names[bundleID]`, or the bundle id when absent. Sorted by name the way
+  /// Finder sorts (`localizedStandardCompare`: case-insensitive, numbers by value), then bundle id.
   public static func rows(_ exclusions: Set<String>, names: [String: String]) -> [Row] {
     exclusions
       .map { Row(name: names[$0] ?? $0, bundleID: $0) }
       .sorted { lhs, rhs in
-        let order = lhs.name.caseInsensitiveCompare(rhs.name)
+        let order = lhs.name.localizedStandardCompare(rhs.name)
         if order != .orderedSame { return order == .orderedAscending }
         return lhs.bundleID < rhs.bundleID
       }

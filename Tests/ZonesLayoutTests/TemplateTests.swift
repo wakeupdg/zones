@@ -20,7 +20,7 @@ struct TemplateTests {
     #expect(Template.allCases.map(\.rawValue) == ["Columns", "Rows", "Grid", "Priority Grid", "Focus"])
     for template in Template.allCases {
       for count in template.counts {
-        let layout = Templates.generate(template, count: count, insets: zeroInsets)
+        let layout = Templates.generate(template, count: count, insets: zeroInsets)!
         #expect(layout.name == template.rawValue, "\(template) \(count)")
         let zones = resolve(layout).zones
         #expect(zones.count == count, "\(template) \(count)")
@@ -58,8 +58,17 @@ struct TemplateTests {
     }
   }
 
+  /// T65: a count the Template does not offer (Grid 6, Columns 7, ...) is refused, never built as another shape.
+  @Test func unsupportedCountsAreRejected() {
+    for template in Template.allCases {
+      for count in 0...16 where !template.counts.contains(count) {
+        #expect(Templates.generate(template, count: count, insets: zeroInsets) == nil, "\(template) \(count)")
+      }
+    }
+  }
+
   @Test func focusIsOneCenteredZone() {
-    let layout = Templates.generate(.focus, count: 1, insets: zeroInsets)
+    let layout = Templates.generate(.focus, count: 1, insets: zeroInsets)!
     #expect(layout.root == .leaf)
     #expect(layout.surround == Surround(top: 0.2, left: 0.2, bottom: 0.2, right: 0.2))
     let r = resolve(layout)
@@ -103,7 +112,7 @@ struct LayoutValidatorTests {
     #expect(LayoutValidator.validate(layout(.leaf)) == nil)
 
     // Ratio outside (0,1), reported at the right path.
-    for bad in [0.0, 1.0, -0.2, Double.nan] {
+    for bad in [0.0, 1.0, Double.nan] {
       #expect(
         LayoutValidator.validate(layout(.split(axis: .horizontal, ratio: bad, first: .leaf, second: .leaf)))
           == .ratioOutOfRange(NodePath(steps: [])), "root ratio \(bad)")
@@ -114,7 +123,7 @@ struct LayoutValidatorTests {
     // First bad ratio in depth-first order wins.
     let twoBad = SplitNode.split(
       axis: .horizontal, ratio: 0.5,
-      first: .split(axis: .vertical, ratio: 1.5, first: .leaf, second: .leaf),
+      first: .split(axis: .vertical, ratio: 1, first: .leaf, second: .leaf),
       second: .split(axis: .vertical, ratio: 0, first: .leaf, second: .leaf))
     #expect(LayoutValidator.validate(layout(twoBad)) == .ratioOutOfRange(NodePath(steps: [false])))
 
@@ -149,5 +158,29 @@ struct LayoutValidatorTests {
       axis: .horizontal, ratio: 0.01, first: .leaf,
       second: .split(axis: .vertical, ratio: 1, first: .leaf, second: .leaf))
     #expect(LayoutValidator.validate(layout(ratioAndTiny)) == .ratioOutOfRange(NodePath(steps: [true])))
+  }
+
+  /// T65, AC-151 overlap variant: a ratio below 0 or above 1 makes the first child reach past its parent, so two
+  /// leaves share positive area. That is `overlap`; a ratio of exactly 0 or 1 (a zero-area leaf) stays
+  /// `ratioOutOfRange`.
+  @Test func overlappingLeavesAreDetected() {
+    for bad in [1.5, -0.2, 2.0] {
+      #expect(
+        LayoutValidator.validate(layout(.split(axis: .horizontal, ratio: bad, first: .leaf, second: .leaf)))
+          == .overlap, "root ratio \(bad)")
+      #expect(LayoutValidator.validate(layout(twoLevel(inner: bad))) == .overlap, "nested ratio \(bad)")
+    }
+    // Overlap is a tree fault: name and surround still come first, and it outranks a bad ratio elsewhere.
+    let overlapping = SplitNode.split(axis: .vertical, ratio: 1.25, first: .leaf, second: .leaf)
+    #expect(LayoutValidator.validate(layout(overlapping, name: " ")) == .emptyName)
+    #expect(
+      LayoutValidator.validate(layout(overlapping, surround: Surround(top: 0.9, left: 0, bottom: 0, right: 0)))
+        == .surroundOutOfRange)
+    let both = SplitNode.split(
+      axis: .horizontal, ratio: 0.5, first: .split(axis: .vertical, ratio: 1, first: .leaf, second: .leaf),
+      second: overlapping)
+    #expect(LayoutValidator.validate(layout(both)) == .overlap)
+    // Every tree whose ratios are inside (0,1) tiles: shared edges are not an overlap.
+    for built in Templates.all(insets: zeroInsets) { #expect(LayoutValidator.validate(built) != .overlap) }
   }
 }

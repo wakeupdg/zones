@@ -75,6 +75,8 @@ final class EditorEffectRouter {
     case .rootMerge: "The whole Layout is one Zone; there is nothing to merge."
     case .invalidRatio: "That divider cannot move any further."
     case .nothingSelected: "Select a Zone first."
+    case .emptyName: "Give the Layout a name before you save it."
+    case .surroundOutOfRange: "The space around the Zones is out of range (0 to 45 percent on each side)."
     }
   }
 

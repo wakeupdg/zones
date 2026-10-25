@@ -11,8 +11,10 @@ public enum Templates {
   }
 
   /// The Layout for `t` with `count` Zones. `name` is `t.rawValue` (no count suffix); the id and `builtIn`
-  /// distinguish counts. Surround is zero except for Focus.
-  public static func generate(_ t: Template, count: Int, insets: Insets) -> Layout {
+  /// distinguish counts. Surround is zero except for Focus. Nil when `count` is not one of `t.counts`
+  /// (for example Grid 6): an unsupported count is refused, never built as another shape.
+  public static func generate(_ t: Template, count: Int, insets: Insets) -> Layout? {
+    guard t.counts.contains(count) else { return nil }
     let zero = Surround(top: 0, left: 0, bottom: 0, right: 0)
     let f = Constants.focusSurround
     let surround = t == .focus ? Surround(top: f, left: f, bottom: f, right: f) : zero
@@ -23,7 +25,7 @@ public enum Templates {
 
   /// Every built-in, in `Template.allCases` order with each Template's counts ascending: 12 Layouts.
   public static func all(insets: Insets) -> [Layout] {
-    Template.allCases.flatMap { t in t.counts.map { generate(t, count: $0, insets: insets) } }
+    Template.allCases.flatMap { t in t.counts.compactMap { generate(t, count: $0, insets: insets) } }
   }
 
   /// A custom copy: fresh id, name "<name> copy", no `builtIn`, `insets` (the current defaults) made explicit.
@@ -47,7 +49,7 @@ public enum Templates {
     switch t {
     case .columns: strip(.horizontal, count: count)
     case .rows: strip(.vertical, count: count)
-    case .grid: grid(side: count == 9 ? 3 : 2)
+    case .grid: grid(side: count == 9 ? 3 : 2)  // `generate` admits only 4 and 9
     case .priorityGrid:
       .split(
         axis: .horizontal, ratio: 0.25, first: .leaf,

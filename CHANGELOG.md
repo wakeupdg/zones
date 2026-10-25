@@ -10,6 +10,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - App icon (Icon Composer `App/AppIcon.icon`, Liquid Glass tiles on macOS 26, flat fallback for 14/15) and the direction B menu-bar glyph in place of the SF Symbol.
 
+### Fixed
+
+- `Templates.generate` refuses a count its Template does not offer (it returns nil); Grid 6 no longer builds a
+  2 x 2 grid (T12, T65).
+- `LayoutValidator` reports `.overlap` when a ratio below 0 or above 1 makes two leaves share area; import tests
+  cover the AC-151 overlap variant (T17, T65).
+- The editor reports an empty name and a surround fault with their own messages, not as an invalid ratio
+  (`EditorError.emptyName`, `.surroundOutOfRange`; T28/T30, T65).
+- The Exclusions pane sorts names like Finder (`localizedStandardCompare`, so "App 2" comes before "App 10";
+  T14, T65).
+
 ## [0.1.0] - 2026-10-24
 
 First pre-release. Built and unit-tested, but not yet verified on real hardware.
@@ -111,15 +122,11 @@ First pre-release. Built and unit-tested, but not yet verified on real hardware.
 - Copy Diagnostics is built and tested, but no menu item or button in the app calls it yet.
 - `AXObserverBridge` keeps a dangling refcon after `forget`; `element(at:)` keeps issuing Accessibility calls
   after a timeout; private Accessibility helpers lack `@WindowActor` (T13).
-- `Templates.generate(.grid, count:)` silently builds a 2 x 2 grid for counts other than 4 and 9 (T12).
-- `LayoutValidator` never returns `.overlap`, so the overlap variant of AC-151 is untested (T17).
 - `EventTapInputSource` streams use unbounded buffers; `reenable()` runs outside the lifecycle lock;
   `start() == .unavailable` emits no tap signal (T23).
-- The Exclusions pane sorts with `caseInsensitiveCompare`, not `localizedStandardCompare` (T14).
 - The onboarding window always activates the app when shown, which can steal focus on permission loss (T33).
 - After a topology change during a drag, Span Zone numbers come from the old Layout; a number missing from the
   new Layout shrinks the drop rectangle silently (T39 review).
-- `EditorError` has no case for an empty name or a surround fault; both are reported as an invalid ratio (T28/T30).
 
 [Unreleased]: https://github.com/wakeupdg/zones/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/wakeupdg/zones/releases/tag/v0.1.0

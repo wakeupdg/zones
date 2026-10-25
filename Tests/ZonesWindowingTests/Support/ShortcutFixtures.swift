@@ -19,7 +19,7 @@ enum ShortcutFixtures {
   static func resolved(
     _ template: Template, count: Int, key: DisplayKey = displayA, visible: CGRect = visibleA, scale: Double = 2
   ) -> ResolvedLayout {
-    let layout = Templates.generate(template, count: count, insets: Insets(margin: 0, gap: 0))
+    let layout = Templates.generate(template, count: count, insets: Insets(margin: 0, gap: 0))!
     return LayoutMath.resolve(layout, key: key, visibleFrame: visible, scale: scale)
   }
 

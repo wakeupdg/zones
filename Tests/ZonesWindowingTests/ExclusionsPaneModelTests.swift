@@ -30,6 +30,14 @@ import ZonesWindowing
     #expect(ExclusionsPaneModel.rows([], names: [:]).isEmpty)
   }
 
+  /// T65: names sort the way Finder sorts them (`localizedStandardCompare`): numbers by value, case ignored.
+  @Test func rowsSortLikeFinder() {
+    let ids: Set<String> = ["com.a.ten", "com.a.two", "com.a.one", "com.a.lower"]
+    let rows = ExclusionsPaneModel.rows(
+      ids, names: ["com.a.ten": "App 10", "com.a.two": "App 2", "com.a.one": "App 1", "com.a.lower": "app 3"])
+    #expect(rows.map(\.name) == ["App 1", "App 2", "app 3", "App 10"])
+  }
+
   @Test func addFromFileURL() throws {
     let root = FileManager.default.temporaryDirectory
       .appendingPathComponent("zones-t14-\(UUID().uuidString)")

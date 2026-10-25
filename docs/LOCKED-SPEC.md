@@ -777,9 +777,9 @@ Statement: The Template command replaces the draft with the chosen Template at t
 Covers: US-116
 Verify: `swift test --filter EditorCommandTests.templatePicker`.
 ### AC-139 (manual) — Keyboard-only editor loop
-Statement: From a fresh Layout with its single Zone selected, the keystrokes H, H, Command-S, Command-Shift-A, Command-W produce a three-column Layout (three Zones side by side, per AC-127) saved and assigned to the current Display without touching the mouse.
+Statement: From a Template copy with its single Zone selected (open the editor, Template → Focus 1, select the Zone; C15), the keystrokes H, H, Command-S, Command-Shift-A, Command-W produce a three-column Layout (three Zones side by side, per AC-127) saved and assigned to the current Display without touching the mouse after the Zone is selected.
 Covers: US-105, US-114, US-112
-Verify: Perform the keystrokes; Shift-drag a window to confirm the Overlay shows three side-by-side Zones on that Display, and the Layouts pane shows the new Layout assigned to it.
+Verify: With the editor as the key window, perform the keystrokes; Shift-drag a window to confirm the Overlay shows three side-by-side Zones on that Display, and the Layouts pane shows the new Layout assigned to it. The Layout keeps the draft's name and the Focus surround (AC-138, C1), so the three Zones sit in the center 60 percent.
 
 ### Appearance and Exclusions
 ### AC-140 (auto) — Appearance preferences
@@ -998,6 +998,7 @@ Each spike returns a verdict note before the dependent tickets start. "Depends" 
 - C11 ADR-0024 / AC-160 (2026-10-24, user decision): CI on every push exhausted the free GitHub Actions allowance for macOS runners on a private repository. CI now runs on pull requests to `main` and on manual dispatch; `scripts/merge-ticket.sh` is the per-ticket gate; the repository goes public at release. Recorded as ADR-0026; AC-160 amended.
 - C12 AC-007 / AC-009 (2026-10-24, human run and SPK-006 trial 1): on macOS 27.0.1 revocation leaves the listen-only tap enabled and AX reads succeeding (never apiDisabled); only `AXIsProcessTrusted()` turns false. The granted 5 s health tick now asks the trust probe, and suspect returns to granted only on a true probe. AC-009 failed before this (no badge in 12.5 min). AC-007 and AC-009 amended; timer set of AC-156 unchanged.
 - C13 ADR-0021 / AC-004 (2026-10-24, user report): after a Debug build signed with Zones Dev, the ad-hoc DMG copy met an Accessibility entry already ON in System Settings but keyed to the old signature, so the app stayed untrusted, toggling did not help and the onboarding window gave no instruction. Every update of an ad-hoc build meets this state, and `AXIsProcessTrusted()` cannot tell it apart from notGranted. The window now shows a remove-and-re-add help line after 10 s in notGranted or revoked, driven by the existing 1 s trust poll (no new timer, AC-156); no prompt and no `tccutil` (ADR-0021 unchanged). Recorded as T56; AC-004 amended.
+- C15 AC-139 (2026-10-25, user decision): the editor has no "New Layout" action, so "a fresh Layout" named a start state the app cannot reach. The loop now starts from a Template copy: the editor opens on a custom copy of the Display's Layout, Template → Focus 1 (the only one-Zone Template) replaces its tree, and one click selects the Zone. What AC-139 proves is unchanged: H, H, Command-S, Command-Shift-A, Command-W give three side-by-side Zones, saved and assigned to the current Display, from the keyboard. By AC-138 the copy keeps the draft's name (for example "Priority Grid copy"), and by C1 it takes the Focus surround 0.2; both are by spec. A "New Layout" action is a feature for after v0.1.1. Recorded as T65; AC-139 amended.
 
 ## 9. Traceability
 

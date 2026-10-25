@@ -82,9 +82,10 @@ public enum EditorModel {
       var layout = s.draft.layout
       switch LayoutValidator.validate(layout) {
       case .leafTooSmall?: return (s, [.error(.tooSmall)])
+      case .emptyName?: return (s, [.error(.emptyName)])
+      case .surroundOutOfRange?: return (s, [.error(.surroundOutOfRange)])
+      case .ratioOutOfRange?, .overlap?: return (s, [.error(.invalidRatio)])
       case nil: break
-      // No EditorError case exists for an empty name or a bad surround; they report as invalidRatio (see T30 ledger).
-      case .some: return (s, [.error(.invalidRatio)])
       }
       layout.builtIn = nil
       var document = context.document

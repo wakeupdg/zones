@@ -33,7 +33,7 @@ struct BuiltInLayoutTests {
     // Never persisted: a built-in encodes without a builtIn key, a duplicate carries no builtin id.
     let builtInText = String(decoding: try JSONEncoder().encode(first[9]), as: UTF8.self)
     #expect(!builtInText.contains("builtIn"))
-    let original = Templates.generate(.grid, count: 9, insets: Insets(margin: 0, gap: 0))
+    let original = Templates.generate(.grid, count: 9, insets: Insets(margin: 0, gap: 0))!
     #expect(original.id == Templates.builtInID(.grid, count: 9))
     let newID = LayoutID(rawValue: UUID().uuidString)
     let copy = Templates.duplicate(original, insets: insets, newID: newID)

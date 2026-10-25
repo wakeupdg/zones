@@ -14,7 +14,7 @@ private let topology = Fixtures.threeDisplays
 private let noInsets = Insets(margin: 0, gap: 0)
 
 private func columns(_ count: Int = 2, insets: Insets = noInsets) -> Layout {
-  var l = Templates.generate(.columns, count: count, insets: insets)
+  var l = Templates.generate(.columns, count: count, insets: insets)!
   l.id = LayoutID(rawValue: "custom-1")
   l.builtIn = nil
   return l
@@ -277,5 +277,60 @@ struct EditorModelTests {
     #expect(cancelEffects == [.close])
     #expect(cancelled == state)
     #expect(quiet.calls.isEmpty)
+  }
+
+  /// T65 (T28/T30 known issue): an empty name and a surround fault have their own errors, not `invalidRatio`.
+  @Test func saveReportsNameAndSurroundFaults() {
+    let state = EditorModel.open(columns(), display: primaryKey, topology: topology, assignments: [:])
+    var blank = state
+    blank.draft.layout.name = "   "
+    let (unchanged, blankEffects) = step(blank, .save)
+    #expect(blankEffects == [.error(.emptyName)])
+    #expect(unchanged == blank)
+    var wide = state
+    wide.draft.layout.surround = Surround(top: 0.5, left: 0, bottom: 0, right: 0)
+    #expect(step(wide, .save).1 == [.error(.surroundOutOfRange)])
+    // Overlapping leaves and a bad ratio keep the divider error.
+    var overlapping = state
+    overlapping.draft.layout.root = .split(axis: .horizontal, ratio: 1.5, first: .leaf, second: .leaf)
+    #expect(step(overlapping, .save).1 == [.error(.invalidRatio)])
+  }
+
+  /// T65, AC-139 as amended by C15: the editor opens on the assigned built-in (Priority Grid 3 by default) as a
+  /// custom copy, Template -> Focus 1 replaces the tree and surround and keeps the draft's name (AC-138), the Zone
+  /// is selected, and H, H give exactly three side-by-side Zones.
+  @Test func ac139TemplateCopyLoop() throws {
+    let insets = Insets(margin: 8, gap: 8)
+    let builtIn = try #require(Templates.generate(.priorityGrid, count: 3, insets: insets))
+    let copy = Templates.duplicate(builtIn, insets: insets, newID: LayoutID(rawValue: "copy-1"))
+    #expect(copy.name == "Priority Grid copy")
+    let focusCopy = Templates.duplicate(
+      try #require(Templates.generate(.focus, count: 1, insets: insets)), insets: insets,
+      newID: LayoutID(rawValue: "copy-2"))
+    #expect(focusCopy.name == "Focus copy")
+
+    var state = EditorModel.open(copy, display: primaryKey, topology: topology, assignments: [:])
+    (state, _) = step(state, .command(.template(.focus, count: 1)))
+    #expect(state.draft.layout.name == "Priority Grid copy")
+    #expect(state.draft.layout.root == .leaf)
+    #expect(state.draft.layout.surround == Surround(top: 0.2, left: 0.2, bottom: 0.2, right: 0.2))
+    #expect(state.draft.selection == nil)
+
+    (state, _) = step(state, .command(.select(NodePath(steps: []))))
+    (state, _) = step(state, .command(.split(.horizontal)))
+    #expect(leafCount(state.draft.layout.root) == 2)
+    (state, _) = step(state, .command(.split(.horizontal)))
+    #expect(leafCount(state.draft.layout.root) == 3)
+    let (saved, effects) = step(state, .save)
+    guard case .writeLayouts(let doc)? = effects.first else {
+      Issue.record("save wrote nothing: \(effects)")
+      return
+    }
+    let stored = try #require(doc.layouts.first { $0.id == copy.id })
+    #expect(leafCount(stored.root) == 3)
+    let zones = saved.preview.zones.sorted { $0.frame.minX < $1.frame.minX }
+    #expect(zones.count == 3)
+    #expect(zones.allSatisfy { $0.frame.minY == zones[0].frame.minY && $0.frame.height == zones[0].frame.height })
+    for (left, right) in zip(zones, zones.dropFirst()) { #expect(left.frame.maxX <= right.frame.minX) }
   }
 }
