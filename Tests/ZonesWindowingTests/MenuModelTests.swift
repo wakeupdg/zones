@@ -49,10 +49,10 @@ import ZonesWindowing
     }
     expected += [
       .excludeApp(name: "Safari", bundleID: "com.apple.Safari", checked: true),
-      .editLayouts, .settings, .grantAccessibility, .about, .quit,
+      .editLayouts, .settings, .grantAccessibility, .about, .copyDiagnostics, .quit,
     ]
     #expect(items == expected)
-    #expect(items.count == 1 + 12 + 2 + 1 + 5)
+    #expect(items.count == 1 + 12 + 2 + 1 + 6)
     #expect(items.contains(.layout(Self.columns3, title: "Columns 3", checked: true)))
     #expect(items.contains(.layout(Self.desk.id, title: "Desk", checked: false)))
   }

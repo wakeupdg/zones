@@ -52,6 +52,7 @@ final class CompositionRoot {
       bundle: adapters.bundleInfo)
     menu = MenuController(
       appState: state, topology: topology, permission: permission, ui: adapters.ui,
+      copyDiagnostics: { [diagnostics] in diagnostics.copyDiagnostics() },
       frontmost: adapters.frontmost, cursor: adapters.cursor)
     drag.onIdleChange = { [shortcuts] idle in shortcuts.receive(.reducerIdle(idle)) }
     permission.onWindowHotkeys = { [shortcuts] granted in shortcuts.receive(.permission(granted: granted)) }
