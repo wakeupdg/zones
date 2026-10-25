@@ -2003,8 +2003,9 @@
     ],
     "est_tokens": 80000,
     "brief_path": "docs/tickets/T61.md",
-    "state": "review",
-    "tokens_spent": 3689219,
-    "branch": "ticket/T61"
+    "state": "done",
+    "tokens_spent": 3711269,
+    "branch": "ticket/T61",
+    "last_report": "merged 38432ad"
   }
 ]
