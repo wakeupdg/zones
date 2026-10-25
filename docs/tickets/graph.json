@@ -3,7 +3,7 @@
     "id": "T01",
     "title": "Scaffold A: Package.swift, ZonesCore/ZonesLayout contract types, test support, smoke tests",
     "kind": "prefactor",
-    "delivers": "Root Package.swift (ZonesCore, ZonesLayout, ZonesWindowing stub, ZonesTestSupport, three test targets, Swift 6 language mode, warnings as errors); verbatim ZonesCore and ZonesLayout contract types from CONTRACTS \u00a71 and \u00a74 (Generator, FakeClock, Fixtures); WindowActor global actor; one smoke test per test target; scripts/bootstrap.sh exits 0; swift test passes; CI workflow runs swift test.",
+    "delivers": "Root Package.swift (ZonesCore, ZonesLayout, ZonesWindowing stub, ZonesTestSupport, three test targets, Swift 6 language mode, warnings as errors); verbatim ZonesCore and ZonesLayout contract types from CONTRACTS §1 and §4 (Generator, FakeClock, Fixtures); WindowActor global actor; one smoke test per test target; scripts/bootstrap.sh exits 0; swift test passes; CI workflow runs swift test.",
     "acceptance_ids": [
       "AC-160"
     ],
@@ -48,7 +48,7 @@
     "id": "T01b",
     "title": "Scaffold B: ZonesWindowing seams and shared message types, XcodeGen menu-bar app shell",
     "kind": "prefactor",
-    "delivers": "Verbatim seam protocols (WindowHandle as the single @unchecked Sendable, WindowSystem, WindowEnumerator, InputSource, DisplayProvider, OverlayPresenter, HotkeyRegistrar, LoginItemService, PermissionProbe) and shared message types (CONTRACTS \u00a73.0, \u00a73.1, \u00a73.2 shells, \u00a73.5, \u00a73.9); project.yml for the XcodeGen app target Zones under App/ (LSUIElement, hardened runtime, no sandbox, strict concurrency, warnings as errors, Zones Dev identity when present) with AppTests skeleton; a menu-bar shell with a status item and Quit that launches and quits; xcodebuild build green.",
+    "delivers": "Verbatim seam protocols (WindowHandle as the single @unchecked Sendable, WindowSystem, WindowEnumerator, InputSource, DisplayProvider, OverlayPresenter, HotkeyRegistrar, LoginItemService, PermissionProbe) and shared message types (CONTRACTS §3.0, §3.1, §3.2 shells, §3.5, §3.9); project.yml for the XcodeGen app target Zones under App/ (LSUIElement, hardened runtime, no sandbox, strict concurrency, warnings as errors, Zones Dev identity when present) with AppTests skeleton; a menu-bar shell with a status item and Quit that launches and quits; xcodebuild build green.",
     "acceptance_ids": [
       "AC-001",
       "AC-161"
@@ -326,7 +326,7 @@
     "id": "T10",
     "title": "Documents and preferences: codec, atomic DocumentStore, quarantine, migration with golden fixtures, Preferences coercion",
     "kind": "build",
-    "delivers": "ZonesDocument Codable with the \u00a71.8 field names and PersistentDisplayKey rejecting non-UUID keys; DocumentStore over FileSystem with synchronous atomic writes, timestamped backups and quarantine of undecodable files; Migrator with golden fixtures per version and a fixture-hash test; export round trip through the same decoder; newer-version refusal and untouched newer disk files; PreferencesCodec field-by-field coercion with notice flags, Preferences.defaults, modifier coercion so Span differs from Activation, Appearance round trip and AppearancePaneModel.listsFollowers (Layouts following the default Insets).",
+    "delivers": "ZonesDocument Codable with the §1.8 field names and PersistentDisplayKey rejecting non-UUID keys; DocumentStore over FileSystem with synchronous atomic writes, timestamped backups and quarantine of undecodable files; Migrator with golden fixtures per version and a fixture-hash test; export round trip through the same decoder; newer-version refusal and untouched newer disk files; PreferencesCodec field-by-field coercion with notice flags, Preferences.defaults, modifier coercion so Span differs from Activation, Appearance round trip and AppearancePaneModel.listsFollowers (Layouts following the default Insets).",
     "acceptance_ids": [
       "AC-087",
       "AC-140",
@@ -982,7 +982,7 @@
     "id": "T29",
     "title": "Shell models: menu, status item, General status rows, login-launch path, quit sequence",
     "kind": "build",
-    "delivers": "MenuModel.build in the AC-016 order (disabled header '<Display> \u2014 <Layout>', radio group of Templates with counts then custom Layouts, checkable Exclude <App>, Edit Layouts, Settings, Grant Accessibility only when not granted, About, Quit) with zero WindowActor calls; StatusItemModel badge table and template image flag; GeneralPaneModel exactly two status rows; AppLifecycle.quitEffects in order disableTap, invalidateTap, orderPanelsOut, drainEnhancedUI, removeRecoveryRecord and wakeEffects; AppLaunchTests.loginLaunchShowsNoWindow over the permission machine with launchedAtLogin.",
+    "delivers": "MenuModel.build in the AC-016 order (disabled header '<Display> — <Layout>', radio group of Templates with counts then custom Layouts, checkable Exclude <App>, Edit Layouts, Settings, Grant Accessibility only when not granted, About, Quit) with zero WindowActor calls; StatusItemModel badge table and template image flag; GeneralPaneModel exactly two status rows; AppLifecycle.quitEffects in order disableTap, invalidateTap, orderPanelsOut, drainEnhancedUI, removeRecoveryRecord and wakeEffects; AppLaunchTests.loginLaunchShowsNoWindow over the permission machine with launchedAtLogin.",
     "acceptance_ids": [
       "AC-012",
       "AC-016",
@@ -2020,8 +2020,9 @@
     ],
     "est_tokens": 30000,
     "brief_path": "docs/tickets/T62.md",
-    "state": "todo",
-    "tokens_spent": 0
+    "state": "building",
+    "tokens_spent": 0,
+    "branch": "ticket/T62"
   },
   {
     "id": "T63",
@@ -2035,8 +2036,9 @@
     ],
     "est_tokens": 70000,
     "brief_path": "docs/tickets/T63.md",
-    "state": "todo",
-    "tokens_spent": 0
+    "state": "building",
+    "tokens_spent": 0,
+    "branch": "ticket/T63"
   },
   {
     "id": "T64",
@@ -2051,8 +2053,9 @@
     ],
     "est_tokens": 80000,
     "brief_path": "docs/tickets/T64.md",
-    "state": "todo",
-    "tokens_spent": 0
+    "state": "building",
+    "tokens_spent": 0,
+    "branch": "ticket/T64"
   },
   {
     "id": "T65",
@@ -2068,7 +2071,8 @@
     ],
     "est_tokens": 80000,
     "brief_path": "docs/tickets/T65.md",
-    "state": "todo",
-    "tokens_spent": 0
+    "state": "building",
+    "tokens_spent": 0,
+    "branch": "ticket/T65"
   }
 ]
