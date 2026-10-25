@@ -24,7 +24,7 @@ public struct OnboardingViewState: Hashable, Sendable {
   }
 
   static let relaunchSentence = "Zones must quit and reopen to pick up the restored Accessibility permission."
-  static let staleEntrySentence =
+  public static let staleEntrySentence =
     "Is Zones already on in the list? Select Zones, click the minus button (−) to remove it, then click Open System Settings and turn Zones on again."
   /// Seconds on the Clock the window waits in `notGranted` or `revoked` before the stale-entry help line shows.
   public static let staleEntryDelay: TimeInterval = 10

@@ -86,6 +86,21 @@ import os
     #expect(h.input.calls == [.start])
   }
 
+  /// T56: every trust-poll probe reaches `onTrustPoll` once, after the machine has seen the result, so the
+  /// onboarding window's help line rides the existing 1 s poll (AC-156: no timer of its own).
+  @Test func probeReportsTrustPollAfterTheMachine() async {
+    let h = Harness()
+    h.probe.enqueue(.trusted(false))
+    let root = h.makeRoot()
+    var seen: [PermissionState] = []
+    root.permission.onTrustPoll = { [weak root] in seen.append(root?.permission.state ?? .granted) }
+    root.permission.interpret(.probe)
+    #expect(seen == [.notGranted])
+    h.probe.enqueue(.trusted(true))
+    root.permission.interpret(.probe)
+    #expect(seen == [.notGranted, .granted])
+  }
+
   @Test func disabledTapIsReenabledThenDeclaredLost() async {
     let h = Harness()
     h.probe.enqueue(.trusted(true))

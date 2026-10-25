@@ -1,3 +1,4 @@
+import Foundation
 import Observation
 import ZonesCore
 import ZonesWindowing
@@ -11,6 +12,8 @@ final class OnboardingModel {
 
   var permission: PermissionState = .notGranted
   var relaunchOffered = false
+  /// Clock seconds the window has been open in a waiting state (T56); the controller sets it on each trust poll.
+  var waited: TimeInterval = 0
   var preferences: Preferences
   var page: Page = .accessibility
 
@@ -28,6 +31,6 @@ final class OnboardingModel {
   var canGoNext: Bool { page != .cheatSheet }
 
   var viewState: OnboardingViewState {
-    OnboardingViewState.derive(permission, relaunchOffered: relaunchOffered)
+    OnboardingViewState.derive(permission, relaunchOffered: relaunchOffered, waited: waited)
   }
 }
