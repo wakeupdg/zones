@@ -4,6 +4,12 @@ All notable changes to Zones are listed here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- App icon (Icon Composer `App/AppIcon.icon`, Liquid Glass tiles on macOS 26, flat fallback for 14/15) and the direction B menu-bar glyph in place of the SF Symbol.
+
 ## [0.1.0] - 2026-10-24
 
 First pre-release. Built and unit-tested, but not yet verified on real hardware.
@@ -115,4 +121,5 @@ First pre-release. Built and unit-tested, but not yet verified on real hardware.
   new Layout shrinks the drop rectangle silently (T39 review).
 - `EditorError` has no case for an empty name or a surround fault; both are reported as an invalid ratio (T28/T30).
 
+[Unreleased]: https://github.com/wakeupdg/zones/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/wakeupdg/zones/releases/tag/v0.1.0

@@ -1,0 +1,5 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Figma 50:1652 "Tiles": two solid white shapes; Liquid Glass is set in icon.json. -->
+  <rect x="545" y="314" width="198" height="181" rx="33" fill="#FFFFFF"/>
+  <rect x="545" y="528" width="198" height="182" rx="33" fill="#FFFFFF"/>
+</svg>

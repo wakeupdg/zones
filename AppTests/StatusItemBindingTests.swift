@@ -43,4 +43,20 @@ import ZonesWindowing
       #expect(button.image?.accessibilityDescription == (badged ? "Zones, needs Accessibility access" : "Zones"))
     }
   }
+
+  /// T57: the glyph is the direction B asset (Figma g18 `36:1220`), an 18 pt template image, not the SF Symbol
+  /// `rectangle.split.3x3` it replaced.
+  @Test func glyphIsDirectionBAssetNotSFSymbol() throws {
+    let asset = try #require(NSImage(named: StatusItemController.glyphName), "glyph asset missing from the app bundle")
+    let symbol = try #require(NSImage(systemSymbolName: "rectangle.split.3x3", accessibilityDescription: nil))
+    for badged in [false, true] {
+      let image = StatusItemController.icon(badged: badged)
+      #expect(image !== asset, "a copy, so per-state descriptions never mutate the shared named image")
+      #expect(image.size == NSSize(width: 18, height: 18))
+      #expect(image.isTemplate)
+      #expect(image.tiffRepresentation == asset.tiffRepresentation)
+      #expect(image.tiffRepresentation != symbol.tiffRepresentation)
+    }
+    #expect(asset.accessibilityDescription == nil)
+  }
 }
