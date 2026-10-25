@@ -45,6 +45,10 @@ private struct AccessibilityPage: View {
       if let explanation = state.relaunchExplanation {
         Text(explanation).fixedSize(horizontal: false, vertical: true)
       }
+      // T56: a stale Accessibility entry (ON in the list, keyed to an older signature) after 10 s of waiting.
+      if let help = state.staleEntryHelp {
+        Text(help).fixedSize(horizontal: false, vertical: true).accessibilityLabel(help)
+      }
       HStack {
         if state.showOpenSettings {
           Button("Open System Settings", action: model.openSettings).keyboardShortcut(.defaultAction)
