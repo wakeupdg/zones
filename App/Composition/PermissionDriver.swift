@@ -16,6 +16,8 @@ final class PermissionDriver {
   /// `registerWindowHotkeys` (true) and `unregisterWindowHotkeys` (false).
   var onWindowHotkeys: @MainActor (Bool) -> Void = { _ in }
   var onForceTopologySnapshot: @MainActor () -> Void = {}
+  /// After each trust probe has reached the machine (T56: the onboarding help line rides this 1 s poll, AC-156).
+  var onTrustPoll: @MainActor () -> Void = {}
 
   private let clock: any Clock
   private let input: any InputSource
@@ -65,7 +67,9 @@ final class PermissionDriver {
     switch effect {
     case .schedule(let id, let seconds): schedule(id, after: seconds)
     case .cancel(let id): cancel(id)
-    case .probe: receive(.probe(probe.isTrusted()))
+    case .probe:
+      receive(.probe(probe.isTrusted()))
+      onTrustPoll()
     case .heartbeat: heartbeat()
     case .startTap: noteTap(input.start() == .started)
     case .revalidateTap: revalidateTap()

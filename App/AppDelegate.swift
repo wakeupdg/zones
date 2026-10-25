@@ -45,6 +45,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     self.onboarding = onboarding
     status.attach(root.menu.menu)
     surfaces.permission = { [weak root] in root?.permission.state ?? .notGranted }
+    root.permission.onTrustPoll = { [weak onboarding] in onboarding?.trustPolled() }
     surfaces.refresh = { [weak root] in
       guard let root else { return }
       status.apply(StatusItemModel.derive(root.permission.state, tap: root.permission.tap))

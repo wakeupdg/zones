@@ -14,17 +14,22 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
 
   private let probe: any PermissionProbe
   private let preferences: () -> Preferences
+  private let clock: any Clock
   private let activate: @MainActor () -> Void
   private let makeWindow: @MainActor () -> NSWindow
+  /// Clock time the window opened in a waiting state (`notGranted` or `revoked`); nil otherwise (T56).
+  private var waitingSince: TimeInterval?
 
   init(
     probe: any PermissionProbe, preferences: @escaping () -> Preferences,
+    clock: any Clock = ProductionClock(),
     relaunch: @escaping @MainActor () -> Void = OnboardingWindowController.relaunchApp,
     activate: @escaping @MainActor () -> Void = { NSApp.activate() },
     makeWindow: @escaping @MainActor () -> NSWindow = OnboardingWindowController.defaultWindow
   ) {
     self.probe = probe
     self.preferences = preferences
+    self.clock = clock
     self.activate = activate
     self.makeWindow = makeWindow
     model = OnboardingModel(
@@ -44,6 +49,7 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
   func show() {
     guard !probe.launchedAtLogin else { return }
     let window = window ?? makeAndStoreWindow()
+    startWaitIfNeeded()
     activate()
     window.makeKeyAndOrderFront(nil)
   }
@@ -68,6 +74,25 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
   func update(permission: PermissionState, relaunchOffered: Bool) {
     model.permission = permission
     model.relaunchOffered = relaunchOffered
+    if OnboardingViewState.waitsForGrant(permission) { startWaitIfNeeded() } else { resetWait() }
+  }
+
+  /// After each trust poll (`PermissionDriver.onTrustPoll`, 1 s in the waiting states): refreshes how long the
+  /// window has waited, so the stale-entry help line needs no timer of its own (AC-156).
+  func trustPolled() {
+    guard let waitingSince else { return }
+    model.waited = clock.now - waitingSince
+  }
+
+  private func startWaitIfNeeded() {
+    guard window != nil, waitingSince == nil, OnboardingViewState.waitsForGrant(model.permission) else { return }
+    waitingSince = clock.now
+    model.waited = 0
+  }
+
+  private func resetWait() {
+    waitingSince = nil
+    model.waited = 0
   }
 
   func refreshPreferences() {
@@ -80,6 +105,7 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
 
   func windowWillClose(_ notification: Notification) {
     window = nil
+    resetWait()
   }
 
   private func makeAndStoreWindow() -> NSWindow {
