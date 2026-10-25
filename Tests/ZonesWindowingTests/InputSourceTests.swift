@@ -286,4 +286,22 @@ import ZonesTestSupport
     #expect(source.reenable() == false)
     holder.withLock { $0 = nil }
   }
+
+  /// T64: a failed `start()` reports on `signals` like a failed `recreate()`, so a `signals` consumer alone sees
+  /// the tap is unavailable. A started tap emits nothing.
+  @Test func unavailableStartSignals() async {
+    let source = EventTapInputSource(tapMaker: TapMaker { _, _ in nil }, primaryFrame: { Self.primary })
+    #expect(source.start() == .unavailable)
+    source.callbackBox.signals.yield(.disabledByUserInput)  // a marker after whatever start() emitted
+    var signals = source.signals.makeAsyncIterator()
+    #expect(await signals.next() == .recreated(false))
+
+    let live = EventTapInputSource(
+      tapMaker: TapMaker { _, _ in CFMachPortCreate(nil, nil, nil, nil) }, primaryFrame: { Self.primary })
+    #expect(live.start() == .started)
+    live.callbackBox.signals.yield(.disabledByUserInput)
+    var liveSignals = live.signals.makeAsyncIterator()
+    #expect(await liveSignals.next() == .disabledByUserInput)
+    live.stop()
+  }
 }

@@ -193,8 +193,13 @@ public final class EventTapInputSource: InputSource, Sendable {
     box.signals.finish()
   }
 
+  /// `.unavailable` also yields `.recreated(false)`, as a failed `recreate()` does.
   public func start() -> TapStart {
-    lifecycle.withLock { bringUp() }
+    lifecycle.withLock {
+      let result = bringUp()
+      if result == .unavailable { box.signals.yield(.recreated(false)) }
+      return result
+    }
   }
 
   public func stop() {
