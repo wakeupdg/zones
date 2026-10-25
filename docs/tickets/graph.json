@@ -1916,9 +1916,10 @@
     ],
     "est_tokens": 80000,
     "brief_path": "docs/tickets/T57.md",
-    "state": "review",
+    "state": "done",
     "tokens_spent": 28375,
-    "branch": "ticket/T57"
+    "branch": "ticket/T57",
+    "last_report": "merged 2b56a98"
   },
   {
     "id": "T58",
@@ -1985,8 +1986,8 @@
     ],
     "est_tokens": 50000,
     "brief_path": "docs/tickets/T60.md",
-    "state": "building",
-    "tokens_spent": 0,
+    "state": "review",
+    "tokens_spent": 138183,
     "branch": "ticket/T60"
   }
 ]
