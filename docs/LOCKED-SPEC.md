@@ -225,7 +225,7 @@ Statement: The app binary links none of CGRequestScreenCaptureAccess, CGPrefligh
 Covers: US-006
 Verify: `nm -u` on the built executable piped through grep for those names returns zero lines; `plutil -p` on Info.plist shows neither key.
 ### AC-004 (manual) — Onboarding window
-Statement: On a clean user account, first launch shows exactly one window whose button opens System Settings at Privacy & Security > Accessibility.
+Statement: On a clean user account, first launch shows exactly one window whose button opens System Settings at Privacy & Security > Accessibility. After the window has been open in notGranted or revoked for 10 s on the Clock, it also shows the help line "Is Zones already on in the list? Select Zones, click the minus button (−) to remove it, then click Open System Settings and turn Zones on again." (challenge C13).
 Covers: US-002
 Verify: Launch on a clean account; count windows (1); click the button; confirm the Accessibility pane is frontmost.
 ### AC-005 (manual) — Grant noticed without relaunch
@@ -996,6 +996,7 @@ Each spike returns a verdict note before the dependent tickets start. "Depends" 
 - C9 ADR-0012: the UUID can read nil mid-reconfiguration and may collide for identical panels with zero serials; refinement adopted is a Clock-driven retry and an unstable, never-persisted fallback key with a session-only Assignment. The UUID remains the only persisted key.
 - C10 ADR-0008: silent on Span Modifier release; the freeze rule above is the decision.
 - C11 ADR-0024 / AC-160 (2026-10-24, user decision): CI on every push exhausted the free GitHub Actions allowance for macOS runners on a private repository. CI now runs on pull requests to `main` and on manual dispatch; `scripts/merge-ticket.sh` is the per-ticket gate; the repository goes public at release. Recorded as ADR-0026; AC-160 amended.
+- C13 ADR-0021 / AC-004 (2026-10-24, user report): after a Debug build signed with Zones Dev, the ad-hoc DMG copy met an Accessibility entry already ON in System Settings but keyed to the old signature, so the app stayed untrusted, toggling did not help and the onboarding window gave no instruction. Every update of an ad-hoc build meets this state, and `AXIsProcessTrusted()` cannot tell it apart from notGranted. The window now shows a remove-and-re-add help line after 10 s in notGranted or revoked, driven by the existing 1 s trust poll (no new timer, AC-156); no prompt and no `tccutil` (ADR-0021 unchanged). Recorded as T56; AC-004 amended.
 
 ## 9. Traceability
 
