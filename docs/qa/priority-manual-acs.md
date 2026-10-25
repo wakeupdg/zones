@@ -25,12 +25,12 @@ Tester: DG  macOS version: 27.0.1  Date: 2026-10-24 (results recorded 12:18 PM P
   - [ ] The onboarding window closes in **under 1.5 s**.
   - [ ] The menu-bar icon has no badge.
   - [ ] The process id did not change (no relaunch).
-- Result: **blocked** (2026-10-24): needs the onboarding window open before the toggle goes on; AC-009 failed, so the window never came back. Re-run after the AC-009 fix.
+- Result: **blocked** (2026-10-24): needs the onboarding window open before the toggle goes on; AC-009 failed, so the window never came back. Re-run after the AC-009 fix (T55 merged; needs a signed build).
 
 ### [ ] AC-009 — Revocation on a real Mac — **FAIL**
 - **Do:** With Zones idle, turn the toggle **off**. Start the stopwatch.
 - **Pass if:**
-  - [ ] The icon shows a badge at the next drag, or in **5 s or less** if the heartbeat is on.
+  - [ ] The icon shows a badge in **8 s or less** (AC-009 as amended by C12, T55).
   - [ ] The onboarding window comes back.
   - [ ] You recorded the probe value from the diagnostics report.
 - **CAUTION:** Copy Diagnostics has no menu item yet (CHANGELOG known issue). If you cannot get the report, write "no UI" here and continue.

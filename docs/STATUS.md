@@ -1,6 +1,6 @@
 # Zones — STATUS
 
-Phase: 5 (release) COMPLETE — 55 of 55 tickets done, 0 blocked; draft PR integration -> main and draft release v0.1.0
+Phase: 5 (release) COMPLETE — 57 of 57 tickets done, 0 blocked (T55, T56 fix tickets from the human run); draft PR integration -> main and draft release v0.1.0
 Updated: 2026-10-24, end of Phase 5
 
 ## Result
@@ -37,7 +37,9 @@ AC-020, AC-023, AC-025, AC-028, AC-030, AC-040, AC-044, AC-046, AC-061, AC-064, 
 ## Open items
 The list of record is "Known issues" in CHANGELOG.md (0.1.0). In short:
 - Live drag, Snap and overlay behavior is not verified on real hardware.
-- AC-009 FAIL: revocation is never detected while the heartbeat is off (SPK-006 still PENDING-HUMAN-RUN). AC-005 is blocked by it.
+- AC-009 FAIL in the human run; fixed by T55 (trust probe in the 5 s health tick, C12; SPK-006 verdict from trial 1). Needs a human re-run on a signed build, then AC-005.
+- T56 (merged): the onboarding window shows a stale-entry help line after 10 s (C13). Not yet seen on screen.
+- Dev signing: the zones-dev keychain rejects its stored password since about 7:49 PM PT on 2026-10-24. T55 and T56 merged with `ZONES_UNSIGNED=1` (unsigned xcodebuild gate). Recreate the keychain with scripts/dev-cert.sh, then re-grant Accessibility.
 - The 24 open manual ACs above.
 - `scripts/dev-cert.sh` recovery path fails when the dev keychain exists but holds no identity (T51 review).
 - Copy Diagnostics has no menu item or button yet.
