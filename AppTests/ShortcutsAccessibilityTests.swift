@@ -147,6 +147,8 @@ import ZonesWindowing
 
   /// SwiftUI's accessibility tree is only reachable through the AX API on the test host's own pid (the
   /// in-process walk stops at the hosting view), and SwiftUI builds it lazily once accessibility is switched on.
+  /// Reading the host's own pid needs no Accessibility grant (T60: the walk succeeds with `AXIsProcessTrusted()`
+  /// false), so the test runs the same on an untrusted, unsigned host.
   private func wakeAccessibility() {
     typealias SetEnabled = @convention(c) (Bool) -> Void
     let handle = dlopen("/usr/lib/libAccessibility.dylib", RTLD_NOW)
@@ -173,7 +175,6 @@ import ZonesWindowing
 
   /// QA-2.3: each Clear button names its action to VoiceOver instead of reading just "Clear".
   @Test func clearButtonsNameTheirAction() throws {
-    try #require(AXIsProcessTrusted(), "the AX walk needs Accessibility for the test host")
     wakeAccessibility()
     let isolated = IsolatedDefaults()
     defer { isolated.tearDown() }
