@@ -7,6 +7,8 @@ import os
 /// permission" case (ADR-0020), never a crash. Tests inject a maker so no live tap is created.
 struct TapMaker: Sendable {
   var make: @Sendable (TapConfig, UnsafeMutableRawPointer) -> CFMachPort?
+  var enable: @Sendable (CFMachPort, Bool) -> Void = { CGEvent.tapEnable(tap: $0, enable: $1) }
+  var isEnabled: @Sendable (CFMachPort) -> Bool = { CGEvent.tapIsEnabled(tap: $0) }
 }
 
 /// The queue between the tap callback and the one `events` consumer. Bounded for drags: with `dragLimit` drags
@@ -164,7 +166,7 @@ public final class EventTapInputSource: InputSource, Sendable {
   }
 
   private let state = OSAllocatedUnfairLock(uncheckedState: State())
-  /// Serializes start, stop and recreate so two callers cannot bring up two taps.
+  /// Serializes start, stop, reenable and recreate so two callers cannot bring up two taps.
   private let lifecycle = OSAllocatedUnfairLock()
 
   /// `primaryFrame` runs on the tap thread and must be safe to call from any thread.
@@ -199,10 +201,13 @@ public final class EventTapInputSource: InputSource, Sendable {
     lifecycle.withLock { teardown() }
   }
 
+  /// Under `lifecycle`, so a concurrent stop or recreate cannot invalidate the tap mid-call.
   public func reenable() -> Bool {
-    guard let tap = state.withLockUnchecked({ $0.runtime?.tap }) else { return false }
-    CGEvent.tapEnable(tap: tap, enable: true)
-    return CGEvent.tapIsEnabled(tap: tap)
+    lifecycle.withLock {
+      guard let tap = state.withLockUnchecked({ $0.runtime?.tap }) else { return false }
+      tapMaker.enable(tap, true)
+      return tapMaker.isEnabled(tap)
+    }
   }
 
   public func recreate() -> TapStart {
@@ -250,7 +255,7 @@ public final class EventTapInputSource: InputSource, Sendable {
       s.runtime = Runtime(tap: tap, runLoop: s.runLoop!, finished: finished)
       s.runLoop = nil
     }
-    CGEvent.tapEnable(tap: tap, enable: true)
+    tapMaker.enable(tap, true)
     return .started
   }
 
@@ -261,7 +266,7 @@ public final class EventTapInputSource: InputSource, Sendable {
       defer { s.runtime = nil }
       return s.runtime
     }) else { return }
-    CGEvent.tapEnable(tap: runtime.tap, enable: false)
+    tapMaker.enable(runtime.tap, false)
     CFMachPortInvalidate(runtime.tap)
     CFRunLoopStop(runtime.runLoop)
     CFRunLoopWakeUp(runtime.runLoop)

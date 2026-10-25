@@ -255,4 +255,35 @@ import ZonesTestSupport
     var signals = source.signals.makeAsyncIterator()
     #expect(await signals.next() == .disabledByTimeout)
   }
+
+  /// T64: `reenable()` holds the lifecycle lock, so a concurrent `stop()` cannot invalidate the tap while it is
+  /// being re-enabled. The probe starts a `stop()` from inside `reenable()` and checks it waits.
+  @Test func reenableHoldsTheLifecycleLock() {
+    let holder = OSAllocatedUnfairLock<EventTapInputSource?>(initialState: nil)
+    let stopped = OSAllocatedUnfairLock<DispatchSemaphore?>(initialState: nil)
+    let stopRanInside = OSAllocatedUnfairLock(initialState: false)
+    let maker = TapMaker(
+      make: { _, _ in CFMachPortCreate(nil, nil, nil, nil) }, enable: { _, _ in },
+      isEnabled: { _ in
+        let done = DispatchSemaphore(value: 0)
+        stopped.withLock { $0 = done }
+        let source = holder.withLock { $0 }
+        Thread.detachNewThread {
+          source?.stop()
+          done.signal()
+        }
+        let finished = done.wait(timeout: .now() + 0.2) == .success
+        if finished { done.signal() }  // let the test's own wait through
+        stopRanInside.withLock { $0 = finished }
+        return true
+      })
+    let source = EventTapInputSource(tapMaker: maker, primaryFrame: { Self.primary })
+    holder.withLock { $0 = source }
+    #expect(source.start() == .started)
+    #expect(source.reenable())
+    #expect(stopRanInside.withLock { $0 } == false)
+    #expect(stopped.withLock { $0 }?.wait(timeout: .now() + 2) == .success)  // stop() ran once reenable() returned
+    #expect(source.reenable() == false)
+    holder.withLock { $0 = nil }
+  }
 }
