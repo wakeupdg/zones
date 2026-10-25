@@ -1897,5 +1897,57 @@
     "protocol": "OnboardingViewState (pure)",
     "fake": "FakeClock",
     "tests": "onboarding view state: help line at 10 s, never in granted/suspect"
+  },
+  {
+    "id": "T57",
+    "title": "App icon (Icon Composer, Liquid Glass) and the direction B menu-bar glyph",
+    "kind": "feature",
+    "delivers": "An Icon Composer AppIcon.icon from Figma Section 6 (Glass tiles + Active zone, Coal Fern) with a macOS 14/15 fallback, and the direction B glyph as the menu-bar template image.",
+    "acceptance_ids": [
+      "AC-030"
+    ],
+    "blocked_by": [],
+    "files_expected": [
+      "App/AppIcon.icon",
+      "project.yml",
+      "App/StatusItemController.swift",
+      "README.md",
+      "CHANGELOG.md"
+    ],
+    "est_tokens": 80000,
+    "brief_path": "docs/tickets/T57.md",
+    "state": "todo"
+  },
+  {
+    "id": "T58",
+    "title": "Every Zones chord = Activation Modifier + Span Modifier + key",
+    "kind": "feature",
+    "delivers": "Chord modifiers are derived from the Activation and Span Modifiers (no fixed Control+Option prefix); changing either re-registers all hotkeys; recorder records keys only; schema migration; ADR-0010 and ACs amended via C14.",
+    "acceptance_ids": [
+      "AC-097",
+      "AC-098",
+      "AC-101",
+      "AC-102",
+      "AC-103",
+      "AC-104",
+      "AC-105",
+      "AC-106",
+      "AC-107"
+    ],
+    "blocked_by": [],
+    "files_expected": [
+      "Sources/ZonesCore/Shortcut.swift",
+      "Sources/ZonesCore/Preferences.swift",
+      "Sources/ZonesCore/PreferencesCodec.swift",
+      "App/Settings/ShortcutsPane.swift",
+      "App/Settings/ChordRecorderView.swift",
+      "App/Settings/GeneralPane.swift",
+      "docs/LOCKED-SPEC.md",
+      "README.md",
+      "CHANGELOG.md"
+    ],
+    "est_tokens": 120000,
+    "brief_path": "docs/tickets/T58.md",
+    "state": "todo"
   }
 ]

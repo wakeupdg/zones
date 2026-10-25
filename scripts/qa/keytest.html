@@ -1,0 +1,11 @@
+<!doctype html>
+<meta charset="utf-8"><title>Zones key test</title>
+<style>body{font:20px -apple-system;margin:40px}#log{font:16px ui-monospace;white-space:pre}</style>
+<h1>Zones key test (AC-106)</h1>
+<p>Click this page, then press the chord. Each key that reaches this page shows below.</p>
+<div id="log"></div>
+<script>
+const log=document.getElementById('log');
+addEventListener('keydown',e=>{const m=[e.ctrlKey&&'Control',e.altKey&&'Option',e.shiftKey&&'Shift',e.metaKey&&'Command'].filter(Boolean);
+log.textContent=new Date().toLocaleTimeString()+'  '+[...m,e.code].join('+')+'\n'+log.textContent;e.preventDefault()});
+</script>
