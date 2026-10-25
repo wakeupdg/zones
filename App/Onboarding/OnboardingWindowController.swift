@@ -60,7 +60,7 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
   }
 
   /// The "Grant Accessibility" menu item: an explicit user click, so it is never inert. Launched at login no
-  /// window appears (ADR-0021), so it opens Privacy & Security > Accessibility directly; otherwise it fronts
+  /// window appears (ADR-0021), so it opens the Accessibility pane directly; otherwise it fronts
   /// the onboarding window.
   func grantAccessibility() {
     if probe.launchedAtLogin {

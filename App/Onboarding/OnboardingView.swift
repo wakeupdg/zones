@@ -38,7 +38,7 @@ private struct AccessibilityPage: View {
     VStack(alignment: .leading, spacing: 14) {
       Text("Zones needs Accessibility access").font(.title2.bold())
       Text(
-        "Zones moves and resizes windows in other apps. macOS only allows that after you turn on Zones in Privacy & Security > Accessibility."
+        "Zones moves and resizes windows in other apps. macOS only allows that after you turn on Zones in \(model.accessibilityPath)."
       )
       .fixedSize(horizontal: false, vertical: true)
       Label(state.statusLine, systemImage: "info.circle").foregroundStyle(.secondary)

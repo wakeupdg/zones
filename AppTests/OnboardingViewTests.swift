@@ -71,6 +71,35 @@ import ZonesWindowing
     #expect(spoken(under: hosting).contains(sentence))
   }
 
+  /// T66: macOS 27 renamed the pane (its `ACCESSIBILITY` string is "Device Control and Data Access"); 14-26 keep
+  /// "Accessibility". The page names the pane of the running macOS.
+  @Test func accessibilityPathFollowsTheMacOSVersion() {
+    #expect(OnboardingModel.accessibilityPath(macOSMajor: 14) == "Privacy & Security > Accessibility")
+    #expect(OnboardingModel.accessibilityPath(macOSMajor: 26) == "Privacy & Security > Accessibility")
+    #expect(
+      OnboardingModel.accessibilityPath(macOSMajor: 27) == "Privacy & Security > Device Control and Data Access")
+    #expect(
+      OnboardingModel.accessibilityPath(macOSMajor: 28) == "Privacy & Security > Device Control and Data Access")
+    #expect(makeModel().macOSMajor == ProcessInfo.processInfo.operatingSystemVersion.majorVersion)
+  }
+
+  @Test func pageNamesTheMacOS27Pane() {
+    let model = OnboardingModel(preferences: Preferences.defaults, openSettings: {}, quitAndReopen: {}, macOSMajor: 27)
+    let hosting = NSHostingView(rootView: OnboardingView(model: model))
+    let window = NSWindow(
+      contentRect: NSRect(x: -4000, y: -4000, width: 480, height: 360), styleMask: [.titled], backing: .buffered,
+      defer: false)
+    window.isReleasedWhenClosed = false
+    window.contentView = hosting
+    window.orderFrontRegardless()
+    defer { window.close() }
+
+    wakeAccessibility()
+    let text = spoken(under: hosting).joined(separator: "\n")
+    #expect(text.contains("turn on Zones in Privacy & Security > Device Control and Data Access."), "saw \(text)")
+    #expect(!text.contains("> Accessibility"))
+  }
+
   /// SwiftUI builds a hosting view's accessibility tree only once an AX client asks: one read of this process's
   /// windows through the AX API (no trust needed for our own pid) makes `accessibilityChildren()` non-empty.
   private func wakeAccessibility() {
