@@ -9,6 +9,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ### Added
 
 - App icon (Icon Composer `App/AppIcon.icon`, Liquid Glass tiles on macOS 26, flat fallback for 14/15) and the direction B menu-bar glyph in place of the SF Symbol.
+- A "Copy Diagnostics…" item in the status menu calls the built-in diagnostics copy (T66).
 
 ### Fixed
 
@@ -20,6 +21,38 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   (`EditorError.emptyName`, `.surroundOutOfRange`; T28/T30, T65).
 - The Exclusions pane sorts names like Finder (`localizedStandardCompare`, so "App 2" comes before "App 10";
   T14, T65).
+- `AXObserverBridge` keeps a forgotten refcon alive until its observer is gone, so a late callback never reads
+  freed memory (T13, T64).
+- `element(at:)` stops issuing Accessibility calls after a timeout (T13, T64).
+- The private Accessibility helpers run on `WindowActor` (T13, T64).
+- The event tap streams are bounded; button and modifier events are never dropped (T23, T64).
+- `reenable()` runs under the event tap lifecycle lock (T23, T64).
+- An unavailable event tap `start()` now emits a tap signal (T23, T64).
+- After a topology change during a drag, a Span on a changed Layout starts again at the Zone under the cursor; a
+  Span number from the old Layout never reaches the drop (T39, T67).
+- The onboarding window comes to the front without activating Zones when the grant is lost in the background
+  (T33, T66).
+- The onboarding and help text name the Accessibility pane for the running macOS version (macOS 27: Privacy &
+  Security > Device Control and Data Access; T66).
+- `scripts/dev-cert.sh` imports the identity into an existing dev keychain that holds none (T51, T66).
+- Zones installs its unified log sink, and every drag that ends without a snap logs its reason (subsystem
+  "Zones"; T63).
+- App icon: the Dark glow stays soft, Clear and Tinted keep the active zone, and a tile rim keeps the tiles
+  visible at 16 and 32 px (T61).
+- Three AppTests no longer depend on the test host's Accessibility grant (T60).
+- CI runs on macOS 26, which can compile the Icon Composer icon (T62).
+
+### Known issues
+
+- A Control-drag of a Google Gemini window once showed no Overlay (2026-10-24); it did not happen again. If it
+  does, the reason is now in the unified log (subsystem "Zones").
+- The default chords (Control+Option+key) can clash with other apps' shortcuts; change the chord in Settings >
+  Shortcuts. A shared prefix (Activation + Span Modifier) is planned after 0.1.1 (T58).
+- After an update of an ad-hoc build, System Settings can show Zones as on while the new copy is not trusted;
+  remove Zones from the Accessibility list with the minus button (−) and turn it on again (T56).
+- `scripts/dev-cert.sh --harden` must be run once by the user on a keychain made by the older script.
+- At 16 px, the app icon's tiles are lighter than the hinted design (contrast 1.63:1); Xcode makes the small sizes
+  itself (T59).
 
 ## [0.1.0] - 2026-10-24
 
