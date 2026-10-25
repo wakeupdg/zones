@@ -107,9 +107,9 @@ enum Climb<Element> {
   }
 }
 
-// MARK: Raw AX access (no policy; every call here is a single AX request)
+// MARK: Raw AX access (no policy; every call here is a single AX request, on WindowActor per ADR-0015)
 
-private enum AXRaw {
+@WindowActor private enum AXRaw {
   struct Copied {
     var code: Int32
     var value: CFTypeRef?
@@ -189,19 +189,19 @@ public final class AXWindowSystem: WindowSystem {
     _ = AXUIElementSetMessagingTimeout(AXUIElementCreateSystemWide(), Float(processWide))
   }
 
-  private func applyTimeout(to element: AXUIElement) {
+  @WindowActor private func applyTimeout(to element: AXUIElement) {
     let seconds = perAppTimeout.withLock { $0 }
     _ = AXUIElementSetMessagingTimeout(element, Float(seconds))
   }
 
-  private func app(_ pid: pid_t) -> AXUIElement {
+  @WindowActor private func app(_ pid: pid_t) -> AXUIElement {
     let element = AXUIElementCreateApplication(pid)
     applyTimeout(to: element)
     return element
   }
 
   /// Every handle given out has the per-app timeout and a destroyed subscription.
-  private func makeHandle(_ element: AXUIElement, pid: pid_t) -> WindowHandle {
+  @WindowActor private func makeHandle(_ element: AXUIElement, pid: pid_t) -> WindowHandle {
     applyTimeout(to: element)
     let handle = WindowHandle(element: element, pid: pid)
     bridge.watch(handle)
