@@ -1916,7 +1916,9 @@
     ],
     "est_tokens": 80000,
     "brief_path": "docs/tickets/T57.md",
-    "state": "todo"
+    "state": "review",
+    "tokens_spent": 28375,
+    "branch": "ticket/T57"
   },
   {
     "id": "T58",
@@ -1949,5 +1951,41 @@
     "est_tokens": 120000,
     "brief_path": "docs/tickets/T58.md",
     "state": "todo"
+  },
+  {
+    "id": "T59",
+    "title": "Hinted 16/32 px app icon for the macOS 14/15 fallback",
+    "kind": "fix",
+    "delivers": "The macOS 14/15 and small-size app icon uses the hinted Figma frames (16/32 px) instead of the actool downscale; the macOS 26 Liquid Glass icon is unchanged.",
+    "acceptance_ids": [],
+    "blocked_by": [
+      "T57"
+    ],
+    "files_expected": [
+      "App/AppIcon.icon",
+      "App/Assets.xcassets",
+      "project.yml",
+      "CHANGELOG.md"
+    ],
+    "est_tokens": 60000,
+    "brief_path": "docs/tickets/T59.md",
+    "state": "todo",
+    "tokens_spent": 0
+  },
+  {
+    "id": "T60",
+    "title": "3 AppTests fail on integration (Accessibility trust)",
+    "kind": "fix",
+    "delivers": "PermissionDriverTests (2) and ShortcutsAccessibilityTests (1) pass deterministically on a host without the Accessibility grant, or a real bug behind them is fixed.",
+    "acceptance_ids": [],
+    "blocked_by": [],
+    "files_expected": [
+      "AppTests/PermissionDriverTests.swift",
+      "AppTests/ShortcutsAccessibilityTests.swift"
+    ],
+    "est_tokens": 50000,
+    "brief_path": "docs/tickets/T60.md",
+    "state": "todo",
+    "tokens_spent": 0
   }
 ]
