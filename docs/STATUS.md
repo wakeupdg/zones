@@ -7,7 +7,7 @@ Updated: 2026-10-24, end of Phase 5
 - Tickets: 57 done, 0 todo, 0 blocked (T01..T56, T01b included).
 - Acceptance: 169 ACs. Auto 139: 139 pass, 0 fail. Manual 30: 6 pass in human runs on 2026-10-24 (AC-004, AC-005, AC-009, AC-010, AC-057, AC-066); AC-005 and AC-009 pass in the re-test after T55; 24 need a human run (list below). Source: docs/qa/acceptance-matrix.md.
 - Root `swift test`: 340 tests in 66 suites green (after T55, T56).
-- Release artifact: dist/Zones-0.1.0.dmg, 2,825,607 bytes, sha256 fec98598883d4f8388c994ed710fd2e079c3e5b0409f5e18360aa6343daeeadc. Ad-hoc signed: `hdiutil verify` VALID, `codesign` ok, `spctl` rejects (no Developer ID).
+- Release artifact: dist/Zones-0.1.0.dmg, 2,831,335 bytes (rebuilt 9:05 PM PT with T55 and T56), sha256 a6e42456c5ba3bda381b6cf37de1b97ac98b575cceab08f2409dbe23ef688ef0. Ad-hoc signed: `hdiutil verify` VALID, `codesign` ok, `spctl` rejects (no Developer ID).
 - Homebrew cask: Casks/zones.rb points at the v0.1.0 release asset; `depends_on macos: :sonoma`.
 
 ## Phase results
