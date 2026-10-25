@@ -7,6 +7,8 @@ All Zones design lives on **one Figma page**: [Zones — Design board](https://w
 2. Add the new Section to "0 — Index".
 3. Move (do not copy) boards that belong on the page, so each board exists once and linked instances stay linked.
 4. Do not make new pages for Zones design.
+5. Do not make new Figma files of any kind: no new design files, FigJam boards, Slides or Make files. Every change goes into the file above.
+6. Every design agent brief must include rules 1–5.
 
 ## Sections (2026-10-24)
 | Section | Node | Contents |
