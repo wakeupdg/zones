@@ -2038,7 +2038,7 @@
     "est_tokens": 70000,
     "brief_path": "docs/tickets/T63.md",
     "state": "building",
-    "tokens_spent": 1241811,
+    "tokens_spent": 1253148,
     "branch": "ticket/T63"
   },
   {
@@ -2054,9 +2054,10 @@
     ],
     "est_tokens": 80000,
     "brief_path": "docs/tickets/T64.md",
-    "state": "review",
-    "tokens_spent": 1211067,
-    "branch": "ticket/T64"
+    "state": "done",
+    "tokens_spent": 1216718,
+    "branch": "ticket/T64",
+    "last_report": "merged 82b40ba"
   },
   {
     "id": "T65",
