@@ -104,14 +104,14 @@ final class PermissionHarness: Sendable {
     if let dismiss, let start { #expect(dismiss < start) }
     #expect(h.clock.pending == [.healthTick])
 
-    // Granted: one health tick every 5 s, no trust poll, no further probes.
+    // Granted: one health tick every 5 s, no trust poll; each tick runs one trust probe (C12).
     let probesBefore = h.probeCalls
     for n in 1...3 {
       h.clock.advance(by: 5)
       #expect(h.clock.pending == [.healthTick])
       #expect(h.events.filter { $0 == .timer(.healthTick) }.count == n)
     }
-    #expect(h.probeCalls == probesBefore)
+    #expect(h.probeCalls == probesBefore + 3)
     #expect(h.events.filter { $0 == .timer(.trustPoll) }.count == 4)
   }
 
@@ -122,8 +122,9 @@ final class PermissionHarness: Sendable {
     ]
     for signal in [PermissionEvent.apiDisabled, .tapNil, .heartbeat(.apiDisabled), .probe(false)] {
       let h = PermissionHarness(state: .granted)
+      h.probe.enqueue(.trusted(true))
       h.arm(.healthTick, after: Constants.healthTick)
-      h.clock.advance(by: 7)  // one health tick, then idle in granted
+      h.clock.advance(by: 7)  // one health tick (probe true), then idle in granted
       let at = h.clock.now
       #expect(h.send(signal) == suspectEntry, "\(signal)")
       #expect(h.state == .suspect(since: at))
@@ -135,14 +136,25 @@ final class PermissionHarness: Sendable {
       }
     }
 
-    // Path A: recreation succeeds, one trivial read comes back ok -> granted with one health tick.
+    // Path A: recreation succeeds and the trust probe reads true -> granted with one health tick (C12).
     let a = PermissionHarness(state: .granted)
     a.send(.tapNil)
-    #expect(a.send(.tapRecreated(true)) == [.heartbeat])
-    #expect(a.state == .suspect(since: 0))
-    #expect(a.send(.trivialRead(.ok)) == [.cancel(.suspectResolve), .cancel(.healthTick), .schedule(.healthTick, 5)])
+    #expect(a.send(.trivialRead(.ok)).isEmpty)  // an AX read alone proves nothing
+    a.probe.enqueue(.trusted(true))
+    #expect(a.send(.tapRecreated(true)) == [.probe])
     #expect(a.state == .granted)
+    #expect(a.log.suffix(3) == [.cancel(.suspectResolve), .cancel(.healthTick), .schedule(.healthTick, 5)])
     #expect(a.clock.pending == [.healthTick])
+
+    // Path C (SPK-006): the tap recreates and AX reads succeed, but the probe reads false -> revoked at +3 s.
+    let c = PermissionHarness(state: .granted)
+    c.send(.tapNil)
+    c.probe.enqueue(.trusted(false))
+    c.send(.tapRecreated(true))
+    c.send(.trivialRead(.ok))
+    #expect(c.state == .suspect(since: 0))
+    c.clock.advance(by: 3)
+    #expect(c.state == .revoked(failures: 0, firstFailure: nil))
 
     // Path B: recreation fails; the timer at +2.9 s is ignored, at +3 s the state is revoked.
     let b = PermissionHarness(state: .granted)
@@ -159,6 +171,27 @@ final class PermissionHarness: Sendable {
         .drainEnhancedUI, .cancel(.trustPoll), .schedule(.trustPoll, 1),
       ])
     #expect(b.clock.pending == [.trustPoll])
+  }
+
+  // AC-007 (C12, SPK-006): on revocation only the trust probe changes, so the granted health tick asks it.
+  @Test func healthTickProbeFalseRevokes() {
+    let h = PermissionHarness(state: .granted)
+    h.arm(.healthTick, after: Constants.healthTick)
+    h.probe.enqueue(.trusted(false))
+    h.clock.advance(by: 5)
+    #expect(h.probeCalls == 1)
+    #expect(h.state == .suspect(since: 5))
+    #expect(h.clock.pending == [.suspectResolve])
+    h.clock.advance(by: 3)
+    #expect(h.state == .revoked(failures: 0, firstFailure: nil))
+    let four: [PermissionEffect] = [.badge(true), .showOnboarding, .unregisterWindowHotkeys, .drainEnhancedUI]
+    #expect(h.log.filter { four.contains($0) } == four)
+    #expect(
+      h.log.suffix(8) == [
+        .cancel(.healthTick), .badge(true), .grantMenuItem(true), .showOnboarding, .unregisterWindowHotkeys,
+        .drainEnhancedUI, .cancel(.trustPoll), .schedule(.trustPoll, 1),
+      ])
+    #expect(h.clock.pending == [.trustPoll])
   }
 
   private static let recovery: [PermissionEffect] = [
@@ -365,15 +398,17 @@ final class PermissionHarness: Sendable {
     #expect(h.probeCalls == 4, "wake probe plus one per second for 3 s: \(h.probeCalls)")
   }
 
-  // AC-007: a heartbeat already in flight when granted -> suspect is not the post-recreation read.
+  // AC-007: a heartbeat already in flight when granted -> suspect is not the post-recreation trust probe (C12).
   @Test func staleHeartbeatDoesNotRecoverSuspect() {
     let h = PermissionHarness(state: .granted, heartbeatEnabled: true, reducerIdle: true)
     h.send(.tapNil)
     #expect(h.send(.heartbeat(.ok)).isEmpty)
+    #expect(h.send(.trivialRead(.ok)).isEmpty)
     #expect(h.state == .suspect(since: 0))
     #expect(h.clock.pending == [.suspectResolve])
+    h.probe.enqueue(.trusted(true))
     h.send(.tapRecreated(true))
-    #expect(h.send(.trivialRead(.ok)) == [.cancel(.suspectResolve), .cancel(.healthTick), .schedule(.healthTick, 5)])
+    #expect(h.log.suffix(3) == [.cancel(.suspectResolve), .cancel(.healthTick), .schedule(.healthTick, 5)])
     #expect(h.state == .granted)
   }
 
@@ -394,9 +429,10 @@ final class PermissionHarness: Sendable {
     // Enabled and idle: the tick asks for exactly one heartbeat and does not re-arm; the result does.
     for result in [AXStatus.ok, .timedOut, .elementGone, .refused(-25204)] {
       let h = PermissionHarness(state: .granted, heartbeatEnabled: true, reducerIdle: true)
+      h.probe.enqueue(.trusted(true))
       h.arm(.healthTick, after: Constants.healthTick)
       h.clock.advance(by: 5)
-      #expect(h.log == [.heartbeat], "\(result)")
+      #expect(h.log == [.probe, .cancel(.healthTick), .heartbeat], "\(result)")
       #expect(h.clock.pending.isEmpty)
       h.clock.advance(by: 60)  // no answer yet: still one in flight, no second request
       #expect(h.log.filter { $0 == .heartbeat }.count == 1)
@@ -408,6 +444,7 @@ final class PermissionHarness: Sendable {
 
     // A heartbeat that finds the API disabled is a runtime signal.
     let down = PermissionHarness(state: .granted, heartbeatEnabled: true, reducerIdle: true)
+    down.probe.enqueue(.trusted(true))
     down.arm(.healthTick, after: 5)
     down.clock.advance(by: 5)
     down.send(.heartbeat(.apiDisabled))
@@ -417,6 +454,7 @@ final class PermissionHarness: Sendable {
     // Not idle, or disabled: no heartbeat in ten ticks, the tick keeps re-arming.
     for (enabled, idle) in [(true, false), (false, true), (false, false)] {
       let h = PermissionHarness(state: .granted, heartbeatEnabled: enabled, reducerIdle: idle)
+      h.probe.enqueue(.trusted(true))
       h.arm(.healthTick, after: Constants.healthTick)
       for _ in 1...10 {
         h.clock.advance(by: 5)
@@ -428,6 +466,7 @@ final class PermissionHarness: Sendable {
 
     // The reducer going busy between ticks holds the next heartbeat back.
     let busy = PermissionHarness(state: .granted, heartbeatEnabled: true, reducerIdle: true)
+    busy.probe.enqueue(.trusted(true))
     busy.arm(.healthTick, after: 5)
     busy.config.reducerIdle = false
     busy.clock.advance(by: 5)

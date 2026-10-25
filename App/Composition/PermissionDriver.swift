@@ -9,7 +9,7 @@ import ZonesWindowing
 final class PermissionDriver {
   private(set) var state: PermissionState = .notGranted
   private(set) var tapRecovery = TapRecovery()
-  /// SPK-006 verdict: the heartbeat read is off. The 5 s health tick then only re-arms itself.
+  /// SPK-006 verdict: the heartbeat read is off (it never sees apiDisabled). Each 5 s health tick asks the trust probe.
   var heartbeatEnabled = false
   /// Whether the Drag Session reducer is idle (the heartbeat never runs mid-drag).
   var dragIdle: @MainActor () -> Bool = { true }
@@ -130,8 +130,8 @@ final class PermissionDriver {
     if !input.reenable() { recreateTap() }
   }
 
-  /// A read tagged by the state it was issued in: after `tapRecreated(true)` the machine is `suspect` and only a
-  /// `trivialRead` counts as recovery (T20 fix 2).
+  /// A read tagged by the state it was issued in. A `trivialRead` no longer resolves `suspect`: only the trust
+  /// probe after `tapRecreated(true)` does (C12, SPK-006).
   private func heartbeat() {
     let suspect: Bool
     if case .suspect = state { suspect = true } else { suspect = false }
