@@ -42,7 +42,7 @@ A menu-bar window manager for macOS that snaps windows into Zone Layouts, in the
      ```sh
      xattr -dr com.apple.quarantine /Applications/Zones.app
      ```
-4. After an update, each ad-hoc build has a new signature, so if Zones is already on in Privacy & Security > Accessibility but still asks for access, select Zones, click the minus button (−) to remove it, then click **Open System Settings** and turn Zones on again.
+4. After an update, each ad-hoc build has a new signature, so if Zones is already on in Privacy & Security > Accessibility (macOS 14-26) or Privacy & Security > Device Control and Data Access (macOS 27 and later) but still asks for access, select Zones, click the minus button (−) to remove it, then click **Open System Settings** and turn Zones on again.
 
 ### Option B: Homebrew cask
 
@@ -110,7 +110,8 @@ See [ADR-0020](docs/adr/0020-accessibility-is-the-only-permission.md) and
 ### How to grant
 
 1. Launch Zones. An onboarding window opens: "Zones needs Accessibility access".
-2. Click **Open System Settings**. This opens **System Settings > Privacy & Security > Accessibility**.
+2. Click **Open System Settings**. This opens **System Settings > Privacy & Security > Accessibility** (macOS 14-26).
+   On macOS 27 and later, the same pane is **System Settings > Privacy & Security > Device Control and Data Access**.
 3. Turn on **Zones** in the list.
 4. Zones checks about once a second. When it sees the grant, it closes the onboarding window and starts
    listening for drags. The onboarding window also has a cheat sheet page (click **Next**).

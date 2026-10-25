@@ -45,17 +45,22 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
   }
 
   /// `PermissionEffect.showOnboarding`. A no-op on the launched-at-login path: the badge and the
-  /// "Grant Accessibility" menu item stand in. Fronts the existing window when there is one.
-  func show() {
+  /// "Grant Accessibility" menu item stand in. Fronts the existing window when there is one. With `activating`
+  /// false (T66) the window comes to the front without activating Zones, so the user's app keeps focus.
+  func show(activating: Bool = true) {
     guard !probe.launchedAtLogin else { return }
     let window = window ?? makeAndStoreWindow()
     startWaitIfNeeded()
-    activate()
-    window.makeKeyAndOrderFront(nil)
+    if activating {
+      activate()
+      window.makeKeyAndOrderFront(nil)
+    } else {
+      window.orderFrontRegardless()
+    }
   }
 
   /// The "Grant Accessibility" menu item: an explicit user click, so it is never inert. Launched at login no
-  /// window appears (ADR-0021), so it opens Privacy & Security > Accessibility directly; otherwise it fronts
+  /// window appears (ADR-0021), so it opens the Accessibility pane directly; otherwise it fronts
   /// the onboarding window.
   func grantAccessibility() {
     if probe.launchedAtLogin {

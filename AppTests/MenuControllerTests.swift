@@ -25,6 +25,26 @@ import os
       })
   }
 
+  /// T66: the status menu has one "Copy Diagnostics…" item (after About, before Quit) and it runs the root's
+  /// `DiagnosticsController`: the preview first, then the copy (AC-154).
+  @Test func copyDiagnosticsItemCallsTheController() {
+    let h = Harness()
+    let root = h.makeRoot()
+    root.menu.menuNeedsUpdate(root.menu.menu)
+    let titles = root.menu.menu.items.map(\.title)
+    #expect(titles.filter { $0 == "Copy Diagnostics…" }.count == 1)
+    #expect(Array(titles.suffix(3)) == ["About Zones", "Copy Diagnostics…", "Quit Zones"])
+    guard let item = root.menu.menu.items.first(where: { $0.title == "Copy Diagnostics…" }), let action = item.action
+    else {
+      Issue.record("no Copy Diagnostics item with an action")
+      return
+    }
+    #expect(item.isEnabled)
+    NSApp.sendAction(action, to: item.target, from: item)
+    #expect(h.diagnostics.calls.count == 2)
+    if case .preview = h.diagnostics.calls.first {} else { Issue.record("expected the preview first") }
+  }
+
   @Test func rebuiltOnEveryOpen() {
     let h = Harness()
     let root = h.makeRoot()

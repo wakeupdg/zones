@@ -17,6 +17,8 @@ final class MenuController: NSObject, NSMenuDelegate {
   private let topology: TopologyDriver
   private let permission: PermissionDriver
   private let ui: UIActions
+  /// "Copy Diagnostics…": the root's `DiagnosticsController.copyDiagnostics` (preview first, AC-154; T66).
+  private let copyDiagnostics: @MainActor () -> Void
   private let frontmost: @MainActor () -> (name: String, bundleID: String)?
   private let cursor: @MainActor () -> CGPoint
   private let builder: Builder
@@ -27,7 +29,7 @@ final class MenuController: NSObject, NSMenuDelegate {
 
   init(
     appState: AppState, topology: TopologyDriver, permission: PermissionDriver,
-    ui: UIActions, frontmost: @escaping @MainActor () -> (name: String, bundleID: String)?,
+    ui: UIActions, copyDiagnostics: @escaping @MainActor () -> Void = {}, frontmost: @escaping @MainActor () -> (name: String, bundleID: String)?,
     cursor: @escaping @MainActor () -> CGPoint,
     builder: @escaping Builder = {
       MenuModel.build(
@@ -38,6 +40,7 @@ final class MenuController: NSObject, NSMenuDelegate {
     self.topology = topology
     self.permission = permission
     self.ui = ui
+    self.copyDiagnostics = copyDiagnostics
     self.frontmost = frontmost
     self.cursor = cursor
     self.builder = builder
@@ -92,6 +95,7 @@ final class MenuController: NSObject, NSMenuDelegate {
     case .settings: return action("Settings…", #selector(openSettings), key: ",")
     case .grantAccessibility: return action("Grant Accessibility…", #selector(grantAccessibility))
     case .about: return action("About Zones", #selector(openAbout))
+    case .copyDiagnostics: return action("Copy Diagnostics…", #selector(copyDiagnosticsReport))
     case .quit: return action((AppDelegate.menuTitles.last ?? "Quit Zones"), #selector(quit), key: "q")
     }
   }
@@ -117,6 +121,7 @@ final class MenuController: NSObject, NSMenuDelegate {
   @objc func editLayouts() { ui.openEditor() }
   @objc func openSettings() { ui.openSettings() }
   @objc func openAbout() { ui.openAbout() }
+  @objc func copyDiagnosticsReport() { copyDiagnostics() }
   @objc func grantAccessibility() { ui.grantAccessibility() }
   @objc func quit() { ui.requestQuit() }
 }

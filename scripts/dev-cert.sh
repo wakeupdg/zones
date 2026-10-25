@@ -24,9 +24,21 @@
 #                                        # auto-lock on, `codesign:` partition entry dropped. Keeps the identity.
 #        scripts/dev-cert.sh --dry-run [mode]  # print the plan, change nothing
 #        scripts/dev-cert.sh --remove    # delete the keychain and the stored password
+#
+# Test override (T66): ZONES_DEV_KEYCHAIN=<throwaway keychain path> with ZONES_DEV_PASS_KEYCHAIN=<another throwaway
+# keychain> that holds the stored password. Then the identity lookup is scoped to the throwaway keychain, and the
+# user search list, the login keychain and the user trust settings are never touched.
 set -euo pipefail
 NAME="Zones Dev"
-KC="$HOME/Library/Keychains/zones-dev.keychain-db"
+KC="${ZONES_DEV_KEYCHAIN:-$HOME/Library/Keychains/zones-dev.keychain-db}"
+PASS_KC=""   # empty: the login keychain (default keychain)
+ISOLATED=0
+if [ -n "${ZONES_DEV_KEYCHAIN:-}" ]; then
+  ISOLATED=1
+  PASS_KC="${ZONES_DEV_PASS_KEYCHAIN:-}"
+  # never let a test keychain overwrite the real stored password in the login keychain
+  [ -n "$PASS_KC" ] || { echo "[dev-cert] ZONES_DEV_KEYCHAIN needs ZONES_DEV_PASS_KEYCHAIN" >&2; exit 64; }
+fi
 SERVICE="zones-dev-keychain"
 LEGACY_PASS="zones-dev" # the old committed constant; used only to migrate with --harden
 LOCK_SECONDS=3600
@@ -44,13 +56,19 @@ run() { # run <cmd...> — print instead of executing under --dry-run
     "$@"
   fi
 }
-stored_pass() { security find-generic-password -s "$SERVICE" -w 2>/dev/null || true; }
+stored_pass() { security find-generic-password -s "$SERVICE" -w ${PASS_KC:+"$PASS_KC"} 2>/dev/null || true; }
 store_pass() { # store_pass <password>
   if [ "$DRY" = 1 ]; then echo "[dev-cert] dry-run: security add-generic-password -a zones-dev -s $SERVICE -w <random> -U"; return; fi
-  security add-generic-password -a zones-dev -s "$SERVICE" -w "$1" -U
+  security add-generic-password -a zones-dev -s "$SERVICE" -w "$1" -U ${PASS_KC:+"$PASS_KC"}
 }
 new_pass() { openssl rand -hex 24; }
-have_identity() { security find-identity -v -p codesigning 2>/dev/null | grep -q "\"$NAME\""; }
+have_identity() {
+  if [ "$ISOLATED" = 1 ]; then # scoped, and valid or not: a throwaway identity is never trusted
+    security find-identity -p codesigning "$KC" 2>/dev/null | grep -q "\"$NAME\""
+  else
+    security find-identity -v -p codesigning 2>/dev/null | grep -q "\"$NAME\""
+  fi
+}
 arm_autolock() { run security set-keychain-settings -t "$LOCK_SECONDS" -l "$KC"; }
 unlock() { # unlock using the stored password; quiet no-op when the keychain or password is missing
   local pass; pass="$(stored_pass)"
@@ -60,6 +78,7 @@ unlock() { # unlock using the stored password; quiet no-op when the keychain or 
   arm_autolock
 }
 add_to_search_list() {
+  [ "$ISOLATED" = 0 ] || return 0
   local existing
   existing="$(security list-keychains -d user | tr -d '" ')"
   # shellcheck disable=SC2086
@@ -69,7 +88,7 @@ add_to_search_list() {
 case "$MODE" in
   --remove)
     run security delete-keychain "$KC" 2>/dev/null || true
-    run security delete-generic-password -s "$SERVICE" >/dev/null 2>&1 || true
+    run security delete-generic-password -s "$SERVICE" ${PASS_KC:+"$PASS_KC"} >/dev/null 2>&1 || true
     echo "[dev-cert] removed $KC"; exit 0 ;;
   --lock)
     run security lock-keychain "$KC"; exit 0 ;;
@@ -103,7 +122,6 @@ if have_identity; then
   echo "$NAME"; exit 0
 fi
 
-pass="$(new_pass)"; SECRET="$pass"
 if [ "$DRY" = 1 ]; then
   echo "[dev-cert] dry-run: would generate a random password, store it in the login keychain ($SERVICE), create $KC,"
   echo "[dev-cert] dry-run: import a new self-signed '$NAME' identity with -T /usr/bin/codesign, partition list apple-tool:,apple:,"
@@ -124,23 +142,27 @@ extendedKeyUsage=critical,codeSigning
 basicConstraints=critical,CA:false
 CNF
 openssl req -x509 -newkey rsa:2048 -nodes -days 3650 -keyout "$tmp/key.pem" -out "$tmp/cert.pem" -config "$tmp/ext.cnf" >/dev/null 2>&1
-openssl pkcs12 -export -legacy -inkey "$tmp/key.pem" -in "$tmp/cert.pem" -out "$tmp/id.p12" -passout pass:"$pass" -name "$NAME" >/dev/null 2>&1 \
-  || openssl pkcs12 -export -inkey "$tmp/key.pem" -in "$tmp/cert.pem" -out "$tmp/id.p12" -passout pass:"$pass" -name "$NAME" >/dev/null 2>&1
+# The .p12 has its own one-time password. T66: the keychain password is a different value when the keychain
+# already exists, and importing with it failed ("MAC verification failed"), so the recovery path never worked.
+p12pass="$(new_pass)"
+openssl pkcs12 -export -legacy -inkey "$tmp/key.pem" -in "$tmp/cert.pem" -out "$tmp/id.p12" -passout pass:"$p12pass" -name "$NAME" >/dev/null 2>&1 \
+  || openssl pkcs12 -export -inkey "$tmp/key.pem" -in "$tmp/cert.pem" -out "$tmp/id.p12" -passout pass:"$p12pass" -name "$NAME" >/dev/null 2>&1
 if [ -f "$KC" ]; then
   # A keychain exists but holds no valid identity. Reuse it only with a stored password.
   pass="$(stored_pass)"; SECRET="$pass"
   [ -n "$pass" ] || { echo "[dev-cert] $KC exists without a stored password; run --harden or --remove first" >&2; exit 1; }
 else
+  pass="$(new_pass)"; SECRET="$pass"
   store_pass "$pass"   # store first: a created keychain is never left without its password
   security create-keychain -p "$pass" "$KC"
 fi
 security unlock-keychain -p "$pass" "$KC"
 arm_autolock
 add_to_search_list
-security import "$tmp/id.p12" -k "$KC" -P "$pass" -T /usr/bin/codesign -T /usr/bin/security >/dev/null
+security import "$tmp/id.p12" -k "$KC" -P "$p12pass" -T /usr/bin/codesign -T /usr/bin/security >/dev/null
 security set-key-partition-list -S apple-tool:,apple: -s -k "$pass" "$KC" >/dev/null
 # trust for code signing in the user domain (may show one authorization dialog the first time)
-security add-trusted-cert -r trustRoot -p codeSign -k "$KC" "$tmp/cert.pem" 2>/dev/null || true
+[ "$ISOLATED" = 1 ] || security add-trusted-cert -r trustRoot -p codeSign -k "$KC" "$tmp/cert.pem" 2>/dev/null || true
 if have_identity; then
   echo "$NAME"
 else

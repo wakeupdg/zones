@@ -5,7 +5,7 @@ public enum MenuItem: Hashable, Sendable {
   case header(String)
   case layout(LayoutID, title: String, checked: Bool)
   case excludeApp(name: String, bundleID: String, checked: Bool)
-  case editLayouts, settings, grantAccessibility, about, quit, separator
+  case editLayouts, settings, grantAccessibility, about, copyDiagnostics, quit, separator
 }
 
 /// The status item menu as a value list (AC-016). A plain synchronous pure function over its arguments: it takes
@@ -30,7 +30,7 @@ public enum MenuModel {
     }
     items += [.editLayouts, .settings]
     if showsGrant(permission) { items.append(.grantAccessibility) }
-    items += [.separator, .about, .quit]
+    items += [.separator, .about, .copyDiagnostics, .quit]
     return items
   }
 

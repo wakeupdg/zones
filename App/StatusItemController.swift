@@ -88,6 +88,8 @@ final class StatusItemController {
         menu.addItem(ActionTarget.item(title: "Grant Accessibility", onGrant))
       case .about:
         menu.addItem(NSMenuItem(title: "About Zones", action: nil, keyEquivalent: ""))
+      case .copyDiagnostics:
+        menu.addItem(NSMenuItem(title: "Copy Diagnostics…", action: nil, keyEquivalent: ""))
       case .quit:
         let quit = NSMenuItem(title: "Quit Zones", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         quit.target = NSApp

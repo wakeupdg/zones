@@ -58,6 +58,33 @@ import ZonesWindowing
     onboarding.dismiss()
   }
 
+  /// T66 (T33 known issue): Accessibility lost while Zones runs in the background (`revoked`, the relaunch offer)
+  /// fronts the window without taking focus; first run and Re-run Onboarding (`notGranted`) and the Grant menu
+  /// item are user actions and still activate.
+  @Test func lossWhileInBackgroundDoesNotStealFocus() {
+    var activations = 0
+    let onboarding = OnboardingWindowController(
+      probe: FakePermissionProbe(clock: FakeClock()), preferences: { Preferences.defaults }, relaunch: {},
+      activate: { activations += 1 }, makeWindow: OnboardingWindowController.defaultWindow)
+    let surfaces = AppSurfaces(onboarding: onboarding)
+    defer { onboarding.dismiss() }
+
+    surfaces.permission = { .revoked(failures: 0, firstFailure: nil) }
+    surfaces.showOnboarding()
+    #expect(activations == 0)
+    #expect(onboarding.window?.isVisible == true)
+    surfaces.permission = { .needsRelaunch }
+    surfaces.offerRelaunch(true)
+    #expect(activations == 0)
+
+    onboarding.dismiss()
+    surfaces.permission = { .notGranted }
+    surfaces.showOnboarding()
+    #expect(activations == 1)
+    onboarding.grantAccessibility()
+    #expect(activations == 2)
+  }
+
   @Test func permissionChangesReachTheModel() {
     let (surfaces, onboarding, _, _) = make()
     surfaces.permission = { .revoked(failures: 3, firstFailure: 0) }
