@@ -10,13 +10,13 @@ import ZonesWindowing
 @MainActor
 @Suite struct OnboardingControllerTests {
   private func make(
-    launchedAtLogin: Bool = false
+    launchedAtLogin: Bool = false, clock: FakeClock = FakeClock()
   ) -> (OnboardingWindowController, FakePermissionProbe, () -> Int) {
-    let probe = FakePermissionProbe(clock: FakeClock())
+    let probe = FakePermissionProbe(clock: clock)
     probe.launchedAtLogin = launchedAtLogin
     var windows = 0
     let controller = OnboardingWindowController(
-      probe: probe, preferences: { Preferences.defaults }, relaunch: {},
+      probe: probe, preferences: { Preferences.defaults }, clock: clock, relaunch: {},
       activate: {}, makeWindow: {
         windows += 1
         return OnboardingWindowController.defaultWindow()
@@ -66,6 +66,42 @@ import ZonesWindowing
     #expect(created() == 1)
     #expect(probe.calls.isEmpty)
     controller.dismiss()
+  }
+
+  /// T56: the stale-entry help line follows the Clock time the window has been open in notGranted, refreshed by
+  /// the trust poll; a grant at 12 s still dismisses the window (AC-005 path) and clears the line.
+  @Test func staleEntryHelpThenGrantAtTwelveSeconds() {
+    let clock = FakeClock()
+    let (controller, _, _) = make(clock: clock)
+    controller.update(permission: .notGranted, relaunchOffered: false)
+    controller.show()
+    defer { controller.dismiss() }
+    clock.advance(by: 9.9)
+    controller.trustPolled()
+    #expect(controller.model.viewState.staleEntryHelp == nil)
+    clock.advance(by: 0.1)
+    controller.trustPolled()
+    #expect(controller.model.viewState.staleEntryHelp == OnboardingViewState.staleEntrySentence)
+    clock.advance(by: 2)
+    controller.update(permission: .granted, relaunchOffered: false)
+    controller.dismiss()
+    #expect(controller.window == nil)
+    #expect(controller.model.viewState.staleEntryHelp == nil)
+    // A fresh show starts the wait again from zero.
+    controller.update(permission: .notGranted, relaunchOffered: false)
+    controller.show()
+    controller.trustPolled()
+    #expect(controller.model.viewState.staleEntryHelp == nil)
+  }
+
+  /// The wait only counts while the window is open: a poll with no window never shows the line.
+  @Test func noHelpWithoutWindow() {
+    let clock = FakeClock()
+    let (controller, _, _) = make(clock: clock)
+    controller.update(permission: .notGranted, relaunchOffered: false)
+    clock.advance(by: 30)
+    controller.trustPolled()
+    #expect(controller.model.viewState.staleEntryHelp == nil)
   }
 
   /// QA-1.8: the app quits only once the replacement instance is running; a failed open keeps Zones alive.
