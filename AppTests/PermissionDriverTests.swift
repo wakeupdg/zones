@@ -114,9 +114,12 @@ import os
     #expect(root.permission.tap == .alive)
 
     // The next disable inside the window: the tap is lost; the machine hears `tapNil` and recreates it.
+    // C12 (SPK-006): the recreated tap is not evidence of a grant; the driver asks the probe, which now reads false.
+    h.probe.reset()
     root.permission.signal(.disabledByUserInput)
     #expect(root.permission.tap == .alive)  // the recreate succeeded, so the tap is alive again
     #expect(h.input.calls.last == .recreate)
+    #expect(h.probe.calls == [.isTrusted])
     if case .suspect = root.permission.state {} else { Issue.record("expected suspect, got \(root.permission.state)") }
   }
 
@@ -133,16 +136,35 @@ import os
     #expect(h.input.calls.filter { $0 == .recreate }.count == before + 1)
   }
 
-  @Test func heartbeatAfterRecreateIsTaggedTrivialRead() async {
+  /// C12 (SPK-006, T55): after a recreate only a true trust probe resolves suspect; no AX read is issued.
+  @Test func probeAfterRecreateResolvesSuspect() async {
     let h = Harness()
     h.probe.enqueue(.trusted(true))
     let root = h.makeRoot()
     root.permission.receive(.probe(true))
-    // apiDisabled -> suspect + recreateTap; the fake recreate succeeds -> tapRecreated(true) -> one heartbeat.
+    // apiDisabled -> suspect + recreateTap; the fake recreate succeeds -> tapRecreated(true) -> one probe.
     root.permission.receive(.apiDisabled)
     await root.permission.quiesce()
-    // The trivial read answered ok after the recreate: granted again.
+    #expect(h.input.calls.last == .recreate)
+    #expect(h.probe.calls == [.isTrusted])
     #expect(root.permission.state == .granted)
-    #expect(h.windows.calls.contains(.trivialRead))
+    #expect(h.windows.calls.isEmpty)
+  }
+
+  /// C12 (SPK-006): a trivial AX read that succeeds in suspect is not evidence of a grant.
+  @Test func trivialReadDoesNotResolveSuspect() async {
+    let h = Harness()
+    let root = h.makeRoot()
+    root.permission.receive(.probe(true))
+    // The post-recreate probe reads false (the fake's default), so the machine waits for the resolve timer.
+    root.permission.receive(.apiDisabled)
+    guard case .suspect = root.permission.state else {
+      Issue.record("expected suspect, got \(root.permission.state)")
+      return
+    }
+    root.permission.interpret(.heartbeat)
+    await root.permission.quiesce()
+    #expect(h.windows.calls == [.trivialRead])
+    if case .suspect = root.permission.state {} else { Issue.record("expected suspect, got \(root.permission.state)") }
   }
 }
