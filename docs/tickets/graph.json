@@ -1842,5 +1842,60 @@
     "protocol": "none (release)",
     "fake": "none needed (release)",
     "tests": "GateScriptTests (cask), hdiutil verify, codesign --verify"
+  },
+  {
+    "id": "T55",
+    "title": "Detect Accessibility revocation with the trust probe in the granted health tick (AC-007, AC-009, SPK-006)",
+    "kind": "fix",
+    "delivers": "The granted 5 s health tick probes AXIsProcessTrusted; suspect returns to granted only when the probe is true; revocation badges and shows onboarding within 5 s while idle.",
+    "acceptance_ids": [
+      "AC-006",
+      "AC-007",
+      "AC-009",
+      "AC-156"
+    ],
+    "blocked_by": [],
+    "files_expected": [
+      "Sources/ZonesWindowing/Permission/PermissionMachine.swift",
+      "App/Composition/PermissionDriver.swift",
+      "docs/LOCKED-SPEC.md"
+    ],
+    "est_tokens": 60000,
+    "brief_path": "docs/tickets/T55.md",
+    "state": "todo",
+    "tokens_spent": 0,
+    "branch": "ticket/T55",
+    "last_report": "",
+    "protocol": "PermissionMachine reducer (C-permission)",
+    "fake": "FakeClock + FakePermissionProbe",
+    "tests": "permission machine tests: health tick probe, suspect resolve by probe only"
+  },
+  {
+    "id": "T56",
+    "title": "Onboarding explains a stale Accessibility entry after a re-signed build (AC-004, AC-014)",
+    "kind": "fix",
+    "delivers": "After 10 s untrusted, the onboarding window tells the user to remove Zones with minus and turn it on again; README and CHANGELOG say the same for updates of ad-hoc builds.",
+    "acceptance_ids": [
+      "AC-004",
+      "AC-014"
+    ],
+    "blocked_by": [],
+    "files_expected": [
+      "Sources/ZonesWindowing/Shell/OnboardingViewState.swift",
+      "App/Onboarding/OnboardingModel.swift",
+      "App/Onboarding/OnboardingView.swift",
+      "README.md",
+      "CHANGELOG.md",
+      "docs/LOCKED-SPEC.md"
+    ],
+    "est_tokens": 50000,
+    "brief_path": "docs/tickets/T56.md",
+    "state": "todo",
+    "tokens_spent": 0,
+    "branch": "ticket/T56",
+    "last_report": "",
+    "protocol": "OnboardingViewState (pure)",
+    "fake": "FakeClock",
+    "tests": "onboarding view state: help line at 10 s, never in granted/suspect"
   }
 ]
