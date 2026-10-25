@@ -4,9 +4,9 @@ Phase: 5 (release) COMPLETE — 57 of 57 tickets done, 0 blocked (T55, T56 fix t
 Updated: 2026-10-24, end of Phase 5
 
 ## Result
-- Tickets: 55 done, 0 todo, 0 blocked (T01..T54, T01b included).
-- Acceptance: 169 ACs. Auto 139: 139 pass, 0 fail. Manual 30: 4 pass in a human run on 2026-10-24 (AC-004, AC-010, AC-057, AC-066); AC-009 FAIL (revocation not detected, heartbeat off per SPK-006 provisional default); AC-005 blocked by AC-009; 24 need a human run (list below). Source: docs/qa/acceptance-matrix.md.
-- Root `swift test` at the end of Phase 5: 337 tests in 66 suites green.
+- Tickets: 57 done, 0 todo, 0 blocked (T01..T56, T01b included).
+- Acceptance: 169 ACs. Auto 139: 139 pass, 0 fail. Manual 30: 6 pass in human runs on 2026-10-24 (AC-004, AC-005, AC-009, AC-010, AC-057, AC-066); AC-005 and AC-009 pass in the re-test after T55; 24 need a human run (list below). Source: docs/qa/acceptance-matrix.md.
+- Root `swift test`: 340 tests in 66 suites green (after T55, T56).
 - Release artifact: dist/Zones-0.1.0.dmg, 2,825,607 bytes, sha256 fec98598883d4f8388c994ed710fd2e079c3e5b0409f5e18360aa6343daeeadc. Ad-hoc signed: `hdiutil verify` VALID, `codesign` ok, `spctl` rejects (no Developer ID).
 - Homebrew cask: Casks/zones.rb points at the v0.1.0 release asset; `depends_on macos: :sonoma`.
 
@@ -24,12 +24,13 @@ Updated: 2026-10-24, end of Phase 5
 ## Spike verdicts (docs/spikes/)
 - PASS: SPK-003, SPK-004, SPK-008, SPK-012, SPK-013, SPK-015, SPK-017, SPK-018.
 - PARTIAL: SPK-005 (3-rebuild grant check needs a human), SPK-010 (VoiceOver run needs a human).
-- PENDING-HUMAN-RUN: SPK-001, SPK-002, SPK-006, SPK-007, SPK-009. Each file holds the operator commands.
+- FAIL (heartbeat read): SPK-006, from 1 trial; fixed by T55.
+- PENDING-HUMAN-RUN: SPK-001, SPK-002, SPK-007, SPK-009. Each file holds the operator commands.
 
 ## Manual ACs (need a human run)
 Passed in the human run on 2026-10-24 (macOS 27.0.1): AC-004, AC-010, AC-057, AC-066. Checklist: docs/qa/priority-manual-acs.md.
 
-Failed: AC-009. Blocked by AC-009: AC-005.
+Re-test after T55 (9:02 PM PT, signed build): AC-005 pass (0.55 s), AC-009 pass (badge in 3.8 s). T56 help line seen on screen and at 9.9-10.0 s.
 
 Still open (24):
 AC-020, AC-023, AC-025, AC-028, AC-030, AC-040, AC-044, AC-046, AC-061, AC-064, AC-070, AC-075, AC-078, AC-085, AC-096, AC-106, AC-107, AC-119, AC-126, AC-139, AC-141, AC-144, AC-157, AC-168.
@@ -37,9 +38,8 @@ AC-020, AC-023, AC-025, AC-028, AC-030, AC-040, AC-044, AC-046, AC-061, AC-064, 
 ## Open items
 The list of record is "Known issues" in CHANGELOG.md (0.1.0). In short:
 - Live drag, Snap and overlay behavior is not verified on real hardware.
-- AC-009 FAIL in the human run; fixed by T55 (trust probe in the 5 s health tick, C12; SPK-006 verdict from trial 1). Needs a human re-run on a signed build, then AC-005.
-- T56 (merged): the onboarding window shows a stale-entry help line after 10 s (C13). Not yet seen on screen.
-- Dev signing: the zones-dev keychain rejects its stored password since about 7:49 PM PT on 2026-10-24. T55 and T56 merged with `ZONES_UNSIGNED=1` (unsigned xcodebuild gate). Recreate the keychain with scripts/dev-cert.sh, then re-grant Accessibility.
+- AC-009 failed in the first human run; T55 fixed it (C12); the re-test passed. T56 help line passed on screen.
+- Dev signing: the zones-dev keychain was recreated on 2026-10-24 (new Zones Dev cert 13d6ab…) after its stored password stopped working; T55 and T56 were merged with `ZONES_UNSIGNED=1`. /Applications/Zones.app is now the signed Debug build (old DMG copy in .build/backup/). The draft release DMG predates T55 and T56.
 - The 24 open manual ACs above.
 - `scripts/dev-cert.sh` recovery path fails when the dev keychain exists but holds no identity (T51 review).
 - Copy Diagnostics has no menu item or button yet.

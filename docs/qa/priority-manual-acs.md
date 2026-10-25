@@ -19,22 +19,23 @@ Tester: DG  macOS version: 27.0.1  Date: 2026-10-24 (results recorded 12:18 PM P
   - [x] Its button opens System Settings → Privacy & Security → **Accessibility**, and that pane is in front.
 - Result: **pass** (human run, 2026-10-24)
 
-### [ ] AC-005 — Grant noticed without relaunch
+### [x] AC-005 — Grant noticed without relaunch
 - **Do:** Note the Zones process id (`pgrep -x Zones`). Start the stopwatch. Turn the Zones toggle **on**.
 - **Pass if:**
-  - [ ] The onboarding window closes in **under 1.5 s**.
-  - [ ] The menu-bar icon has no badge.
-  - [ ] The process id did not change (no relaunch).
-- Result: **blocked** (2026-10-24): needs the onboarding window open before the toggle goes on; AC-009 failed, so the window never came back. Re-run after the AC-009 fix (T55 merged; needs a signed build).
+  - [x] The onboarding window closes in **under 1.5 s**.
+  - [x] The menu-bar icon has no badge.
+  - [x] The process id did not change (no relaunch).
+- Result: **pass** (re-test 9:02 PM PT, 2026-10-24; signed Debug build in /Applications, pid 4835, Zones Dev cert 13d6ab…, after T55). Toggle on at re-grant: window closed and badge gone **0.55 s** later; process id unchanged. First grant (entry added with +): window closed in the same 50 ms sample as the badge cleared. Log: [logs/ac005-ac009-retest-2026-10-24.log](logs/ac005-ac009-retest-2026-10-24.log).
 
-### [ ] AC-009 — Revocation on a real Mac — **FAIL**
+### [x] AC-009 — Revocation on a real Mac — **pass after T55**
 - **Do:** With Zones idle, turn the toggle **off**. Start the stopwatch.
 - **Pass if:**
-  - [ ] The icon shows a badge in **8 s or less** (AC-009 as amended by C12, T55).
-  - [ ] The onboarding window comes back.
-  - [ ] You recorded the probe value from the diagnostics report.
+  - [x] The icon shows a badge in **8 s or less** (AC-009 as amended by C12, T55).
+  - [x] The onboarding window comes back.
+  - [x] You recorded the probe value from the diagnostics report.
 - **CAUTION:** Copy Diagnostics has no menu item yet (CHANGELOG known issue). If you cannot get the report, write "no UI" here and continue.
-- Result: **FAIL** (human run 6:06 PM PT, 2026-10-24; Debug build pid 43679, Zones Dev signed). Toggle off for about 12.5 min: no badge, no onboarding window, process id unchanged. A Shift-drag while off showed no overlay and did not snap, so macOS did stop access but Zones did not detect it. Probe value: no UI. Cause: `heartbeatEnabled = false` (SPK-006 provisional default); a revoked listen-only tap gets no events, so no Drag Session starts and no AX error arrives. Watcher log: [logs/ac009-watch-2026-10-24.log](logs/ac009-watch-2026-10-24.log).
+- Result (re-test 9:01 PM PT, 2026-10-24, after T55): **pass**. Toggle off while idle: badge and onboarding window back in **3.8 s** (limit 8 s); the stale-entry help line followed 10.0 s later; process id unchanged; probe value: `AXIsProcessTrusted` false (no diagnostics UI). Log: [logs/ac005-ac009-retest-2026-10-24.log](logs/ac005-ac009-retest-2026-10-24.log).
+- First result: **FAIL** (human run 6:06 PM PT, 2026-10-24; Debug build pid 43679, Zones Dev signed). Toggle off for about 12.5 min: no badge, no onboarding window, process id unchanged. A Shift-drag while off showed no overlay and did not snap, so macOS did stop access but Zones did not detect it. Probe value: no UI. Cause: `heartbeatEnabled = false` (SPK-006 provisional default); a revoked listen-only tap gets no events, so no Drag Session starts and no AX error arrives. Watcher log: [logs/ac009-watch-2026-10-24.log](logs/ac009-watch-2026-10-24.log).
 
 ### [x] AC-010 — Re-grant recovery
 - **Do:** Turn the toggle **on** again. Shift-drag a window.

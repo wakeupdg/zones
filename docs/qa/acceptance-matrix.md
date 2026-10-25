@@ -1,6 +1,6 @@
 # Acceptance matrix (Zones 0.1.0, 2026-10-24)
 
-Source: QA round 1 (all auto ACs walked) and QA round 2 (11 re-walked after fixes). Auto: 139; pass 139; fail 0; fixed-after-fail or not walked 0. Manual: 30 (never marked pass by an agent). Human run 2026-10-24: 4 pass (AC-004, AC-010, AC-057, AC-066), 1 fail (AC-009), 1 blocked (AC-005); 24 still need a human run.
+Source: QA round 1 (all auto ACs walked) and QA round 2 (11 re-walked after fixes). Auto: 139; pass 139; fail 0; fixed-after-fail or not walked 0. Manual: 30 (never marked pass by an agent). Human run 2026-10-24: 6 pass (AC-004, AC-005, AC-009 after T55, AC-010, AC-057, AC-066); 24 still need a human run.
 
 | AC | kind | title | tickets | result |
 |---|---|---|---|---|
@@ -8,11 +8,11 @@ Source: QA round 1 (all auto ACs walked) and QA round 2 (11 re-walked after fixe
 | AC-002 | auto | Hardened runtime, no sandbox | T38 | pass (QA round 1) |
 | AC-003 | auto | Only Accessibility, no private symbols | T38 | pass (QA round 1) |
 | AC-004 | manual | Onboarding window | T33,T40 | pass (human run 2026-10-24, macOS 27.0.1) |
-| AC-005 | manual | Grant noticed without relaunch | T33 | blocked by AC-009 (onboarding window never returned) |
+| AC-005 | manual | Grant noticed without relaunch | T33 | pass (human re-test 2026-10-24: window closed 0.55 s after the toggle) |
 | AC-006 | auto | Poll schedule per permission state | T20 | pass (QA round 1) |
 | AC-007 | auto | Revocation via runtime signals | T20 | pass (QA round 1) |
 | AC-008 | auto | Relaunch gate | T20 | pass (QA round 1) |
-| AC-009 | manual | Revocation on a real Mac | T20 | FAIL (human run 2026-10-24: revocation not detected; heartbeat off, SPK-006) |
+| AC-009 | manual | Revocation on a real Mac | T20 | pass (human re-test 2026-10-24 after T55: badge in 3.8 s) |
 | AC-010 | manual | Re-grant recovery | T20,T40 | pass (human run 2026-10-24, macOS 27.0.1) |
 | AC-011 | auto | Tap re-enable rate limit | T23 | pass (QA round 1) |
 | AC-012 | auto | Launched-at-login path | T29,T41 | pass (QA round 2) |
