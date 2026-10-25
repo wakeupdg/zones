@@ -204,4 +204,55 @@ import ZonesTestSupport
     #expect(first?.point == CGPoint(x: 10, y: 880))
     #expect(down.flags == flagsBefore)  // not modified
   }
+
+  /// T64: both streams are bounded for a stalled consumer. Past `dragLimit` queued drags the oldest drag goes, so
+  /// the newest pointer positions get through; down, up and flagsChanged are never dropped and keep their order.
+  /// Signals keep the newest `signalLimit`.
+  @Test func streamsAreBoundedAndKeepEveryButtonAndModifierEvent() async {
+    let source = EventTapInputSource(tapMaker: TapMaker { _, _ in nil }, primaryFrame: { Self.primary })
+    func event(_ kind: InputKind, _ time: TimeInterval) -> InputEvent {
+      InputEvent(kind: kind, point: .zero, flags: [], windowUnderPointer: nil, time: time)
+    }
+    let limit = EventTapInputSource.dragLimit
+    let excess = 50
+    let box = source.callbackBox
+    box.events.push(event(.leftDown, 0))
+    for t in 1...9 { box.events.push(event(.leftDragged, Double(t))) }
+    box.events.push(event(.flagsChanged, 9.5))
+    for t in 10...(limit + excess) { box.events.push(event(.leftDragged, Double(t))) }
+    box.events.push(event(.flagsChanged, 1000))
+    box.events.push(event(.leftUp, 1001))
+
+    let expected =
+      [event(.leftDown, 0), event(.flagsChanged, 9.5)]
+      + ((excess + 1)...(limit + excess)).map { event(.leftDragged, Double($0)) }
+      + [event(.flagsChanged, 1000), event(.leftUp, 1001)]
+    var events = source.events.makeAsyncIterator()
+    var got: [InputEvent] = []
+    for _ in expected.indices {
+      if let next = await events.next() { got.append(next) }
+    }
+    #expect(got == expected)
+
+    // A consumer suspended on the empty queue gets the next push; cancelling it ends the stream.
+    let waiting = Task { await events.next() }
+    try? await Task.sleep(for: .milliseconds(20))
+    box.events.push(event(.leftDown, 2000))
+    #expect(await waiting.value == event(.leftDown, 2000))
+    let buffer = InputBuffer(dragLimit: 1)
+    let stream = buffer.stream()
+    let cancelled = Task {
+      var it = stream.makeAsyncIterator()
+      return await it.next()
+    }
+    try? await Task.sleep(for: .milliseconds(20))
+    cancelled.cancel()
+    #expect(await cancelled.value == nil)
+    buffer.push(event(.leftUp, 1))  // dropped: the buffer is finished
+
+    for _ in 0..<5 { box.signals.yield(.recreated(true)) }
+    for _ in 0..<EventTapInputSource.signalLimit { box.signals.yield(.disabledByTimeout) }
+    var signals = source.signals.makeAsyncIterator()
+    #expect(await signals.next() == .disabledByTimeout)
+  }
 }
