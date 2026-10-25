@@ -2020,9 +2020,10 @@
     ],
     "est_tokens": 30000,
     "brief_path": "docs/tickets/T62.md",
-    "state": "review",
-    "tokens_spent": 1207309,
-    "branch": "ticket/T62"
+    "state": "done",
+    "tokens_spent": 1218614,
+    "branch": "ticket/T62",
+    "last_report": "merged c2622fd"
   },
   {
     "id": "T63",
@@ -2037,7 +2038,7 @@
     "est_tokens": 70000,
     "brief_path": "docs/tickets/T63.md",
     "state": "building",
-    "tokens_spent": 1217178,
+    "tokens_spent": 1229214,
     "branch": "ticket/T63"
   },
   {
@@ -2054,7 +2055,7 @@
     "est_tokens": 80000,
     "brief_path": "docs/tickets/T64.md",
     "state": "review",
-    "tokens_spent": 1188464,
+    "tokens_spent": 1199765,
     "branch": "ticket/T64"
   },
   {
@@ -2072,7 +2073,7 @@
     "est_tokens": 80000,
     "brief_path": "docs/tickets/T65.md",
     "state": "review",
-    "tokens_spent": 1019914,
+    "tokens_spent": 1031216,
     "branch": "ticket/T65"
   }
 ]
