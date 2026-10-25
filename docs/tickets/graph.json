@@ -2021,7 +2021,7 @@
     "est_tokens": 30000,
     "brief_path": "docs/tickets/T62.md",
     "state": "review",
-    "tokens_spent": 495919,
+    "tokens_spent": 1207309,
     "branch": "ticket/T62"
   },
   {
@@ -2037,7 +2037,7 @@
     "est_tokens": 70000,
     "brief_path": "docs/tickets/T63.md",
     "state": "building",
-    "tokens_spent": 503234,
+    "tokens_spent": 1217178,
     "branch": "ticket/T63"
   },
   {
@@ -2054,7 +2054,7 @@
     "est_tokens": 80000,
     "brief_path": "docs/tickets/T64.md",
     "state": "review",
-    "tokens_spent": 477264,
+    "tokens_spent": 1188464,
     "branch": "ticket/T64"
   },
   {
@@ -2072,7 +2072,7 @@
     "est_tokens": 80000,
     "brief_path": "docs/tickets/T65.md",
     "state": "review",
-    "tokens_spent": 308683,
+    "tokens_spent": 1019914,
     "branch": "ticket/T65"
   }
 ]
