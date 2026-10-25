@@ -1969,7 +1969,7 @@
     "est_tokens": 60000,
     "brief_path": "docs/tickets/T59.md",
     "state": "building",
-    "tokens_spent": 0,
+    "tokens_spent": 591885,
     "branch": "ticket/T59"
   },
   {
@@ -2003,8 +2003,8 @@
     ],
     "est_tokens": 80000,
     "brief_path": "docs/tickets/T61.md",
-    "state": "building",
-    "tokens_spent": 0,
+    "state": "review",
+    "tokens_spent": 1194090,
     "branch": "ticket/T61"
   }
 ]
