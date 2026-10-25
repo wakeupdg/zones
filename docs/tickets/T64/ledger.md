@@ -1,0 +1,1 @@
+- slice 1 (issue 1, T13): AXObserverBridgeTests.forgottenBoxLivesUntilTheObserverGoes red (box freed by forget while AX holds its refcon) then green — forget moves the box to Entry.retired (released with the observer at drop), SubscriptionBox.fire() makes a repeated destroyed callback a no-op; ObserverTable.observer(for:)/record(_:_:pid:) split out as internal seams
