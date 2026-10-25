@@ -1,12 +1,23 @@
 <svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Figma 50:1639 "Glow": ellipse 230x362 centred at 512,512, accent #178A5F. Icon Composer has no layer blur,
-       so the Figma "blur ~50" is baked in as a radial falloff; the 40 % opacity is set in icon.json. -->
+  <!-- Figma 50:1639 "Glow": accent #178A5F, centred at 512,512. Icon Composer has no layer blur,
+       so the blur is baked in as a Gaussian-like falloff (exp(-4.5 r^2), rescaled to 0 at the edge) over a
+       230x320 ellipse; a short linear falloff showed the ellipse edge as an oval. The 40 % opacity is set in icon.json. -->
   <defs>
     <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
-      <stop offset="0" stop-color="#178A5F" stop-opacity="1"/>
-      <stop offset="0.55" stop-color="#178A5F" stop-opacity="0.85"/>
-      <stop offset="1" stop-color="#178A5F" stop-opacity="0"/>
+      <stop offset="0.0" stop-color="#178A5F" stop-opacity="1.0"/>
+      <stop offset="0.083" stop-color="#178A5F" stop-opacity="0.969"/>
+      <stop offset="0.167" stop-color="#178A5F" stop-opacity="0.881"/>
+      <stop offset="0.25" stop-color="#178A5F" stop-opacity="0.752"/>
+      <stop offset="0.333" stop-color="#178A5F" stop-opacity="0.602"/>
+      <stop offset="0.417" stop-color="#178A5F" stop-opacity="0.452"/>
+      <stop offset="0.5" stop-color="#178A5F" stop-opacity="0.317"/>
+      <stop offset="0.583" stop-color="#178A5F" stop-opacity="0.207"/>
+      <stop offset="0.667" stop-color="#178A5F" stop-opacity="0.126"/>
+      <stop offset="0.75" stop-color="#178A5F" stop-opacity="0.069"/>
+      <stop offset="0.833" stop-color="#178A5F" stop-opacity="0.033"/>
+      <stop offset="0.917" stop-color="#178A5F" stop-opacity="0.012"/>
+      <stop offset="1.0" stop-color="#178A5F" stop-opacity="0.0"/>
     </radialGradient>
   </defs>
-  <ellipse cx="512" cy="512" rx="165" ry="231" fill="url(#glow)"/>
+  <ellipse cx="512" cy="512" rx="230" ry="320" fill="url(#glow)"/>
 </svg>
