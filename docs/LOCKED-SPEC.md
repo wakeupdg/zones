@@ -237,17 +237,17 @@ Statement: With a fake Clock, state notGranted schedules exactly one trust poll 
 Covers: US-003, US-131
 Verify: `swift test --filter PermissionMachineTests.pollScheduleMatchesState`.
 ### AC-007 (auto) — Revocation via runtime signals
-Statement: Given granted, an apiDisabled result from any AX call or a nil tap moves to suspect; a successful tap recreation plus one trivial AX read returns to granted; otherwise after 3 s on the Clock the state is revoked and the effects are badge, showOnboarding, unregisterWindowHotkeys and drainEnhancedUI.
+Statement: Given granted, an apiDisabled result from any AX call, a nil tap, or a false trust probe on the 5 s health tick moves to suspect; a successful tap recreation plus one true trust probe returns to granted (a trivial AX read alone never does, C12); otherwise after 3 s on the Clock the state is revoked and the effects are badge, showOnboarding, unregisterWindowHotkeys and drainEnhancedUI.
 Covers: US-004
-Verify: `swift test --filter PermissionMachineTests.suspectResolvesToGrantedOrRevoked`.
+Verify: `swift test --filter PermissionMachineTests` (suspectResolvesToGrantedOrRevoked, healthTickProbeFalseRevokes).
 ### AC-008 (auto) — Relaunch gate
 Statement: In revoked with the probe reading true, three failed tap recreations over 10 s on the Clock move to needsRelaunch, which alone offers "Quit and Reopen"; with the probe reading false the state stays revoked indefinitely and never offers the button; a successful recreation from either state returns to granted.
 Covers: US-005
 Verify: `swift test --filter PermissionMachineTests.relaunchOnlyAfterGateWithProbeTrue`.
 ### AC-009 (manual) — Revocation on a real Mac
-Statement: Revoking Accessibility while Zones idles badges the icon at the next Drag Session or within 5 s when the heartbeat is enabled, and the onboarding window returns; the probe's value after revocation is recorded.
+Statement: Revoking Accessibility while Zones idles badges the icon within 8 s (one 5 s health tick plus the 3 s suspect window, C12) and the onboarding window returns; the probe's value after revocation is recorded.
 Covers: US-004
-Verify: Revoke in System Settings; note time to badge; open the diagnostics report and record the probe field.
+Verify: Revoke in System Settings; note time to badge (8 s or less); record the probe value (the trust probe reads false; the diagnostics report has no UI entry yet).
 ### AC-010 (manual) — Re-grant recovery
 Statement: Re-granting the toggle either recovers dragging in place within 3 s or shows "Quit and Reopen" after about 10 s, and pressing it yields a trusted app with no onboarding.
 Covers: US-005
@@ -996,6 +996,7 @@ Each spike returns a verdict note before the dependent tickets start. "Depends" 
 - C9 ADR-0012: the UUID can read nil mid-reconfiguration and may collide for identical panels with zero serials; refinement adopted is a Clock-driven retry and an unstable, never-persisted fallback key with a session-only Assignment. The UUID remains the only persisted key.
 - C10 ADR-0008: silent on Span Modifier release; the freeze rule above is the decision.
 - C11 ADR-0024 / AC-160 (2026-10-24, user decision): CI on every push exhausted the free GitHub Actions allowance for macOS runners on a private repository. CI now runs on pull requests to `main` and on manual dispatch; `scripts/merge-ticket.sh` is the per-ticket gate; the repository goes public at release. Recorded as ADR-0026; AC-160 amended.
+- C12 AC-007 / AC-009 (2026-10-24, human run and SPK-006 trial 1): on macOS 27.0.1 revocation leaves the listen-only tap enabled and AX reads succeeding (never apiDisabled); only `AXIsProcessTrusted()` turns false. The granted 5 s health tick now asks the trust probe, and suspect returns to granted only on a true probe. AC-009 failed before this (no badge in 12.5 min). AC-007 and AC-009 amended; timer set of AC-156 unchanged.
 
 ## 9. Traceability
 

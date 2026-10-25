@@ -67,8 +67,11 @@ public enum PermissionMachine {
   ) -> (PermissionState, [PermissionEffect]) {
     switch e {
     case .timer(.healthTick):
-      // One heartbeat in flight at most: its result re-arms the tick, so there is no reschedule here.
-      if config.heartbeatEnabled && config.reducerIdle { return (.granted, [.heartbeat]) }
+      // C12 (SPK-006): after revocation only the trust probe reads false, so every tick asks it. Its answer re-arms.
+      return (.granted, [.probe])
+    case .probe(true):
+      // One heartbeat in flight at most: its result re-arms the tick, so here the tick is only cancelled.
+      if config.heartbeatEnabled && config.reducerIdle { return (.granted, [.cancel(.healthTick), .heartbeat]) }
       return (.granted, rearm(.healthTick, Constants.healthTick))
     case .heartbeat(.apiDisabled), .apiDisabled, .tapNil, .probe(false):
       return (
@@ -88,11 +91,10 @@ public enum PermissionMachine {
   ) -> (PermissionState, [PermissionEffect]) {
     let stay = PermissionState.suspect(since: since)
     switch e {
-    case .tapRecreated(true): return (stay, [.heartbeat])
-    case .trivialRead(.ok):
-      // Only the read issued after `tapRecreated(true)` counts. A `.heartbeat` still in flight from before the signal
-      // proves AX works, not that the tap does, so it falls through to the ignore arm.
-      return (.granted, [.cancel(.suspectResolve)] + rearm(.healthTick, Constants.healthTick))
+    // C12 (SPK-006): after revocation the tap stays enabled and AX reads still succeed, so neither proves a grant.
+    // Only the trust probe asked after `tapRecreated(true)` does; a false answer waits for the resolve timer.
+    case .tapRecreated(true): return (stay, [.probe])
+    case .probe(true): return (.granted, [.cancel(.suspectResolve)] + rearm(.healthTick, Constants.healthTick))
     case .timer(.suspectResolve) where now - since >= Constants.suspectWindow - slack:
       return (
         .revoked(failures: 0, firstFailure: nil),
