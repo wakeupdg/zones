@@ -1986,8 +1986,9 @@
     ],
     "est_tokens": 50000,
     "brief_path": "docs/tickets/T60.md",
-    "state": "review",
-    "tokens_spent": 1982870,
-    "branch": "ticket/T60"
+    "state": "done",
+    "tokens_spent": 2119108,
+    "branch": "ticket/T60",
+    "last_report": "merged fa8ff28"
   }
 ]
