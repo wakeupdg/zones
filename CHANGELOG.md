@@ -98,6 +98,9 @@ First pre-release. Built and unit-tested, but not yet verified on real hardware.
 - Turning Accessibility off while Zones runs is not detected: no badge and no onboarding window appear, and
   dragging stops until access is turned on again. The 5 s heartbeat check is off until SPK-006 has human trials
   (AC-009, found in the human run on 2026-10-24).
+- After an update of an ad-hoc build, System Settings can show Zones as on while the new copy is not trusted;
+  remove Zones from the Accessibility list with the minus button (−) and turn it on again (the onboarding window
+  says so after 10 s; T56, user report on 2026-10-24).
 - 30 manual acceptance checks (of 169) are pending a human run (see [docs/STATUS.md](docs/STATUS.md)).
 - `scripts/dev-cert.sh --harden` must be run once by the user on a keychain made by the older script.
 - `scripts/dev-cert.sh` recovery path: when the dev keychain exists but holds no identity, the import step fails

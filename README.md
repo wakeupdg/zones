@@ -40,6 +40,7 @@ A menu-bar window manager for macOS that snaps windows into Zone Layouts, in the
      ```sh
      xattr -dr com.apple.quarantine /Applications/Zones.app
      ```
+4. After an update, each ad-hoc build has a new signature, so if Zones is already on in Privacy & Security > Accessibility but still asks for access, select Zones, click the minus button (−) to remove it, then click **Open System Settings** and turn Zones on again.
 
 ### Option B: Homebrew cask
 
