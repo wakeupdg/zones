@@ -15,7 +15,7 @@ AC-168 (release checklist) is not in this group. It uses results from all groups
 ## Before you start
 1. Start Zones from /Applications.
 2. Make sure that the Zones Accessibility toggle is **on**.
-3. The tester's Activation Modifier is **Control** (Span modifier: Shift). "Drag" below means a drag with the Activation Modifier held. Note the opacity in Settings → Appearance before AC-141.
+3. The tester's Activation Modifier is **Control** (Span modifier: Command). "Drag" below means a drag with the Activation Modifier held. Note the opacity in Settings → Appearance before AC-141.
 
 ---
 
@@ -97,15 +97,15 @@ AC-168 (release checklist) is not in this group. It uses results from all groups
 
 ## Part 3 — Drags (4 ACs)
 
-### [ ] AC-141 — Appearance applies live
+### [x] AC-141 — Appearance applies live
 - **Do:**
-  1. In Settings, change the opacity from **0.3** to **0.8**. Change the Activation Modifier to **Option** (not Command: DG's Span modifier is Command).
-  2. Do not relaunch. Option-drag a window.
+  1. In Settings → **Appearance**, change Opacity from **30%** to **80%**. In Settings → **General** → Modifier keys, change **Activation** to **Shift** (not Command: DG's Span modifier is Command; not Option: macOS native tiling takes Option-drag).
+  2. Do not relaunch. Shift-drag a window.
 - **Pass if:**
-  - [ ] The Overlay shows at the new opacity on the first drag.
-  - [ ] Option-drag starts the Overlay.
+  - [x] The Overlay shows at the new opacity on the first drag.
+  - [x] Shift-drag starts the Overlay.
 - Then: set the opacity and the modifier back to the values you noted (modifier: **Control**).
-- Result:
+- Result: **PASS** (2026-10-25, 8:30 PM PT, DG). Opacity 30% -> 80% and Activation Control -> Shift, no relaunch: the first Shift-drag showed the Overlay at 80%. DG set both back (30%, Control). Finding (not a fail, after v0.1.1): the Activation picker offers Option, but macOS native tiling takes Option-drag, so Option does not start the Overlay. Fix idea: a caption or a block on Option (new behavior).
 
 ### [ ] AC-044 — Drag uninterrupted
 - **Do:**
