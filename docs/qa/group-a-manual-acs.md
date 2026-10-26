@@ -124,18 +124,18 @@ AC-168 (release checklist) is not in this group. It uses results from all groups
   3. Press **Control+Option+R**.
 - **Pass if:**
   - [x] The window goes back to its left-side position, not to the drop point.
-- Result: **PASS with TextEdit** (2026-10-25, 8:40 PM PT, DG). Open finding: the first 2 tries (another app, not named yet) did not move the window on Control+Option+R. No log line for those tries: the debug stream started after them, and the disk log keeps no debug or info lines. Cause unknown; one guess is a WindowKey (pid + AX element hash) that differs between the drag and the focused-window read, so Restore finds no Original Frame. Next: repeat with that app while `log stream --level debug --predicate 'subsystem == "Zones"'` runs and look for "noOp noEntry".
+- Result: **PASS with TextEdit** (2026-10-25, 8:40 PM PT, DG). Open finding: the first 2 tries (Google Chrome, named by DG 9:30 PM PT) did not move the window on Control+Option+R. No log line for those tries: the debug stream started after them, and the disk log keeps no debug or info lines. Cause unknown; one guess is a WindowKey (pid + AX element hash) that differs between the drag and the focused-window read, so Restore finds no Original Frame. Next: repeat with that app while `log stream --level debug --predicate 'subsystem == "Zones"'` runs and look for "noOp noEntry".
 
-### [ ] AC-144 — Automatic skips on screen
+### [x] AC-144 — Automatic skips on screen
 - **Do:** Control-drag each of these:
   1. A Save sheet (TextEdit → File → Save…).
   2. A popover (for example, the Calendar event popover).
   3. The Zones Settings window.
   4. Calculator, dropped on a Zone.
 - **Pass if:**
-  - [ ] Items 1 to 3 show no Overlay.
-  - [ ] Calculator moves to the Zone's top-left corner and does not change size.
-- Result:
+  - [x] Items 1 to 3 show no Overlay. (Item 1 only; items 2 and 3 waived by DG.)
+  - [ ] Calculator moves to the Zone's top-left corner and does not change size. (Waived by DG.)
+- Result: **PASS, scoped to the Save sheet** (2026-10-25, 9:24 PM PT, DG). DG's words: "1. save sheet works 2. popovers dont need to work 3. zones settings window doesnt need to work 4. calculator doesnt need to work". Items 2 to 4 are not v0.1.1 requirements (DG decision); they were not run.
 
 ## Part 4 — Idle CPU (1 AC, 10 min)
 
@@ -145,7 +145,7 @@ AC-168 (release checklist) is not in this group. It uses results from all groups
   2. Tell Claude "start CPU". Then do not touch the Mac for 10 minutes.
 - **Pass if (Claude measures the Zones CPU time over the 10 minutes):**
   - [ ] The Zones average CPU is less than 1 percent.
-- Result:
+- Result: deferred (DG, 2026-10-25, 9:36 PM PT): run later with Desktop Commander while DG is asleep, with full permissions and access.
 
 ## If an AC fails
 Write what you saw in the Result line. Then tell Claude, and Claude makes a fix ticket.
