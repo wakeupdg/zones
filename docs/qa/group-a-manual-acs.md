@@ -107,15 +107,15 @@ AC-168 (release checklist) is not in this group. It uses results from all groups
 - Then: set the opacity and the modifier back to the values you noted (modifier: **Control**).
 - Result: **PASS** (2026-10-25, 8:30 PM PT, DG). Opacity 30% -> 80% and Activation Control -> Shift, no relaunch: the first Shift-drag showed the Overlay at 80%. DG set both back (30%, Control). Finding (not a fail, after v0.1.1): the Activation picker offers Option, but macOS native tiling takes Option-drag, so Option does not start the Overlay. Fix idea: a caption or a block on Option (new behavior).
 
-### [ ] AC-044 — Drag uninterrupted
+### [x] AC-044 — Drag uninterrupted
 - **Do:**
   1. Tell Claude "start the probe". Claude runs `.build/dragprobe` (read-only).
   2. Click a TextEdit window. Control-drag it, hold it for 2 s, and drop it on a Zone.
   3. Tell Claude "done".
 - **Pass if (Claude reads the probe log):**
-  - [ ] The frontmost app and key window are the same before, during and after the drag.
-  - [ ] Zones windows show at layer 1000 only during the drag.
-- Result:
+  - [x] The frontmost app and key window are the same before, during and after the drag.
+  - [x] Zones windows show at layer 1000 only during the drag.
+- Result: **PASS** (2026-10-25, 8:36 PM PT, dragprobe). TextEdit (pid 39369) frontmost with key window "Untitled 3" before (8:36:28.8), during (8:36:30.1) and after (8:36:35.1) the drag. Zones layers: 0 before, 0 + 1000 x3 (one Overlay per display) during, 0 after. Log: [ac044 probe](logs/ac044-probe-2026-10-25.log) (trimmed to the drag; other apps' private window titles removed).
 
 ### [ ] AC-096 — Restore returns to the pre-grab place
 - **Do:**
