@@ -117,14 +117,14 @@ AC-168 (release checklist) is not in this group. It uses results from all groups
   - [x] Zones windows show at layer 1000 only during the drag.
 - Result: **PASS** (2026-10-25, 8:36 PM PT, dragprobe). TextEdit (pid 39369) frontmost with key window "Untitled 3" before (8:36:28.8), during (8:36:30.1) and after (8:36:35.1) the drag. Zones layers: 0 before, 0 + 1000 x3 (one Overlay per display) during, 0 after. Log: [ac044 probe](logs/ac044-probe-2026-10-25.log) (trimmed to the drag; other apps' private window titles removed).
 
-### [ ] AC-096 — Restore returns to the pre-grab place
+### [x] AC-096 — Restore returns to the pre-grab place
 - **Do:**
   1. Put a window on the **left** side of a display. Remember its position.
   2. Control-drag it into a Zone on the **right** side.
   3. Press **Control+Option+R**.
 - **Pass if:**
-  - [ ] The window goes back to its left-side position, not to the drop point.
-- Result:
+  - [x] The window goes back to its left-side position, not to the drop point.
+- Result: **PASS with TextEdit** (2026-10-25, 8:40 PM PT, DG). Open finding: the first 2 tries (another app, not named yet) did not move the window on Control+Option+R. No log line for those tries: the debug stream started after them, and the disk log keeps no debug or info lines. Cause unknown; one guess is a WindowKey (pid + AX element hash) that differs between the drag and the focused-window read, so Restore finds no Original Frame. Next: repeat with that app while `log stream --level debug --predicate 'subsystem == "Zones"'` runs and look for "noOp noEntry".
 
 ### [ ] AC-144 — Automatic skips on screen
 - **Do:** Control-drag each of these:
