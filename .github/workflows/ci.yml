@@ -1,0 +1,37 @@
+name: CI
+# Triggers are limited to keep GitHub Actions minutes free of cost (ADR-0026).
+# The per-ticket gate is scripts/merge-ticket.sh: build, test and xcodebuild before every merge into integration.
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  build-and-test:
+    runs-on: macos-26
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode
+        # Package.swift needs Swift tools 6.2 (Xcode 26); Xcode 16.4 has Swift 6.1. Pick the newest Xcode 26.
+        run: |
+          x="$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)"
+          if [ -z "$x" ]; then echo "no Xcode 26 on this runner:"; ls -d /Applications/Xcode*.app; exit 1; fi
+          sudo xcode-select -s "$x"
+      - name: Swift version
+        run: swift --version
+      - name: Package tests
+        run: swift test 2>&1 | tail -80
+      - name: Hygiene gate
+        run: scripts/hygiene-gate.sh
+      - name: Install xcodegen
+        run: brew install xcodegen
+      - name: Build app
+        run: |
+          if [ -f project.yml ]; then
+            xcodegen generate
+            xcodebuild -quiet -project Zones.xcodeproj -scheme Zones -configuration Debug CODE_SIGN_IDENTITY=- CODE_SIGNING_ALLOWED=NO build 2>&1 | tail -80
+          else
+            echo "no project.yml yet"
+          fi

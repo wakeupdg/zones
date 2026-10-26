@@ -1,0 +1,81 @@
+name: Zones
+options:
+  bundleIdPrefix: dev.zones
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+packages:
+  Zones:
+    path: .
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
+targets:
+  Zones:
+    type: application
+    platform: macOS
+    sources:
+      - App  # includes AppIcon.icon (XcodeGen 2.46 adds it as wrapper.icon) and Assets.xcassets
+    dependencies:
+      - package: Zones
+        product: ZonesCore
+      - package: Zones
+        product: ZonesLayout
+      - package: Zones
+        product: ZonesWindowing
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleName: Zones
+        CFBundleDisplayName: Zones
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        LSUIElement: true
+        LSMinimumSystemVersion: "14.0"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.dganesh.zones
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        CODE_SIGN_ENTITLEMENTS: App/Zones.entitlements
+        ENABLE_HARDENED_RUNTIME: YES
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: "Zones Dev"
+        ENABLE_APP_SANDBOX: NO
+        ENABLE_DEBUG_DYLIB: NO
+      configs:
+        Debug:
+          CODE_SIGN_ENTITLEMENTS: App/Zones.Debug.entitlements
+  AppTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - AppTests
+    dependencies:
+      - target: Zones
+      - package: Zones
+        product: ZonesCore
+      - package: Zones
+        product: ZonesTestSupport
+      - package: Zones
+        product: ZonesLayout
+      - package: Zones
+        product: ZonesWindowing
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.zones.AppTests
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: "Zones Dev"
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  Zones:
+    build:
+      targets:
+        Zones: all
+    test:
+      targets:
+        - AppTests

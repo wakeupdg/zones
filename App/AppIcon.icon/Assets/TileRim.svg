@@ -1,0 +1,6 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 30 px inner rim on each tile of Tiles.svg, #565B62 (DG pick S2). It gives the white glass tiles an edge on the cream
+       body at 16/32 px (32 px tile-vs-body contrast 1.10:1 -> 2.53:1). Shown in light only; icon.json hides it in dark and tinted. -->
+  <path fill-rule="evenodd" d="M578 314H710A33 33 0 0 1 743 347V462A33 33 0 0 1 710 495H578A33 33 0 0 1 545 462V347A33 33 0 0 1 578 314ZM578 344H710A3 3 0 0 1 713 347V462A3 3 0 0 1 710 465H578A3 3 0 0 1 575 462V347A3 3 0 0 1 578 344Z" fill="#565B62"/>
+  <path fill-rule="evenodd" d="M578 528H710A33 33 0 0 1 743 561V677A33 33 0 0 1 710 710H578A33 33 0 0 1 545 677V561A33 33 0 0 1 578 528ZM578 558H710A3 3 0 0 1 713 561V677A3 3 0 0 1 710 680H578A3 3 0 0 1 575 677V561A3 3 0 0 1 578 558Z" fill="#565B62"/>
+</svg>

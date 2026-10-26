@@ -1,0 +1,49 @@
+# SPK-001 witness plan: 1 starting Space + 20 switches. Format: <display index> <expected label>.
+# Display index is the NSScreen index printed in the "Displays" table at run start.
+# Do the action in the comment BEFORE the line it precedes, then switch Spaces on that display with ctrl+arrow.
+# Do not open Mission Control between switches unless the comment says so (extra activeSpaceDidChange events shift the plan).
+# Labels starting FS: are full-screen Spaces (no witness is created there; the probe must detect them).
+#
+# step 0: start on Desktop 1
+0 Desktop 1
+# step 1: SPACE CREATION: open Mission Control, add Desktop 2, switch to it
+0 Desktop 2
+# step 2
+0 Desktop 1
+# step 3
+0 Desktop 2
+# step 4: SPACE CREATION: add Desktop 3 in Mission Control, switch to it
+0 Desktop 3
+# step 5
+0 Desktop 1
+# step 6
+0 Desktop 3
+# step 7
+0 Desktop 2
+# step 8: FULL-SCREEN: put Safari full-screen (green button) on this display and switch to it
+0 FS:Safari
+# step 9
+0 Desktop 2
+# step 10
+0 FS:Safari
+# step 11
+0 Desktop 1
+# step 12
+0 Desktop 2
+# step 13: SPACE DELETION: in Mission Control delete Desktop 3 (its windows move to a neighbour), then switch to Desktop 2
+0 Desktop 2
+# step 14
+0 Desktop 1
+# step 15
+0 Desktop 2
+# step 16
+0 Desktop 1
+# step 17: DISPLAY RECONNECT: unplug and replug this display (or toggle it in System Settings > Displays), return to Desktop 1
+#          If the display index changed, edit the remaining lines to the new index.
+0 Desktop 1
+# step 18
+0 Desktop 2
+# step 19
+0 Desktop 1
+# step 20
+0 Desktop 2

@@ -12,9 +12,31 @@ common="$(git -C "$cwd" rev-parse --git-common-dir 2>/dev/null)" || exit 0
 case "$common" in /*) ;; *) common="$cwd/$common";; esac
 main="$(cd "$(dirname "$common")" && pwd)"
 branch="$(git -C "$cwd" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")"
+transcript="$(printf '%s' "$input" | jq -r '.transcript_path // empty')"
+agent_id="$(printf '%s' "$input" | jq -r '.agent_id // .agentId // empty')"
+printf '%s' "$input" | jq -c 'del(.tool_input,.tool_response)' >>"/tmp/zones-hook-debug.jsonl" 2>/dev/null
 id="${ZONES_TICKET_ID:-}"
+# a subagent that ran `scripts/wt.sh add <id>` is that ticket's agent from then on (the hook's cwd never changes)
+if [ -z "$id" ] && [ -n "$agent_id" ]; then
+  mapf="$main/docs/tickets/_subagents/agent-$agent_id.ticket"
+  cmd="$(printf '%s' "$input" | jq -r '.tool_input.command // empty' 2>/dev/null)"
+  t="$(printf '%s' "$cmd" | grep -oE 'wt\.sh (add|path) T[0-9]+[a-z]?' | head -1 | awk '{print $3}')"
+  if [ -n "$t" ]; then mkdir -p "$(dirname "$mapf")"; printf '%s' "$t" >"$mapf"; fi
+  [ -f "$mapf" ] && id="$(cat "$mapf")"
+fi
 if [ -z "$id" ]; then
-  case "$branch" in ticket/*) id="${branch#ticket/}";; *) id="orchestrator";; esac
+  case "$branch" in
+    ticket/*) id="${branch#ticket/}";;
+    *)
+      # a subagent running in the main checkout gets its own log; the orchestrator keeps its own
+      if [ -n "$agent_id" ]; then id="_subagents/agent-$agent_id"
+      else
+        case "$transcript" in
+          */subagents/*) id="_subagents/$(basename "$transcript" .jsonl)";;
+          *) id="orchestrator";;
+        esac
+      fi;;
+  esac
 fi
 dir="$main/docs/tickets/$id"; mkdir -p "$dir"
 log="$dir/spend.log"
@@ -25,7 +47,8 @@ if [ -z "$ceiling" ]; then
   if [ "$id" = "orchestrator" ]; then ceiling=200000; else ceiling=250000; fi
 fi
 graph="$main/docs/tickets/graph.json"
-if [ "$id" != "orchestrator" ] && [ -f "$graph" ]; then
+case "$id" in orchestrator|_subagents/*) graph="";; esac
+if [ -n "$graph" ] && [ -f "$graph" ]; then
   lock="$graph.lock"; i=0
   while ! mkdir "$lock" 2>/dev/null; do i=$((i+1)); [ $i -gt 50 ] && break; sleep 0.1; done
   tmp="$(mktemp)"

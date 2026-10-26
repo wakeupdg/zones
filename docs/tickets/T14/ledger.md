@@ -1,0 +1,12 @@
+- BLOCKED before slice 1: `AppHealth` (Sources/ZonesWindowing/Snap/SnapTypes.swift:29) has only the stored `unresponsiveSince` and no `markUnresponsive`/`isUnresponsive`/`consumeRetry` (its own comment: "methods belong to the health ticket", T15). grep on integration and ticket/T15 finds no `isUnresponsive`. Brief forbids editing AppHealth, so phaseOne's unresponsive row and the slice 1 test cannot compile. Needs T15 merged (or an orchestrator ruling) before T14 starts.
+- Note for resume: AC-144 is manual (Save sheet, popover and Zones Settings show no Overlay on Shift-drag; Calculator snaps position-only at the Zone's top-left); needs a human run, no test.
+- RESOLVED by orchestrator (run 2 end): T15 merged AppHealth.swift with markUnresponsive/isUnresponsive/consumeRetry; T15 added to blocked_by; ticket reset to todo for run 3.
+- slice 1: ExclusionPolicyTests.table (phase one) green — ExclusionPolicy.systemAgents and phaseOne
+- slice 2: ExclusionPolicyTests.table (phase two, reason coverage) green — ExclusionPolicy.phaseTwo
+- slice 3: ExclusionPolicyTests.precedence green — ordering pinned (policy already implemented the order in slices 1-2, so no separate red)
+- slice 4: ExclusionsPaneModelTests.bundleIdentifierKeyed green — rows/add/Row (AC-142)
+- slice 5: ExclusionsPaneModelTests.addFromFileURL green — bundleID(forAppAt:) and add(appAt:to:)
+- slice 6: CGWindowEnumeratorTests.parseKeepsLayerZeroAndNoNames green — CGWindowEnumerator.refs(from:primaryFrame:bundleID:)
+- slice 7: CGWindowEnumeratorTests.hitTestOrder green — CGWindowEnumerator.hitTest
+- slice 8: CGWindowEnumeratorTests.conformsToWindowEnumerator green — CG wrappers onScreenWindows/windows(ids:)/candidates; no live window-server test
+- AC-144 is manual: needs a human run (Save sheet, popover and Zones Settings show no Overlay on Shift-drag; Calculator Snaps position-only at the Zone's top-left); policy implemented, no test.

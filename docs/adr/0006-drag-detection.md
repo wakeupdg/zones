@@ -1,0 +1,3 @@
+# Drag detection: mouse events drive the gesture, AX frame polling confirms a window move
+
+A listen-only CGEvent tap (mouse down, dragged, up, flagsChanged) drives the drag session. The dragged window is taken from the public CGEvent field for the window under the pointer on mouse-down, with a CGWindowList hit test and `AXUIElementCopyElementAtPosition` as fallbacks. A real window move is confirmed by polling the window frame (about 60 Hz) and comparing to the mouse-down frame from the same source. `kAXWindowMovedNotification` fires only at gesture end (research: ax-window-moves.md), so it is used for bookkeeping only. Rejected: AXObserver-only detection (no live preview) and timer polling of the focused window (misses background-window drags).

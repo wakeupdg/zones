@@ -1,0 +1,15 @@
+# STOPPED 51003 at 1:59:53 AM PT
+{"attemptMs":[255.80000000000001,251.09999999999999],"attempts":2,"codes":[-25204],"delta":[],"enhAfter":null,"enhBefore":null,"enhDuring":null,"enhOffCode":null,"enhOnCode":null,"pid":51003,"policy":"toggle","readBack":"nil","restored":true,"result":"timedOut","run":1,"target":"200.0,200.0,500.0,400.0","topLeftAligned":false,"wallMs":758.5}
+| com.apple.TextEdit | toggle | 1 | 0/0/0/1 | 758.5 | 758.5 | 0.0 | absent->absent | yes | frame restored: no | seed: set true -> AXError -25208 (prior false); seed restore -> AXError -25204, now absent | final read: AXError -25204 in 255.0 ms; run set wall 3792 ms |
+# probe rc=0
+# CONT 51003 at 1:59:57 AM PT
+# STOPPED 51003 at 2:00:17 AM PT
+{"attemptMs":[252.40000000000001,253],"attempts":2,"codes":[-25204],"delta":[],"enhAfter":null,"enhBefore":null,"enhDuring":null,"enhOffCode":null,"enhOnCode":null,"pid":51003,"policy":"leave","readBack":"nil","restored":true,"result":"timedOut","run":1,"target":"200.0,200.0,500.0,400.0","topLeftAligned":false,"wallMs":758.20000000000005}
+| com.apple.TextEdit | leave | 1 | 0/0/0/1 | 758.2 | 758.2 | 0.0 | absent->absent | yes | frame restored: no |  | final read: AXError -25204 in 253.3 ms; run set wall 3786 ms |
+# probe rc=0
+# CONT 51003 at 2:00:20 AM PT
+# STOPPED 51003 at 2:00:21 AM PT
+{"attemptMs":[253.80000000000001,255.09999999999999],"attempts":2,"codes":[-25204],"delta":[],"enhAfter":null,"enhBefore":null,"enhDuring":null,"enhOffCode":null,"enhOnCode":null,"pid":51003,"policy":"toggle","readBack":"nil","restored":true,"result":"timedOut","run":1,"target":"200.0,200.0,500.0,400.0","topLeftAligned":false,"wallMs":764}
+| com.apple.TextEdit | toggle | 1 | 0/0/0/1 | 764.0 | 764.0 | 0.0 | absent->absent | yes | frame restored: no |  | final read: AXError -25204 in 255.0 ms; run set wall 3794 ms |
+# probe rc=0
+# CONT 51003 at 2:00:24 AM PT

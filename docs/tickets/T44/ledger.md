@@ -1,0 +1,3 @@
+- slice 1: GateScriptTests.ciPipedStepsUsePipefail green — ci.yml job-level defaults.run.shell: bash
+- slice 2: DocumentTests.mergeAndReplace + importValidatesWholeFile green — each filter runs 1 test (moved to @Suite DocumentTests in ImportDocumentTests.swift)
+- slice 3: AC-161 greps print 1/1; showBuildSettings shows both flags for Zones and AppTests — flags moved to project-level settings.base

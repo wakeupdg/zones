@@ -1,0 +1,1 @@
+Codex and opencode: before your first reply, list every file in `.claude/rules/` with `ls -a` or `find` (not `rg --files`: some are git-ignored `ecosystem-*.md` copies), read each one and follow them. Claude Code and Antigravity load them natively; skip this step there.

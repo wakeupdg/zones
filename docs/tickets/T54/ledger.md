@@ -1,0 +1,3 @@
+- 8:50 AM PT T54 ceiling hit (tokens ~497k > 250k) mid-slice: dmg built (dist/Zones-0.1.0.dmg, sha256 fec98598883d4f8388c994ed710fd2e079c3e5b0409f5e18360aa6343daeeadc), demo GIF rendered (55 frames, 32.7 s, 1620001 B) but not committed; successor card issued.
+- DMG dist/Zones-0.1.0.dmg 2,825,607 B, sha256 fec98598883d4f8388c994ed710fd2e079c3e5b0409f5e18360aa6343daeeadc; hdiutil verify VALID; codesign --verify --deep --strict ok; spctl rejected (ad-hoc, expected); universal x86_64+arm64; copied to main dist/ (untracked)
+- Casks/zones.rb sha256 set; GateScriptTests green; finished by orchestrator after the builder hit its ceiling

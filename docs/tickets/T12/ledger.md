@@ -1,0 +1,11 @@
+- decision: Hit enum already lives in Sources/ZonesLayout/ZonesLayout.swift (earlier ticket); kept there, HitTest.swift will not redeclare it.
+- decision: TemplateTests extents use a 1 px tolerance where the share is not a whole number of points (800/3); Grid.round snaps edges to device pixels.
+- slice 1: TemplateTests.countsShapesAndNames green — Templates.builtInID/generate with column, row, grid, priority and focus trees
+- slice 2: HitTestTests.gapAndMarginAreNearest and displayAtPoint green — HitTest.hit and HitTest.display
+- slice 3: HitTestTests.zoneCentersAreZones green — 200 seeded layouts, zone centers hit their zone, no .none inside the frame (passes on first run; HitTest already complete from slice 2)
+- slice 4: SpanTests.unionIncludesGaps green — Span.rect bounding union, unknown numbers ignored, empty is .zero
+- slice 5: TemplateTests.focusIsOneCenteredZone green — Focus is one leaf, surround 0.2, centered 720x480 zone (passes on first run; generate and HitTest already done)
+- slice 6: LabelModelTests.textScaleAndNoChord green — LabelModel.labels with text, scale, noChord and WCAG black/white outline
+- slice 7: LabelModelTests.outlineContrast green — 500 fills x 3 opacities all at or above 4.5 (passes on first run; outline chosen in slice 6)
+- slice 8: BuiltInLayoutTests.deterministicIdsAndDuplicate green — Templates.all (12, deterministic) and duplicate; built-in encodes without builtIn key
+- slice 9: LayoutValidatorTests.acceptsBuiltInsAndRejectsFaults green — LayoutValidator.validate with name, surround, ratio, leaf-size precedence

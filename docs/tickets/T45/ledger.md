@@ -1,0 +1,4 @@
+- slice 1: HitTestTests.topEdgeBelongsToDisplay green — display(at:) falls back to nearest Display within 8 pt edgeSlack (unbounded fallback broke dropOutsideSnapshotIsNoOp/dimAllNeedsAnOriginalFrame, which need nil for a Display absent from the snapshot)
+- slice 2: DragSessionReducerTests.topEdgeMouseUpSnaps green — top-edge mouse-up snaps to highlighted Zone (on a menu-bar-free Display; the primary menu-bar strip stays outside visibleFrame, hit .none, by design); green from slice 1's fix
+- slice 3: OverlayModelTests.suspendedSecondaryOnSpanDisplay green — Highlight.secondaryDisplay (default nil = display), OverlayModel.apply paints secondary on that panel, SpanLogic sets it to span.display while suspended
+- slice 4: SpanTests.suspendAndResumeAcrossDisplays updated (secondaryDisplay A); ReducerInvariantTests + snapOnlyWithModifierAtMouseUp green; CONTRACTS.md updated; AC-085 manual: needs 3-Display desk sweep

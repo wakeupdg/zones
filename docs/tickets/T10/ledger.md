@@ -1,0 +1,22 @@
+# T10 ledger
+- gap: CGRect flat object and ISO 8601 lastSeen already live in Assignment.swift (T01); SplitNode and Layout Codable already exist in Layout.swift; ZonesDocument decoder treats missing arrays as empty already. Add only what is missing.
+- gap: Log facade has no `event`/`install` yet (diagnostics ticket); DocumentStore takes an optional `LogSink` instead (nil in production until the diagnostics ticket wires Log.shared).
+- gap: FakeFileSystem not in ZonesTestSupport (T02 not merged); local copy at Tests/ZonesCoreTests/LocalFakeFileSystem.swift.
+- decl: new public `AppearancePaneModel.followers(of:in:)` (not in CONTRACTS.md).
+- decl: Preferences.defaults fill/opacity changed to brief values (0.2,0.5,1.0,1.0 / 0.3); T01 test preferencesDefaultsMatchContract updated.
+- slice 1: DocumentTests.codecFieldNames green — encoded(for:) with sorted keys, per-kind top-level keys, v1 golden fixtures written
+- slice 2: DocumentTests.rejectsNonUUIDKey green — PersistentDisplayKey decoder throws nonUUIDKey; document decode validates assignment keys
+- slice 3: DocumentTests.exportRoundTrip green — Migrator.migrate (version sniff, step chain, newer refusal) and DocumentError.message
+- slice 4: DocumentTests.atomicWriteSurvivesFailure green — DocumentStore load/save over FileSystem, FoundationFileSystem, LocalFakeFileSystem
+- slice 5: DocumentTests.corruptFileQuarantined green — quarantine to <stem>.<ts>.corrupt (stem = kind file name without .json), one .notice event via optional LogSink
+- note: backup/quarantine names use the kind stem, e.g. layouts.20261024-170200.bak (kind file name without .json)
+- slice 6: DocumentTests.newerVersionRefusedAndUntouched green — newer disk file left byte-identical with notice, save refuses with .newerVersion
+- slice 7: MigrationTests.goldenFixturesMigrate green — table-driven over layouts/assignments v1..documentVersion
+- slice 8: MigrationTests.migrationWritesBackupFirst green — backup written before migrated file, .migrated(doc, from:, backup:)
+- slice 9: FixtureHashTests green — SHA-256 table over goldens, highest fixture equals Constants.documentVersion (mutation-checked red)
+- slice 10: PreferencesTests.modifiersMustDiffer green — Preferences.coerced() keeps Activation, Span becomes control (shift when Activation is control), flag only on change
+- slice 11: PreferencesTests.fieldByFieldCoercion green — PreferencesCodec decode/encode, Preferences.defaultShortcuts, defaults per brief (fill 0.2/0.5/1.0, opacity 0.3)
+- note: non-object blob returns exactly Preferences.defaults with ["*"] (no notice flag added); missing fields default silently, present-but-invalid are reported; action field names are case names, sendToZone as sendToZone<N>
+- slice 12: PreferencesTests.appearanceRoundTrip green — 200 seeded Appearance values round-trip bit-exact; opacity outside 0...1 or non-finite coerces to default ["appearance.opacity"]
+- note: JSONSerialization write path rounded doubles (…457 -> …46); PreferencesCodec decodes with JSONDecoder via lenient wrappers. Migrator only re-serializes through JSONSerialization when a step runs (version below current); future steps with fractional doubles should be checked.
+- slice 13: AppearancePaneModelTests.listsFollowers green — AppearancePaneModel.followers(of:in:), built-ins always follow, input order kept

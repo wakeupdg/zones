@@ -1,0 +1,6 @@
+<svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Figma 36:1220 "Sash · Menu Glyph / 18 pt" (direction B): tall zone left, two stacked outlined zones right. Template image. -->
+  <path d="M7 3C7.82843 3 8.5 3.67157 8.5 4.5V13.5C8.5 14.3284 7.82843 15 7 15H3.5C2.67157 15 2 14.3284 2 13.5V4.5C2 3.67157 2.67157 3 3.5 3H7Z" fill="#000000"/>
+  <path fill-rule="evenodd" clip-rule="evenodd" d="M14.7998 9.5C15.4625 9.5 16 10.0375 16 10.7002V13.7998C16 14.4625 15.4625 15 14.7998 15H11.2002C10.5375 15 10 14.4625 10 13.7998V10.7002C10 10.0375 10.5375 9.5 11.2002 9.5H14.7998ZM11.5 13.5H14.5V11H11.5V13.5Z" fill="#000000"/>
+  <path fill-rule="evenodd" clip-rule="evenodd" d="M14.7998 3C15.4625 3 16 3.53745 16 4.2002V7.2998C16 7.96255 15.4625 8.5 14.7998 8.5H11.2002C10.5375 8.5 10 7.96255 10 7.2998V4.2002C10 3.53745 10.5375 3 11.2002 3H14.7998ZM11.5 7H14.5V4.5H11.5V7Z" fill="#000000"/>
+</svg>

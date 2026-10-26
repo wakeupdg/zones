@@ -1,0 +1,40 @@
+1792900573.173 start pid=3782 trusted=true
+1792900573.176 zones.pids [3448]
+1792900573.228 zones[3448] windows=["Welcome to Zones: 5 texts, help=true"] status="Zones, needs Accessibility access"
+1792900573.322 settings.switches 1
+1792900573.322 toggle on
+1792900590.653 zones.pids []
+1792900623.372 zones.pids [4107]
+1792900623.372 zones[4107] windows=[] status="?"
+1792900623.652 zones[4107] windows=["Welcome to Zones: 4 texts, help=false"] status="Zones, needs Accessibility access"
+1792900633.614 zones[4107] windows=["Welcome to Zones: 5 texts, help=true"] status="Zones, needs Accessibility access"
+1792900646.395 settings.switches stale, rescanning
+1792900646.395 toggle none
+1792900646.538 settings.switches 0
+1792900651.550 settings.switches 1
+1792900651.550 toggle on
+1792900696.606 zones[4107] windows=["Welcome to Zones: 14 texts, help=false"] status="Zones, needs Accessibility access"
+1792900742.664 zones.pids [4107, 4673]
+1792900742.677 zones[4673] windows=[] status="?"
+1792900742.916 zones[4673] windows=[] status="Zones"
+1792900761.378 zones.pids [4107]
+1792900763.393 zones[4107] windows=[] status="?"
+1792900763.453 zones.pids []
+1792900768.430 zones.pids [4835]
+1792900768.430 zones[4835] windows=[] status="?"
+1792900768.845 zones[4835] windows=[] status="Zones, needs Accessibility access"
+1792900768.922 zones[4835] windows=["Welcome to Zones: 4 texts, help=false"] status="Zones, needs Accessibility access"
+1792900778.845 zones[4835] windows=["Welcome to Zones: 5 texts, help=true"] status="Zones, needs Accessibility access"
+1792900923.338 settings.switches stale, rescanning
+1792900923.338 toggle none
+1792900923.471 settings.switches 0
+1792900929.138 zones[4835] windows=[] status="Zones"
+1792900929.530 settings.switches 1
+1792900929.530 toggle on
+1792900993.284 toggle off
+1792900997.124 zones[4835] windows=["Welcome to Zones: 4 texts, help=false"] status="Zones, needs Accessibility access"
+1792901007.122 zones[4835] windows=["Welcome to Zones: 5 texts, help=true"] status="Zones, needs Accessibility access"
+1792901008.581 toggle on
+1792901008.581 sequence off->on seen; 20 s more
+1792901009.128 zones[4835] windows=[] status="Zones"
+1792901028.601 done

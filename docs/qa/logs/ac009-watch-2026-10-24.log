@@ -1,0 +1,10 @@
+1792890363.073 start pid=71540 trusted=true
+1792890363.077 zones.pids [43679, 49252]
+1792890363.113 zones[43679] windows=[] status="Zones"
+1792890363.137 zones[49252] windows=[] status="Zones, needs Accessibility access"
+1792890363.216 settings.switches 1
+1792890363.216 toggle on
+1792890410.217 toggle off
+1792891162.483 toggle on
+1792891162.483 sequence off->on seen; 20 s more
+1792891182.536 done

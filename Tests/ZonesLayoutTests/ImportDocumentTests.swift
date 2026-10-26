@@ -1,0 +1,160 @@
+import CoreGraphics
+import Foundation
+import Testing
+import ZonesCore
+import ZonesTestSupport
+
+@testable import ZonesLayout
+
+private let noSurround = Surround(top: 0, left: 0, bottom: 0, right: 0)
+private let twoUp = SplitNode.split(axis: .horizontal, ratio: 0.5, first: .leaf, second: .leaf)
+private let keyA = "37D8832A-2D66-02CA-B9F7-8F30A301B230"
+private let keyB = "47D8832A-2D66-02CA-B9F7-8F30A301B230"
+private let keyC = "57D8832A-2D66-02CA-B9F7-8F30A301B230"
+
+private func custom(_ id: String, _ name: String, root: SplitNode = twoUp) -> Layout {
+  Layout(
+    id: LayoutID(rawValue: id), name: name, root: root, surround: noSurround, insets: Insets(margin: 3, gap: 5))
+}
+
+private func assignment(_ layout: String) -> Assignment {
+  Assignment(
+    layout: LayoutID(rawValue: layout), displayName: "D", lastVisibleFrame: CGRect(x: 0, y: 0, width: 100, height: 50),
+    lastScale: 2, lastSeen: nil)
+}
+
+// AC-146 / AC-151 Verify filters name DocumentTests.<test>, so these live in a suite of that name.
+@Suite struct DocumentTests {
+  @Test func mergeAndReplace() throws {
+    let idI = LayoutID(rawValue: "I")
+    let current = ZonesDocument(layouts: [custom("I", "Desk")], assignments: [keyA: assignment("I")])
+    let incoming = ZonesDocument(
+      layouts: [custom("N1", "Desk"), custom("I", "Other"), custom("N2", "Desk")],
+      assignments: [keyA: assignment("N1"), keyB: assignment("I"), keyC: assignment("N1")])
+    var issued = 0
+    let fresh: () -> LayoutID = {
+      issued += 1
+      return LayoutID(rawValue: "fresh\(issued)")
+    }
+
+    let merged = ImportExport.importDocument(
+      incoming, into: current, mode: .merge, attached: [keyA], newID: fresh, now: 1_792_000_000)
+    guard case .applied(let doc, let backup, let dormant) = merged else {
+      Issue.record("merge should apply")
+      return
+    }
+    #expect(backup == nil)
+    #expect(doc.version == Constants.documentVersion)
+    #expect(doc.layouts.first == current.layouts[0])
+    #expect(doc.layouts.map(\.id.rawValue) == ["I", "N1", "fresh1", "N2"])
+    #expect(doc.layouts.map(\.name) == ["Desk", "Desk 2", "Other", "Desk 3"])
+    #expect(issued == 1)
+    #expect(doc.assignments[keyA]?.layout == idI)
+    #expect(doc.assignments[keyB]?.layout.rawValue == "fresh1")
+    #expect(doc.assignments[keyC]?.layout.rawValue == "N1")
+    #expect(dormant == [keyB, keyC])
+
+    // A key that is attached is not dormant.
+    guard
+      case .applied(_, _, let none) = ImportExport.importDocument(
+        incoming, into: current, mode: .merge, attached: [keyA, keyB, keyC], newID: fresh, now: 0)
+    else {
+      Issue.record("merge should apply")
+      return
+    }
+    #expect(none.isEmpty)
+
+    // Replace: incoming wins whole; the backup name carries the same stamp DocumentStore uses.
+    let fs = FakeFileSystem()
+    let dir = URL(filePath: "/zones")
+    let store = DocumentStore(fs: fs, directory: dir, clock: FakeClock())
+    try store.save(ZonesDocument(layouts: current.layouts), as: .layouts)
+    try store.save(ZonesDocument(assignments: current.assignments), as: .assignments)
+    let oldLayouts = try #require(fs.files[dir.appending(path: "layouts.json")])
+    let oldAssignments = try #require(fs.files[dir.appending(path: "assignments.json")])
+
+    let now: TimeInterval = 1_792_000_000
+    let replaced = ImportExport.importDocument(
+      incoming, into: current, mode: .replace, attached: [keyA], newID: fresh, now: now)
+    guard case .applied(let swapped, let backupName?, let dormantAfter) = replaced else {
+      Issue.record("replace should apply with a backup")
+      return
+    }
+    #expect(swapped == incoming)
+    #expect(dormantAfter == [keyB, keyC])
+    let stamp = store.backupName(.layouts, now: now).dropFirst("layouts.".count).dropLast(".bak".count)
+    #expect(backupName.contains(stamp))
+    #expect(stamp.count == "yyyyMMdd-HHmmss".count)
+
+    // The caller writes both backups, then swaps both documents.
+    try fs.writeAtomic(oldLayouts, to: dir.appending(path: store.backupName(.layouts, now: now)))
+    try fs.writeAtomic(oldAssignments, to: dir.appending(path: store.backupName(.assignments, now: now)))
+    try store.save(ZonesDocument(layouts: swapped.layouts), as: .layouts)
+    try store.save(ZonesDocument(assignments: swapped.assignments), as: .assignments)
+
+    let writes = fs.calls.compactMap { call -> String? in
+      if case .writeAtomic(let url, _) = call { url.lastPathComponent } else { nil }
+    }
+    let backupAt = try #require(writes.firstIndex { $0.hasSuffix(".bak") })
+    #expect(writes.lastIndex { $0.hasSuffix(".bak") }! < writes.lastIndex(of: "layouts.json")!)
+    #expect(backupAt >= 2)
+    #expect(fs.files[dir.appending(path: store.backupName(.layouts, now: now))] == oldLayouts)
+    #expect(fs.files[dir.appending(path: store.backupName(.assignments, now: now))] == oldAssignments)
+    guard case .loaded(let layoutsDoc) = store.load(.layouts), case .loaded(let assignmentsDoc) = store.load(.assignments)
+    else {
+      Issue.record("both documents should load")
+      return
+    }
+    #expect(layoutsDoc.layouts == incoming.layouts)
+    #expect(assignmentsDoc.assignments == incoming.assignments)
+  }
+
+  @Test func importValidatesWholeFile() throws {
+    let ratioOne = SplitNode.split(axis: .horizontal, ratio: 1.0, first: .leaf, second: .leaf)
+    let tiny = SplitNode.split(axis: .horizontal, ratio: 0.05, first: .leaf, second: .leaf)
+    let overlapping = SplitNode.split(axis: .horizontal, ratio: 1.5, first: .leaf, second: .leaf)
+    let bad: [(String, Layout, LayoutFault)] = [
+      ("ratio", custom("X1", "Bad ratio", root: ratioOne), .ratioOutOfRange(NodePath(steps: []))),
+      ("overlap", custom("X4", "Bad overlap", root: overlapping), .overlap),
+      ("small", custom("X2", "Bad small", root: tiny), .leafTooSmall(NodePath(steps: [false]))),
+      (
+        "surround",
+        Layout(
+          id: LayoutID(rawValue: "X3"), name: "Bad surround", root: twoUp,
+          surround: Surround(top: 0.6, left: 0, bottom: 0, right: 0), insets: Insets(margin: 1, gap: 1)),
+        .surroundOutOfRange
+      ),
+    ]
+    let current = ZonesDocument(layouts: [custom("C", "Mine")], assignments: [keyA: assignment("C")])
+    for (label, layout, fault) in bad {
+      let incoming = ZonesDocument(layouts: [custom("G1", "Good one"), custom("G2", "Good two"), layout])
+      for mode in [ImportMode.merge, .replace] {
+        let result = ImportExport.importDocument(
+          incoming, into: current, mode: mode, attached: [], newID: { LayoutID(rawValue: "fresh") }, now: 0)
+        #expect(result == .refused(.invalidLayout(name: layout.name, fault)), "\(label) \(mode)")
+      }
+    }
+
+    // Two bad Layouts: the first in array order is named.
+    let twoBad = ZonesDocument(layouts: [
+      custom("G", "Good"), custom("X1", "First bad", root: ratioOne), custom("X2", "Second bad", root: tiny),
+    ])
+    let named = ImportExport.importDocument(
+      twoBad, into: current, mode: .merge, attached: [], newID: { LayoutID(rawValue: "fresh") }, now: 0)
+    #expect(named == .refused(.invalidLayout(name: "First bad", .ratioOutOfRange(NodePath(steps: [])))))
+
+    // Refused means nothing is written: both disk documents keep their bytes.
+    let fs = FakeFileSystem()
+    let dir = URL(filePath: "/zones")
+    let store = DocumentStore(fs: fs, directory: dir, clock: FakeClock())
+    try store.save(ZonesDocument(layouts: current.layouts), as: .layouts)
+    try store.save(ZonesDocument(assignments: current.assignments), as: .assignments)
+    let before = fs.files
+    let writesBefore = fs.calls.count
+    let result = ImportExport.importDocument(
+      twoBad, into: current, mode: .replace, attached: [], newID: { LayoutID(rawValue: "fresh") }, now: 1)
+    if case .applied = result { Issue.record("should be refused") }
+    #expect(fs.files == before)
+    #expect(fs.calls.count == writesBefore)
+  }
+}

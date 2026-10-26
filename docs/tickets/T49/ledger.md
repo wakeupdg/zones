@@ -1,0 +1,1 @@
+- slice 1: EditorAccessibilityTests.messagesAreAnnounced green — EditorToolbarView.show(message:) posts .announcementRequested (high priority) via a postAnnouncement seam; controller refresh no longer re-announces

@@ -20,9 +20,12 @@ dups="$(printf '%s\n' "$ids" | sort | uniq -d)"
 for id in $ids; do
   state="$(jq -r --arg id "$id" '.[] | select(.id==$id) | .state' "$graph" | head -1)"
   br="ticket/$id"
-  has_branch=0; git rev-parse --verify -q "$br" >/dev/null && has_branch=1
+  # a fresh clone has only origin/ticket/<id>; accept it as the branch
+  has_branch=0; ref="$br"
+  if git rev-parse --verify -q "$br" >/dev/null; then has_branch=1
+  elif git rev-parse --verify -q "origin/$br" >/dev/null; then has_branch=1; ref="origin/$br"; fi
   in_wt=0; printf '%s\n' "$wt_branches" | grep -qx "$br" && in_wt=1
-  merged=0; [ $has_branch -eq 1 ] && git merge-base --is-ancestor "$br" integration 2>/dev/null && merged=1
+  merged=0; [ $has_branch -eq 1 ] && git merge-base --is-ancestor "$ref" integration 2>/dev/null && merged=1
   # blockers must exist
   for b in $(jq -r --arg id "$id" '.[] | select(.id==$id) | .blocked_by[]?' "$graph"); do
     printf '%s\n' "$ids" | grep -qx "$b" || say "$id blocked_by unknown ticket $b"

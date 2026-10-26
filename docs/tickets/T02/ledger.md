@@ -1,0 +1,13 @@
+T02 started
+- slice 1: GeneratorTests.failureMessageNamesSeed green — Generator.failureMessage now embeds String(describing: layout); Generator and FakeClock already existed from T01
+- slice 2: FakeContractTests.windowSystem green — FakeWindowSystem plus shared ResponseQueue/CallRecorder/StreamBox helpers (latency via FakeClock .frameSample timers; calls vs completed)
+- slice 3: FakeContractTests.windowEnumerator green — FakeWindowEnumerator (FIFO lists per method, candidates logged with hint, latency, reset); tests qualify ZonesCore.WindowRef because ApplicationServices has a WindowRef too
+- slice 4: FakeContractTests.inputSource green — FakeInputSource (start/reenable/recreate queues, emit event and signal, streams finish on reset)
+- slice 5: FakeContractTests.displayProvider green — FakeDisplayProvider (snapshot queue repeats last, emit(change) on changes, latency, reset)
+- slice 6: FakeContractTests.overlayPresenter green — FakeOverlayPresenter (@MainActor recorder, isShown, latency, reset; no queue since methods return nothing)
+- slice 7: FakeContractTests.hotkeyRegistrar green — FakeHotkeyRegistrar (@MainActor; .registered binds the chord, .inUse/.invalid do not; press(_:) on presses)
+- slice 8: FakeContractTests.loginItemService green — FakeLoginItemService (@MainActor; scripted status, typed-throw register/unregister, tracked status)
+- slice 9: FakeContractTests.permissionProbe green — FakePermissionProbe (isTrusted queue then last answer holds, settable launchedAtLogin, openAccessibilitySettings logged)
+- slice 10: FakeContractTests.fileSystem green — FakeFileSystem (in-memory, atomic writeAtomic, failAfterBytes diskFull, scripted .error, notFound, init defaults its own FakeClock)
+- slice 11: FakeContractTests.arrayLogSink green — ArrayLogSink (lock-guarded events, enqueue preload, calls; Log.shared.install(sink:) does not exist yet so that sub-case is skipped)
+- review fix AC-165: failureMessageNamesSeed was a free @Test so 'swift test --filter GeneratorTests.failureMessageNamesSeed' ran 0 tests (vacuous pass); wrapped in @Suite struct GeneratorTests, filter now runs 1 test

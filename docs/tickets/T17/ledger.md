@@ -1,0 +1,9 @@
+- slice 1: AssignmentLookupTests.unknownDisplayGetsPriorityGrid green — AssignmentLookup.layoutID (session, persisted, Priority Grid default)
+- slice 2: AssignmentLookupTests.sessionOverridesPersisted green — already satisfied by slice 1 implementation (test added, no new code)
+- slice 3: LayoutStoreTests.defaultsApplyToBuiltInsOnly green — LayoutStore init/builtIns/custom/layout(_:)/setDefaults/document (builtIns and custom are private(set))
+- slice 4: LayoutStoreTests.upsertAddsAndReplaces green — LayoutStore.upsert (ignores built-in id or builtIn non-nil)
+- slice 5: LayoutStoreTests.deleteAssignedRequiresReplacement green — LayoutStore.delete transactional; also deleteUnassignedAndBuiltInRules; any bad replacement fails even when unassigned
+- slice 6: AssignmentLookupTests.dormantAppliesOnArrival green — already satisfied by AssignmentLookup (test added, no new code)
+- slice 7: ImportExportTests.exportAllAndOne green — ImportExport.export (built-in/unknown only: id => empty layouts; assignments filtered by id regardless)
+- slice 8: ImportExportTests.mergeAndReplace green — importDocument Merge/Replace/dormant; deviation: Replace backup string is "zones.<yyyyMMdd-HHmmss>.bak" (stamp formatter duplicated privately, DocumentStore.stampedName is internal to ZonesCore)
+- slice 9: ImportExportTests.importValidatesWholeFile green — validate all layouts first in both modes; note LayoutValidator never yields .overlap (a split tree tiles), so the overlap variant is covered by surroundOutOfRange/ratio/leafTooSmall only
