@@ -145,7 +145,7 @@ AC-168 (release checklist) is not in this group. It uses results from all groups
   2. Tell Claude "start CPU". Then do not touch the Mac for 10 minutes.
 - **Pass if (Claude measures the Zones CPU time over the 10 minutes):**
   - [ ] The Zones average CPU is less than 1 percent.
-- Result: deferred (DG, 2026-10-25, 9:36 PM PT): run later with Desktop Commander while DG is asleep, with full permissions and access.
+- Result: deferred (DG, 2026-10-25, 9:31 PM PT): run later with Desktop Commander while DG is asleep, with full permissions and access.
 
 ## If an AC fails
 Write what you saw in the Result line. Then tell Claude, and Claude makes a fix ticket.
