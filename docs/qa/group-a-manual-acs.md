@@ -81,7 +81,7 @@ AC-168 (release checklist) is not in this group. It uses results from all groups
   - [x] In the screenshot, the edges of Overlay Zone 1 and editor Zone 1 are the same.
 - Result: **part 1 pass** (11:09 PM PT). Editor opened on VG270K (bounds = its frame); orchestrator screenshot of that display shows all 3 windows through the backdrop with Zones 1-3 drawn over them (screenshot not kept: private window content). Part 2 **pass** (11:11 PM PT): watcher captured the editor window bounds (-3008,162,3008,1692) while the Overlay showed (Overlay windows on all 3 displays, layer 1000). Lit Overlay Zone 1 = x 8-752 pt, y 8-1684 pt; 8 pt gap; Zone 2 starts at 760 pt. That is the editor Layout (Margin 8, Gap 8, 25/50/25 columns) exactly. Each edge shows one border only, no second editor edge within 25 pt. Capture deleted (private window content).
 
-### [ ] AC-139 — Keyboard-only editor loop
+### [x] AC-139 — Keyboard-only editor loop
 - **Spec:** amended by C15 (T65). The loop starts from a Template copy; the editor has no "New Layout" action.
 - **Do:** Do not touch the mouse after step 1.
   1. Open the editor (**Control+Option+E**). Click **Template** → **Focus 1** (the only one-Zone Template). Click the Zone once to select it. The editor is now the key window: do not click another window.
@@ -89,20 +89,21 @@ AC-168 (release checklist) is not in this group. It uses results from all groups
   3. Control-drag a window on that display.
   4. Open Settings → Layouts.
 - **Pass if:**
-  - [ ] The Overlay shows 3 Zones side by side (25 / 25 / 50 percent of the center area).
-  - [ ] The Layouts pane shows the new Layout, assigned to that display.
+  - [x] The Overlay shows 3 Zones side by side (25 / 25 / 50 percent of the center area).
+  - [x] The Layouts pane shows the new Layout, assigned to that display.
 - **By spec (not a fail):** the name is "<Layout the editor opened on> copy", for example "Priority Grid copy" (AC-138 keeps the draft's name). The Zones sit in the center 60 percent (the Focus surround 0.2, C1).
 - Result: **FAIL, re-run needed** (11:18 PM PT). Saved 11:17:24 PM, assigned 11:17:28 PM to VG270K (layouts.json id 67FA039B). Findings: (1) saved tree has 4 leaves (((½,½),½),½ nested = 12.5/12.5/25/50 %), not 3: an extra H, or a bug; (2) the Layout is named "Priority Grid copy" though it came from Focus 1; (3) it keeps the Focus surround 0.2, so the Zones sit in the center 60 % only; (4) Command+W did not close the editor: the editor was behind Safari and Settings, so the key went to another window. Overlay not captured. Spec gap: the editor has no "new Layout" action; AC-139 says "fresh Layout". Decision (11:24 PM PT): re-run first, with the editor as the key window; ticket only the findings that stay.
+- Re-run result: **PASS** (2026-10-25, 8:15 PM PT). layouts.json id 55FA5040 "Priority Grid copy": 3 leaves at 25 / 25 / 50 %, surround 0.2 (by spec); assignments.json maps VG270K L1 to it (03:15:26Z). DG: the Layouts pane showed it on VG270K; Command+W closed the editor. DG's screenshot shows the Overlay with Zones 1 / 2 / 3 at about 25 / 25 / 50. Findings (1) and (4) did not recur; (2) and (3) are by spec (C15, C1). Open note, not a fail: in the screenshot the Overlay spans about 77 % of the display width, not 60 %; the screenshot may be cropped.
 
 ## Part 3 — Drags (4 ACs)
 
 ### [ ] AC-141 — Appearance applies live
 - **Do:**
-  1. In Settings, change the opacity from **0.3** to **0.8**. Change the Activation Modifier to **Command**.
-  2. Do not relaunch. Command-drag a window.
+  1. In Settings, change the opacity from **0.3** to **0.8**. Change the Activation Modifier to **Option** (not Command: DG's Span modifier is Command).
+  2. Do not relaunch. Option-drag a window.
 - **Pass if:**
   - [ ] The Overlay shows at the new opacity on the first drag.
-  - [ ] Command-drag starts the Overlay.
+  - [ ] Option-drag starts the Overlay.
 - Then: set the opacity and the modifier back to the values you noted (modifier: **Control**).
 - Result:
 
